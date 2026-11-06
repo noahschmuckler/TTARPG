@@ -288,6 +288,25 @@ function defenseGroups(state, ch) {
   return [...groups.values()];
 }
 
+// ---------------------------------------------------------------- foe scaling
+// Expected party damage in one round against a foe with `armor`%:
+// each die hits on 4+ (1/2), a 6 (1/6) crits; ×1.2 for powers and buffs.
+export const POWER_FACTOR = 1.2;
+export function partyDamagePerRound(state, armor = 0) {
+  let total = 0;
+  for (const id of state.order) {
+    const s = derive(state.characters[id]);
+    total += s.dice * s.damage * (2 / 6 + s.critMult / 6);
+  }
+  return Math.round(total * (1 - armor / 100) * POWER_FACTOR);
+}
+// Health that makes a foe last about `rounds` rounds against the current party.
+export function scaledHealth(state, rounds = 4, armor = 0) {
+  const dpr = partyDamagePerRound(state, armor);
+  return Math.max(2000, Math.round(dpr * rounds / 500) * 500);
+}
+export const SCALE_DEFAULT_ROUNDS = { elite: 2, boss: 4 };
+
 export function engagedWith(state, charId) {
   return Object.values(state.enemies).filter(e => e.target === charId);
 }
@@ -341,7 +360,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy']);
+const GM_ONLY = new Set(['moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -515,17 +534,30 @@ export function apply(state, a, rng = Math.random) {
       case 'spawn': {
         const T = ENEMY_TYPES[a.etype] || ENEMY_TYPES.minion;
         const n = Math.max(1, Math.min(Number(a.count) || 1, 30));
-        const hp = Number(a.hp) || T.hp;
+        const armor = a.armor != null && a.armor !== '' ? Math.max(0, Math.min(90, Number(a.armor) || 0)) : T.armor;
+        const scale = a.etype !== 'minion' && Number(a.scale) > 0 && state.order.length ? Math.min(Number(a.scale), 20) : 0;
+        const hp = scale ? scaledHealth(state, scale, armor) : Number(a.hp) || T.hp;
         for (let i = 0; i < n; i++) {
-          const e = { id: uid(rng), type: a.etype in ENEMY_TYPES ? a.etype : 'minion', name: a.name || T.label, hp, maxHp: hp, armor: a.armor != null && a.armor !== '' ? Math.max(0, Math.min(90, Number(a.armor) || 0)) : T.armor, damage: Number(a.damage) || T.damage, attacks: Number(a.attacks) || T.attacks, ability: a.ability ? String(a.ability).slice(0, 140) : '', target: a.target || null };
+          const e = { id: uid(rng), type: a.etype in ENEMY_TYPES ? a.etype : 'minion', name: a.name || T.label, hp, maxHp: hp, armor, ...(scale ? { scaleRounds: scale } : {}), damage: Number(a.damage) || T.damage, attacks: Number(a.attacks) || T.attacks, ability: a.ability ? String(a.ability).slice(0, 140) : '', target: a.target || null };
           state.enemies[e.id] = e;
         }
         const who = a.target && state.characters[a.target] ? ` upon ${state.characters[a.target].name}` : '';
-        log(state, `${n} ${a.name || T.label}${n > 1 ? 's' : ''} emerge${n > 1 ? '' : 's'}${who}!`, 'spawn');
+        log(state, `${n} ${a.name || T.label}${n > 1 ? 's' : ''} emerge${n > 1 ? '' : 's'}${who}!${scale ? ` (${fmt(hp)} health, scaled to the party)` : ''}`, 'spawn');
         ev.push({ type: 'spawn', target: a.target, count: n });
         break;
       }
       case 'removeEnemy': delete state.enemies[a.enemyId]; break;
+      case 'rescaleEnemy': { // re-fit a living foe to the party as it is now, keeping its health %
+        const e = state.enemies[a.enemyId];
+        if (!e) throw new Error('That foe is gone');
+        const rounds = Math.min(Number(a.rounds) || e.scaleRounds || SCALE_DEFAULT_ROUNDS[e.type] || 4, 20);
+        const frac = e.hp / e.maxHp;
+        e.maxHp = scaledHealth(state, rounds, e.armor || 0);
+        e.hp = Math.max(1, Math.round(e.maxHp * frac));
+        e.scaleRounds = rounds;
+        log(state, `${e.name} rises to meet the party: ${fmt(e.hp)} / ${fmt(e.maxHp)} health.`, 'spawn');
+        break;
+      }
       case 'editEnemy': {
         const e = state.enemies[a.enemyId];
         if (!e) break;

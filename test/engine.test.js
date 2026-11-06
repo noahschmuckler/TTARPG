@@ -218,3 +218,25 @@ test('planner honours a featured-set count and pinned sets', () => {
   assert.equal(Object.keys(cnt).length, 5);
   assert.equal(Object.values(cnt).filter(n => n === 4).length, 4);
 });
+
+import { partyDamagePerRound, scaledHealth } from '../public/engine.js';
+
+test('scaled bosses fit the party and grow with its gear', () => {
+  const s = newGame('BOSS');
+  for (const [n, c] of [['A', 'ironclad'], ['B', 'arcanist'], ['C', 'ranger']]) apply(s, { type: 'createCharacter', name: n, cls: c });
+  // fresh party: 840 + 867 + 960 = 2,667 raw/round, ×0.65 armor ×1.2 powers ≈ 2,080
+  assert.equal(partyDamagePerRound(s, 35), 2080);
+  apply(s, { type: 'spawn', etype: 'boss', name: 'Thane', scale: 4 });
+  const boss = Object.values(s.enemies)[0];
+  assert.equal(boss.maxHp, 8500);
+  // gear the party up, damage the boss to half, rescale: health % is kept
+  for (const id of s.order) for (const slot of ['weapon', 'gloves']) { const it = makeItem('legendary', Math.random, slot, 1.75); s.characters[id].bag.push(it); apply(s, { type: 'equip', charId: id, itemId: it.id }); }
+  boss.hp = boss.maxHp / 2;
+  apply(s, { type: 'rescaleEnemy', enemyId: boss.id });
+  assert.ok(boss.maxHp > 8500);
+  assert.equal(boss.maxHp, scaledHealth(s, 4, 35));
+  assert.ok(Math.abs(boss.hp / boss.maxHp - 0.5) < 0.01);
+  // unscaled spawns are untouched
+  apply(s, { type: 'spawn', etype: 'boss', name: 'Plain' });
+  assert.equal(Object.values(s.enemies).find(e => e.name === 'Plain').maxHp, 9000);
+});

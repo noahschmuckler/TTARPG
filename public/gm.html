@@ -70,7 +70,7 @@
 <body>
 <div id="root"></div>
 <script type="module">
-import { CLASSES, ENEMY_TYPES, SLOTS, SLOT_LABEL, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES } from './engine.js';
+import { CLASSES, ENEMY_TYPES, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES } from './engine.js';
 import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML, setsHTML } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
@@ -78,7 +78,7 @@ if (!room) location.href = './';
 localStorage.setItem('dl.lastRoom', room);
 let pin = localStorage.getItem('dl.pin') || '';
 let S = null, online = false, net = null;
-const spawnCfg = { etype: 'minion', count: 3, target: '', name: '', hp: '', armor: '', attacks: '', damage: '', ability: '' };
+const spawnCfg = { etype: 'minion', count: 3, target: '', name: '', hp: '', armor: '', attacks: '', damage: '', ability: '', scale: true, rounds: '' };
 
 function gate(msg) {
   $('#root').innerHTML = `<div class="plate gate"><h2 class="carved" style="color:var(--brass-hi);margin:0">Game ${esc(room)}</h2><p class="dim">${esc(msg || 'Enter your GM PIN')}</p>
@@ -121,6 +121,7 @@ function render() {
     $('#heroes').innerHTML = S.order.length ? S.order.map(id => heroCard(S.characters[id])).join('') :
       `<div class="plate dim empty"><div class="carved" style="font-size:22px;color:var(--brass-hi)">No heroes yet</div><p class="dim">Show the join code to your players. Each forges a hero on their phone.</p><button class="btn solid" data-a="qr">Show join code</button></div>`;
     $('#spawn').innerHTML = spawnPanel();
+    scalePreview();
     $('#roam').innerHTML = roamPanel();
     if (gearOpen) gearOpen.el.querySelector('#gearbody').innerHTML = gearBody(gearOpen.id);
     $('#log').innerHTML = S.log.slice(0, 60).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join('');
@@ -201,7 +202,9 @@ function spawnPanel() {
     <div><label class="lbl">Type</label><select class="field sm" data-cfg="etype">${Object.entries(ENEMY_TYPES).map(([k, t]) => `<option value="${k}" ${k === spawnCfg.etype ? 'selected' : ''}>${t.label}</option>`).join('')}</select></div>
     <div><label class="lbl">Count</label><input class="field sm" data-cfg="count" data-keep="cfg-count" inputmode="numeric" value="${spawnCfg.count}"></div>
     <div style="grid-column:span 2"><label class="lbl">Name</label><input class="field sm" data-cfg="name" data-keep="cfg-name" placeholder="${T.label}" value="${esc(spawnCfg.name)}"></div>
-    <div><label class="lbl">Health</label><input class="field sm" data-cfg="hp" data-keep="cfg-hp" inputmode="numeric" placeholder="${fmt(T.hp)}" value="${spawnCfg.hp}"></div>
+    ${spawnCfg.etype !== 'minion' ? `<div style="grid-column:span 2" class="scalebox"><label class="row" style="gap:8px;cursor:pointer"><input type="checkbox" data-cfgc="scale" ${spawnCfg.scale ? 'checked' : ''}> <span>Scale health to the party</span></label>
+      ${spawnCfg.scale ? `<div class="row" style="margin-top:6px;gap:8px"><span class="dim" style="font-size:14px">Last about</span><input class="field sm" data-cfg="rounds" data-keep="cfg-rounds" inputmode="numeric" placeholder="${SCALE_DEFAULT_ROUNDS[spawnCfg.etype]}" value="${spawnCfg.rounds}" style="width:60px"><span class="dim" style="font-size:14px">rounds</span></div><div class="faint" id="scalePreview" style="font-size:13px;margin-top:4px"></div>` : ''}</div>` : ''}
+    ${spawnCfg.etype === 'minion' || !spawnCfg.scale ? `<div><label class="lbl">Health</label><input class="field sm" data-cfg="hp" data-keep="cfg-hp" inputmode="numeric" placeholder="${fmt(T.hp)}" value="${spawnCfg.hp}"></div>` : ''}
     <div><label class="lbl">Armor %</label><input class="field sm" data-cfg="armor" data-keep="cfg-armor" inputmode="numeric" placeholder="${T.armor}%" value="${spawnCfg.armor}"></div>
     <div><label class="lbl">Attacks</label><input class="field sm" data-cfg="attacks" data-keep="cfg-attacks" inputmode="numeric" placeholder="${T.attacks}" value="${spawnCfg.attacks}"></div>
     <div><label class="lbl">Damage / blow</label><input class="field sm" data-cfg="damage" data-keep="cfg-damage" inputmode="numeric" placeholder="${fmt(T.damage)}" value="${spawnCfg.damage}"></div>
@@ -218,7 +221,7 @@ function roamPanel() {
   const roaming = all.filter(e => e.type === 'minion' && !e.target).length;
   return `<p class="dim" style="margin:0 0 6px">${minionCount} minion${minionCount === 1 ? '' : 's'} tracked.</p>
     ${roaming ? `<div class="foechips" style="margin-bottom:6px"><span class="fchip">☠ ×${roaming} roaming<button data-a="moveM" data-id="" title="Assign to a hero">⇄</button></span></div>` : ''}
-    ${bigs.map(e => `<div class="foe-row"><div class="row"><span class="nm grow">${esc(e.name)}</span><span class="faint" style="font-size:12px">${ENEMY_TYPES[e.type].label} · ⛨${e.armor || 0}% · ⚔${e.attacks || 1}×${fmt(e.damage)}</span><button class="mini" data-a="rmFoe" data-e="${e.id}">✕</button></div>
+    ${bigs.map(e => `<div class="foe-row"><div class="row"><span class="nm grow">${esc(e.name)}</span><span class="faint" style="font-size:12px">${ENEMY_TYPES[e.type].label} · ⛨${e.armor || 0}% · ⚔${e.attacks || 1}×${fmt(e.damage)}</span><button class="mini" data-a="rescale" data-e="${e.id}" title="Re-fit health to the party as it is now (keeps its health %)">⟳ Rescale</button><button class="mini" data-a="rmFoe" data-e="${e.id}">✕</button></div>
       ${bar('foe', e.hp, e.maxHp, `${fmt(e.hp)} / ${fmt(e.maxHp)}`)}${e.ability ? `<div style="font-size:12px;color:#ffcfa8;margin-top:4px">✦ ${esc(e.ability)}</div>` : ''}
       <div class="ctl"><select class="field sm grow" data-move="${e.id}" style="min-height:32px"><option value="">Roaming</option>${S.order.map(id => `<option value="${id}" ${e.target === id ? 'selected' : ''}>→ ${esc(S.characters[id].name)}</option>`).join('')}</select>
       <input class="numin" data-keep="edmg-${e.id}" inputmode="numeric" placeholder="dmg"><button class="mini hurt" data-a="dmgFoe" data-e="${e.id}">−</button></div></div>`).join('')}
@@ -233,9 +236,22 @@ function hitCustom(id) {
   if (n > 0) { act({ type: 'hurt', charId: id, amount: n }); i.value = ''; }
 }
 
+function scalePreview() {
+  const el = $('#scalePreview');
+  if (!el) return;
+  if (!S.order.length) { el.textContent = 'No heroes yet: default health will be used.'; return; }
+  const T = ENEMY_TYPES[spawnCfg.etype];
+  const armorIn = document.querySelector('[data-keep="cfg-armor"]')?.value;
+  const armor = armorIn ? num(armorIn) ?? T.armor : T.armor;
+  const rounds = num(document.querySelector('[data-keep="cfg-rounds"]')?.value) || SCALE_DEFAULT_ROUNDS[spawnCfg.etype];
+  el.textContent = `≈ ${fmt(scaledHealth(S, rounds, armor))} health · the party deals ~${fmt(partyDamagePerRound(S, armor))} a round to it`;
+}
+document.addEventListener('input', e => { if (e.target.dataset.keep === 'cfg-rounds' || e.target.dataset.keep === 'cfg-armor') scalePreview(); });
+
 function onChange(e) {
+  if (e.target.dataset.cfgc === 'scale') { document.querySelectorAll('[data-cfg]').forEach(i => spawnCfg[i.dataset.cfg] = i.value); spawnCfg.scale = e.target.checked; return render(); }
   const c = e.target.dataset.cfg;
-  if (c) { spawnCfg[c] = e.target.value; if (c === 'etype') { spawnCfg.hp = spawnCfg.armor = spawnCfg.attacks = spawnCfg.damage = spawnCfg.name = spawnCfg.ability = ''; render(); } return; }
+  if (c) { spawnCfg[c] = e.target.value; if (c === 'etype') { spawnCfg.hp = spawnCfg.armor = spawnCfg.attacks = spawnCfg.damage = spawnCfg.name = spawnCfg.ability = spawnCfg.rounds = ''; render(); } return; }
   const mv = e.target.dataset.move;
   if (mv) act({ type: 'moveEnemy', enemyId: mv, target: e.target.value || null });
 }
@@ -261,12 +277,14 @@ function onClick(e) {
     case 'rmMinion': { const m = engagedWith(S, id).find(f => f.type === 'minion'); if (m) act({ type: 'removeEnemy', enemyId: m.id }); return; }
     case 'clearOn': return act({ type: 'clearEnemies', target: id });
     case 'rmFoe': return act({ type: 'removeEnemy', enemyId: b.dataset.e });
+    case 'rescale': return act({ type: 'rescaleEnemy', enemyId: b.dataset.e });
     case 'clearAll': return act({ type: 'clearEnemies' });
     case 'dmgFoe': { const i = document.querySelector(`[data-keep="edmg-${b.dataset.e}"]`); const v = Number(i.value.replace(/[^\d]/g, '')); if (v) { act({ type: 'damageEnemy', enemyId: b.dataset.e, amount: v }); i.value = ''; } return; }
     case 'loot': return act({ type: 'giveLoot', charId: id, rarity: b.dataset.r });
     case 'spawn': {
       document.querySelectorAll('[data-cfg]').forEach(i => spawnCfg[i.dataset.cfg] = i.value);
-      return act({ type: 'spawn', etype: spawnCfg.etype, count: Number(spawnCfg.count) || 1, target: spawnCfg.target || null, name: spawnCfg.name || undefined, hp: num(spawnCfg.hp), armor: spawnCfg.armor === '' ? undefined : num(spawnCfg.armor) ?? 0, attacks: num(spawnCfg.attacks), damage: num(spawnCfg.damage), ability: spawnCfg.ability || undefined });
+      const scale = spawnCfg.etype !== 'minion' && spawnCfg.scale ? (num(spawnCfg.rounds) || SCALE_DEFAULT_ROUNDS[spawnCfg.etype]) : undefined;
+      return act({ type: 'spawn', scale, etype: spawnCfg.etype, count: Number(spawnCfg.count) || 1, target: spawnCfg.target || null, name: spawnCfg.name || undefined, hp: num(spawnCfg.hp), armor: spawnCfg.armor === '' ? undefined : num(spawnCfg.armor) ?? 0, attacks: num(spawnCfg.attacks), damage: num(spawnCfg.damage), ability: spawnCfg.ability || undefined });
     }
     case 'edit': return editSheet(id);
     case 'gear': return gearSheet(id);
