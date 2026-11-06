@@ -1,0 +1,23 @@
+{
+  "name": "delvers-ledger",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Phone-first hero sheets and GM headquarters for a tabletop dungeon crawl.",
+  "scripts": {
+    "start": "node server/node.js",
+    "dev": "node --watch server/node.js",
+    "test": "node --test test/*.test.js",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

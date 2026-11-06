@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0c0a">
+<title>Delvers' Ledger</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .hero { text-align: center; padding: 40px 0 10px; position: relative; overflow: hidden; }
+  .hero .sunburst { inset: -80% -40%; opacity: .7; }
+  .hero h1 { position: relative; margin: 0; font-family: var(--display); font-weight: 900; font-size: 58px; line-height: .9; letter-spacing: .08em; text-transform: uppercase;
+    background: var(--brass-grad); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 0 #000); }
+  .hero .sub { position: relative; font-family: var(--carved); color: var(--ink-dim); letter-spacing: .3em; text-transform: uppercase; font-size: 13px; margin-top: 10px; }
+  .code { text-transform: uppercase; letter-spacing: .5em; text-align: center; font-family: var(--display); font-weight: 900; font-size: 34px !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero"><div class="sunburst"></div><h1>Delvers'<br>Ledger</h1><div class="sub">Hall of Heroes</div></div>
+
+  <div class="rule"><span class="gem"></span>Join the Delve<span class="gem"></span></div>
+  <div class="plate">
+    <label class="lbl" for="code">Game code</label>
+    <input id="code" class="field code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="····">
+    <div style="height:12px"></div>
+    <button class="btn solid block" id="join">Enter</button>
+  </div>
+
+  <div class="rule"><span class="gem"></span>Game Master<span class="gem"></span></div>
+  <div class="plate dim">
+    <label class="lbl" for="pin">GM PIN (you choose it)</label>
+    <input id="pin" class="field" type="password" inputmode="numeric" placeholder="e.g. 1234">
+    <div style="height:12px"></div>
+    <div class="row">
+      <button class="btn grow" id="create">New game</button>
+      <button class="btn grow" id="resume">Open game</button>
+    </div>
+    <p class="faint" style="font-size:14px;margin:12px 0 0">“Open game” uses the code typed above.</p>
+  </div>
+</div>
+<script type="module">
+  import { $, toast } from './ui.js';
+  const code = $('#code'), pin = $('#pin');
+  code.value = localStorage.getItem('dl.lastRoom') || '';
+  pin.value = localStorage.getItem('dl.pin') || '';
+  const C = () => code.value.trim().toUpperCase();
+  async function exists(c) { return (await fetch(`/api/rooms/${c}`)).ok; }
+  $('#join').onclick = async () => {
+    if (!/^[A-Z]{4}$/.test(C())) return toast('Codes are four letters', 'err');
+    if (!await exists(C())) return toast('No game with that code', 'err');
+    location.href = `play.html?room=${C()}`;
+  };
+  code.addEventListener('keydown', e => { if (e.key === 'Enter') $('#join').click(); });
+  $('#create').onclick = async () => {
+    const r = await fetch('/api/rooms', { method: 'POST', body: JSON.stringify({ pin: pin.value }) });
+    const j = await r.json();
+    if (!r.ok) return toast(j.error, 'err');
+    localStorage.setItem('dl.pin', pin.value);
+    location.href = `gm.html?room=${j.code}`;
+  };
+  $('#resume').onclick = async () => {
+    if (!await exists(C())) return toast('No game with that code', 'err');
+    localStorage.setItem('dl.pin', pin.value);
+    location.href = `gm.html?room=${C()}`;
+  };
+</script>
+</body>
+</html>

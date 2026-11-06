@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0d0c0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Delvers' Ledger · Hero</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .top { display: flex; align-items: center; gap: 12px; }
+  .crest { --c: 0px; width: 48px; height: 48px; flex: none; display: grid; place-items: center; font-size: 24px; color: var(--brass-hi);
+    background: var(--brass-grad); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); position: relative; isolation: isolate; }
+  .crest::before { content: ''; position: absolute; inset: 2px; z-index: -1; clip-path: inherit; background: radial-gradient(circle, #2f281a, #0f0d09); }
+  .top .name { font-family: var(--carved); font-weight: 800; font-size: 22px; line-height: 1.05; color: var(--brass-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .top .cls { font-family: var(--display); font-weight: 600; letter-spacing: .18em; text-transform: uppercase; font-size: 12px; color: var(--ink-dim); }
+  .round { text-align: center; line-height: 1; }
+  .round b { display: block; font-family: var(--display); font-weight: 900; font-size: 26px; color: var(--brass-hi); }
+  .round small { font-family: var(--display); letter-spacing: .2em; font-size: 10px; color: var(--ink-dim); text-transform: uppercase; }
+
+  /* Orbs */
+  .orbs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 18px 0 6px; }
+  .orbwrap { text-align: center; }
+  .bezel { position: relative; width: min(100%, 176px); aspect-ratio: 1; margin: 0 auto; padding: 9px; isolation: isolate;
+    background: var(--brass-grad);
+    clip-path: polygon(29% 0, 71% 0, 100% 29%, 100% 71%, 71% 100%, 29% 100%, 0 71%, 0 29%); }
+  .bezel::before { content: ''; position: absolute; inset: 3px; z-index: -1; clip-path: inherit;
+    background: repeating-conic-gradient(from -4deg, #2b2417 0 8deg, #15120c 8deg 15deg); }
+  .orb { position: relative; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: #070605;
+    box-shadow: inset 0 0 0 2px var(--brass-lo), inset 0 0 22px #000; }
+  .liquid { position: absolute; left: 0; right: 0; bottom: 0; height: 50%; transition: height .6s cubic-bezier(.2,.8,.2,1); }
+  .liquid::before { content: ''; position: absolute; left: -10%; right: -10%; top: -7px; height: 14px; border-radius: 50%; background: inherit; filter: brightness(1.35); opacity: .9; }
+  .hp .liquid { background: radial-gradient(circle at 50% 120%, #ff6b77, #c4293a 45%, #5c0e18 100%); }
+  .en .liquid { background: radial-gradient(circle at 50% 120%, #b4fff7, #2fb9ab 45%, #0a3a36 100%); }
+  .orb .glass { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 32% 26%, rgba(255,255,255,.35), transparent 28%), radial-gradient(circle at 50% 50%, transparent 55%, rgba(0,0,0,.55)); pointer-events: none; }
+  .orb .val { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-shadow: 0 2px 3px #000, 0 0 10px #000; }
+  .orb .val b { font-family: var(--display); font-weight: 900; font-size: clamp(30px, 10vw, 44px); line-height: 1; }
+  .orb .val small { font-family: var(--display); font-weight: 600; font-size: 14px; letter-spacing: .06em; color: #ddd3bb; }
+  .orbwrap .lab { margin-top: 6px; font-family: var(--display); font-weight: 800; letter-spacing: .26em; text-transform: uppercase; font-size: 13px; color: var(--ink-dim); }
+  .ward { position: absolute; z-index: 2; left: 50%; bottom: -2px; transform: translateX(-50%); padding: 2px 10px; background: #e7e2d6; color: #1b1912;
+    font-family: var(--display); font-weight: 900; font-size: 13px; letter-spacing: .08em; clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%); }
+  .down .orb { filter: grayscale(1) brightness(.6); }
+
+  .buff { margin-top: 12px; text-align: center; padding: 10px; --plate-bg: #12261f; color: #c9fff6; font-weight: 600; }
+  .attack { width: 100%; min-height: 76px; font-size: 24px; margin-top: 14px; --c: 18px; }
+  .attack .dice { display: inline-flex; gap: 4px; }
+  .die { width: 18px; height: 18px; border-radius: 4px; background: #1b150a; display: inline-block; position: relative; }
+  .die::after { content: ''; position: absolute; inset: 0; margin: auto; width: 5px; height: 5px; border-radius: 50%; background: var(--brass-hi); }
+
+  .foes { display: flex; flex-wrap: wrap; gap: 10px; }
+  .minion { width: 58px; height: 58px; border: 0; position: relative; isolation: isolate; display: grid; place-items: center;
+    background: linear-gradient(160deg, #e98f53, #6e3818); clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+    font-size: 24px; color: #ffd9bf; transition: transform .1s; }
+  .minion::before { content: ''; position: absolute; inset: 2px; z-index: -1; clip-path: inherit; background: radial-gradient(circle, #3b1f10, #170b05); }
+  .minion:active { transform: scale(.86); }
+  .minion.dying { animation: die .35s forwards; }
+  @keyframes die { to { transform: scale(1.6) rotate(30deg); opacity: 0; } }
+  .bigfoe { width: 100%; padding: 12px 14px; --plate-bg: #1f130b; }
+  .bigfoe .nm { font-family: var(--carved); font-weight: 800; color: #ffb27d; font-size: 18px; }
+
+  .tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+  .powers { display: grid; gap: 10px; }
+  .power { text-align: left; border: 0; padding: 12px 14px; --plate-bg: var(--basalt); width: 100%; }
+  .power .pn { font-family: var(--carved); font-weight: 800; font-size: 18px; color: var(--ink-dim); }
+  .power .pt { font-size: 14px; color: var(--ink-faint); margin: 2px 0 8px; }
+  .power .cost { font-family: var(--display); font-weight: 900; font-size: 22px; color: var(--ink-faint); }
+  .power .bar { height: 10px; }
+  .power.ready { --plate-bg: #10241f; animation: glow 1.8s ease-in-out infinite; }
+  .power.ready .pn { color: #c9fff6; } .power.ready .pt { color: var(--ink-dim); } .power.ready .cost { color: var(--aether); }
+  @keyframes glow { 50% { filter: drop-shadow(0 0 10px rgba(79,209,197,.55)); } }
+
+  .gear { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .slot { aspect-ratio: 1; border: 1px solid var(--line); background: var(--basalt); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px; text-align: center;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+  .slot .sl { font-family: var(--display); letter-spacing: .12em; text-transform: uppercase; font-size: 10px; color: var(--ink-faint); }
+  .slot .sn { font-family: var(--carved); font-weight: 800; font-size: 11px; line-height: 1.1; color: var(--rc, var(--ink-faint)); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+  .slot.filled { border-color: var(--rc); background: radial-gradient(circle, color-mix(in srgb, var(--rc) 18%, transparent), var(--basalt)); }
+  .bag { display: grid; gap: 8px; margin-top: 10px; }
+  .bag button { border: 0; padding: 0; background: none; text-align: left; width: 100%; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 18px; font-size: 15px; }
+  .stats div { display: flex; justify-content: space-between; border-bottom: 1px solid #2a2519; padding: 5px 0; }
+  .stats b { font-family: var(--display); font-weight: 800; font-size: 17px; }
+  .log { font-size: 14px; color: var(--ink-dim); }
+  .log div { padding: 5px 0; border-bottom: 1px solid #221e15; }
+  .log .kill { color: #ffcfa8; } .log .loot { color: var(--r-rare); } .log .hurt { color: #ff9ca4; } .log .ability { color: #aef7ee; } .log .round { color: var(--brass); text-align: center; }
+
+  /* Attack sheet */
+  .pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; }
+  .pick button { height: 62px; border: 1px solid var(--line); background: var(--obsidian); font-family: var(--display); font-weight: 900; font-size: 28px;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+  .pick button.on { background: var(--brass); color: #1b150a; border-color: var(--brass-hi); }
+  .targets { display: flex; flex-wrap: wrap; gap: 8px; }
+  .instr { font-size: 19px; margin: 14px 0 10px; }
+  .instr b { color: var(--brass-hi); font-family: var(--display); font-size: 24px; }
+
+  .classes { display: grid; gap: 10px; }
+  .cls-card { text-align: left; border: 0; width: 100%; padding: 12px 14px; --plate-bg: var(--basalt); }
+  .cls-card.on { --plate-bg: #2c2514; }
+  .cls-card .cn { font-family: var(--carved); font-weight: 800; font-size: 20px; color: var(--brass-hi); }
+  .cls-card .ab { font-size: 13px; color: var(--ink-dim); margin-top: 4px; }
+
+  .reveal { position: fixed; inset: 0; z-index: 90; background: rgba(5,4,3,.92); display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 20px; overflow: hidden; animation: fade .3s; }
+  .reveal .sunburst { inset: -60%; opacity: 1; }
+  .reveal .card { position: relative; width: 100%; max-width: 380px; animation: pop .6s; }
+  .reveal .hdr { position: relative; font-family: var(--display); font-weight: 900; letter-spacing: .3em; text-transform: uppercase; color: var(--rc); font-size: 22px; margin-bottom: 14px; text-shadow: 0 0 18px var(--rc); }
+  .reveal .acts { position: relative; display: flex; gap: 10px; width: 100%; max-width: 380px; margin-top: 16px; }
+  .shake { animation: shake .4s; }
+  @keyframes shake { 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><p class="center dim" style="margin-top:40vh">Opening the ledger…</p></div>
+<script type="module">
+import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, derive, engagedWith, fmt } from './engine.js';
+import { $, h, esc, params, connect, toast, burst, sheet, itemHTML } from './ui.js';
+
+const room = (params.get('room') || '').toUpperCase();
+if (!room) location.href = './';
+localStorage.setItem('dl.lastRoom', room);
+const KEY = `dl.char.${room}`;
+let me = params.get('as') || localStorage.getItem(KEY);
+let S = null, online = false, lastLog = 0;
+let pendingClaim = params.get('claim');
+let built = false;
+
+const net = connect({
+  room, role: 'player',
+  onState: st => { S = st; render(); tryClaim(); },
+  onEvents: evs => evs.forEach(onEvent),
+  onStatus: on => { online = on; const d = $('.conn'); if (d) d.classList.toggle('on', on); },
+});
+const act = a => net.act(a);
+
+function tryClaim() {
+  if (!pendingClaim || !S || !S.characters[me]) return;
+  const card = pendingClaim; pendingClaim = null;
+  history.replaceState(null, '', `play.html?room=${room}`);
+  act({ type: 'claimLoot', charId: me, card }).catch(() => {});
+}
+
+// ---------------------------------------------------------- events
+function onEvent(e) {
+  const mine = e.charId === me;
+  const who = S?.characters[e.charId]?.name || 'Someone';
+  if (e.type === 'kills' && mine) burst(e.kills ? `${e.kills} slain` : 'Miss', e.energy ? `+${e.energy} energy` : '', e.kills ? '' : 'hurt');
+  else if (e.type === 'strike' && mine) burst(e.slain ? 'Felled!' : fmt(e.damage), e.slain ? `${e.enemyName} · +${e.energy} energy` : `damage to ${e.enemyName}`);
+  else if (e.type === 'hurt' && mine) {
+    burst(`−${fmt(e.net)}`, [e.blocked && `${fmt(e.blocked)} blocked`, e.warded && `${fmt(e.warded)} warded`].filter(Boolean).join(' · '), 'hurt');
+    document.body.classList.remove('shake'); void document.body.offsetWidth; document.body.classList.add('shake');
+  }
+  else if (e.type === 'heal' && mine) burst(`+${fmt(e.amount)}`, 'health restored', 'energy');
+  else if (e.type === 'loot' && mine) reveal(e.item);
+  else if (e.type === 'ability' && !mine) toast(`${who} unleashes ${e.name}`);
+  else if (e.type === 'ability' && mine) burst(e.name, 'unleashed', 'energy');
+  else if (e.type === 'round') toast(`Round ${e.round} — your energy surges`);
+  else if (e.type === 'spawn' && e.target === me) toast('Foes close in on you!', 'err');
+}
+
+// ---------------------------------------------------------- choose hero
+function existingHTML() {
+  const free = S.order.map(id => S.characters[id]);
+  return free.length ? `<p class="dim center">Already in the party? Tap your hero.</p>
+      <div class="classes">${free.map(c => `<button class="plate cls-card" data-claim="${c.id}"><div class="cn">${esc(c.name)}</div><div class="ab">${CLASSES[c.cls].name} · ${CLASSES[c.cls].role}</div></button>`).join('')}</div>
+      <div class="rule"><span class="gem"></span>Or forge a new hero<span class="gem"></span></div>` : `<h2 class="carved center" style="color:var(--brass-hi);margin:24px 0 6px">Forge your hero</h2>`;
+}
+function chooser() {
+  if ($('#chooser')) { $('#ex').innerHTML = existingHTML(); return; }
+  built = false;
+  let cls = 'ironclad';
+  const app = $('#app');
+  app.innerHTML = `<div id="chooser">
+    <div class="rule"><span class="gem"></span>Game ${esc(room)}<span class="gem"></span></div>
+    <div id="ex">${existingHTML()}</div>
+    <label class="lbl" for="nm">Hero name</label>
+    <input id="nm" class="field" maxlength="24" placeholder="e.g. Brokk Ironbeard" autocomplete="off">
+    <label class="lbl">Calling</label>
+    <div class="classes" id="cl"></div>
+    <div style="height:14px"></div>
+    <button class="btn solid block attack" id="go">Enter the delve</button></div>`;
+  const drawClasses = () => {
+    $('#cl').innerHTML = Object.entries(CLASSES).map(([k, C]) => `
+      <button class="plate cls-card ${k === cls ? 'on' : ''}" data-cls="${k}">
+        <div class="row"><div class="cn grow">${C.glyph} ${C.name}</div><span class="faint" style="font-size:13px">${C.role}</span></div>
+        <div class="ab">Health ${fmt(C.base.maxHp)} · Armor ${C.base.armor}% · <b style="color:var(--brass)">${C.base.dice} dice</b> · Hit ${fmt(C.base.damage)}</div>
+        ${k === cls ? `<div class="ab">${C.abilities.map(a => `<b>${a.name}</b> — ${a.text}`).join('<br>')}</div>` : ''}
+      </button>`).join('');
+  };
+  drawClasses();
+  app.onclick = async e => {
+    const c = e.target.closest('[data-cls]');
+    if (c) { cls = c.dataset.cls; drawClasses(); return; }
+    const cl = e.target.closest('[data-claim]');
+    if (cl) { me = cl.dataset.claim; localStorage.setItem(KEY, me); app.onclick = null; render(); tryClaim(); return; }
+    if (e.target.closest('#go')) {
+      const name = $('#nm').value.trim();
+      if (!name) return toast('Name your hero', 'err');
+      const r = await act({ type: 'createCharacter', name, cls });
+      me = r.charId; localStorage.setItem(KEY, me); app.onclick = null; render(); tryClaim();
+    }
+  };
+}
+
+// ---------------------------------------------------------- main sheet
+function skeleton() {
+  $('#app').innerHTML = `
+    <div class="top">
+      <div class="crest" id="crest"></div>
+      <div class="grow"><div class="name" id="nm"></div><div class="cls" id="cls"></div></div>
+      <div class="round"><b id="rnd"></b><small>Round</small></div>
+      <div class="conn ${online ? 'on' : ''}" title="connection"></div>
+    </div>
+    <div class="orbs">
+      <div class="orbwrap hp" id="hpw"><div class="bezel"><div class="orb"><div class="liquid" id="hpl"></div><div class="glass"></div><div class="val"><b id="hpv"></b><small id="hpm"></small></div></div><div class="ward hidden" id="ward"></div></div><div class="lab">Health</div></div>
+      <div class="orbwrap en"><div class="bezel"><div class="orb"><div class="liquid" id="enl"></div><div class="glass"></div><div class="val"><b id="env"></b><small id="enm"></small></div></div></div><div class="lab">Energy</div></div>
+    </div>
+    <div id="buff"></div>
+    <button class="btn solid attack" id="atk"></button>
+    <div id="foes"></div>
+    <div class="rule"><span class="gem"></span>Powers<span class="gem"></span></div>
+    <div class="powers" id="powers"></div>
+    <div class="rule"><span class="gem"></span>Gear<span class="gem"></span></div>
+    <div class="gear" id="gear"></div>
+    <div class="bag" id="bag"></div>
+    <div class="row" style="margin-top:10px"><input class="field grow" id="claimCode" placeholder="Treasure code" maxlength="6" style="text-transform:uppercase"><button class="btn sm" id="claimBtn">Claim</button></div>
+    <div class="rule"><span class="gem"></span>Attributes<span class="gem"></span></div>
+    <div class="stats" id="stats"></div>
+    <div class="rule"><span class="gem"></span>Chronicle<span class="gem"></span></div>
+    <div class="log" id="log"></div>
+    <div style="height:24px"></div>
+    <button class="btn sm block" id="switch">Switch hero</button>`;
+  built = true;
+  const app = $('#app');
+  app.onclick = e => {
+    const t = e.target;
+    if (t.closest('#atk')) return attackSheet();
+    const m = t.closest('.minion');
+    if (m) { m.classList.add('dying'); return act({ type: 'tapKill', charId: me, enemyId: m.dataset.id }).catch(() => m.classList.remove('dying')); }
+    const big = t.closest('[data-foe]');
+    if (big) return attackSheet(big.dataset.foe);
+    const q = t.closest('[data-qk]');
+    if (q) return act({ type: 'quickKill', charId: me, n: Number(q.dataset.qk) });
+    const p = t.closest('[data-power]');
+    if (p) return powerSheet(p.dataset.power);
+    const sl = t.closest('[data-slot]');
+    if (sl) return slotSheet(sl.dataset.slot);
+    const b = t.closest('[data-bag]');
+    if (b) return bagSheet(b.dataset.bag);
+    if (t.closest('#claimBtn')) { const v = $('#claimCode').value.trim(); if (v) act({ type: 'claimLoot', charId: me, card: v }).then(() => $('#claimCode').value = '').catch(() => {}); return; }
+    if (t.closest('#switch')) { localStorage.removeItem(KEY); me = null; render(); }
+  };
+}
+
+function render() {
+  if (!S) return;
+  const ch = S.characters[me];
+  if (!ch) { if (me && params.get('as')) toast('That hero no longer exists', 'err'); return chooser(); }
+  if (!built) skeleton();
+  const C = CLASSES[ch.cls], s = derive(ch);
+  document.title = `${ch.name} · Delvers' Ledger`;
+  $('#crest').textContent = C.glyph;
+  $('#nm').textContent = ch.name;
+  $('#cls').textContent = `${C.name} · ${fmt(ch.kills)} slain`;
+  $('#rnd').textContent = S.round;
+  $('#hpl').style.height = `${(ch.hp / s.maxHp) * 100}%`;
+  $('#hpv').textContent = fmt(ch.hp);
+  $('#hpm').textContent = `/ ${fmt(s.maxHp)}`;
+  $('#hpw').classList.toggle('down', ch.hp <= 0);
+  $('#ward').classList.toggle('hidden', !ch.ward);
+  $('#ward').textContent = `⛨ ${fmt(ch.ward)}`;
+  $('#enl').style.height = `${(ch.energy / s.maxEnergy) * 100}%`;
+  $('#env').textContent = fmt(ch.energy);
+  $('#enm').textContent = `/ ${fmt(s.maxEnergy)}`;
+
+  $('#buff').innerHTML = ch.buffs.label ? `<div class="plate buff">⚡ ${esc(ch.buffs.label)} primed${ch.buffs.bonusDice ? ` · +${ch.buffs.bonusDice} dice` : ''}${ch.buffs.damageMult > 1 ? ` · ×${ch.buffs.damageMult} damage` : ''}</div>` : '';
+  const atk = $('#atk');
+  atk.disabled = ch.hp <= 0;
+  atk.innerHTML = ch.hp <= 0 ? 'Fallen — await healing' : `Attack · roll ${s.pool} <span class="dice">${'<i class="die"></i>'.repeat(Math.min(s.pool, 8))}</span>`;
+
+  // foes
+  const foes = engagedWith(S, me);
+  const minions = foes.filter(f => f.type === 'minion');
+  const bigs = foes.filter(f => f.type !== 'minion');
+  const others = Object.values(S.enemies).filter(e => e.type !== 'minion' && e.target !== me);
+  $('#foes').innerHTML = `
+    <div class="rule"><span class="gem"></span>${foes.length ? 'Foes upon you' : 'Tally kills'}<span class="gem"></span></div>
+    ${minions.length ? `<p class="faint center" style="margin:0 0 10px;font-size:14px">Tap a minion to slay it</p><div class="foes">${minions.map(m => `<button class="minion" data-id="${m.id}" aria-label="${esc(m.name)}">☠</button>`).join('')}</div>` : ''}
+    ${[...bigs, ...others].map(b => `<div class="plate bigfoe" data-foe="${b.id}" style="margin-top:10px"><div class="row"><div class="nm grow">${esc(b.name)}</div><span class="faint" style="font-size:13px">${b.target === me ? 'on you' : b.target ? 'on ' + esc(S.characters[b.target]?.name || '?') : 'roaming'} · hits on ${b.hitOn}+</span></div><div class="bar foe" style="margin-top:8px"><i style="width:${(b.hp / b.maxHp) * 100}%"></i><span>${fmt(b.hp)} / ${fmt(b.maxHp)}</span></div></div>`).join('')}
+    ${!minions.length ? `<div class="tally" style="margin-top:10px">${[1, 2, 3].map(n => `<button class="btn" data-qk="${n}">+${n} slain</button>`).join('')}</div>` : ''}`;
+
+  $('#powers').innerHTML = C.abilities.map(a => {
+    const ready = ch.energy >= a.cost && ch.hp > 0;
+    return `<button class="plate power ${ready ? 'ready' : ''}" data-power="${a.key}"><div class="row"><div class="grow"><div class="pn">${a.name}</div><div class="pt">${a.text}</div></div><div class="cost">${a.cost}</div></div><div class="bar en"><i style="width:${Math.min(100, ch.energy / a.cost * 100)}%"></i></div></button>`;
+  }).join('');
+
+  $('#gear').innerHTML = SLOTS.map(sl => {
+    const it = ch.gear[sl];
+    return `<button class="slot ${it ? 'filled r-' + it.rarity : ''}" data-slot="${sl}"><span class="sl">${SLOT_LABEL[sl]}</span><span class="sn">${it ? esc(it.name) : '—'}</span></button>`;
+  }).join('') + `<div class="slot" style="border-style:dashed"><span class="sl">Satchel</span><span class="num" style="font-size:22px;color:var(--brass)">${ch.bag.length}</span></div>`;
+  $('#bag').innerHTML = ch.bag.length ? ch.bag.map(it => `<button data-bag="${it.id}">${itemHTML(it)}</button>`).join('') : '';
+
+  const rows = [['Health', fmt(s.maxHp)], ['Armor', `${s.armor}%`], ['Attack dice', s.dice], ['Damage / hit', fmt(s.damage)], ['Crit (on 6)', `×${s.critMult}`], ['Cleave', s.cleave], ['Energy / kill', s.energyPerKill], ['Energy / round', s.energyPerRound]];
+  $('#stats').innerHTML = rows.map(([k, v]) => `<div><span class="dim">${k}</span><b>${v}</b></div>`).join('');
+  $('#log').innerHTML = S.log.slice(0, 8).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join('');
+}
+
+// ---------------------------------------------------------- attack flow
+function attackSheet(preTarget) {
+  const ch = S.characters[me], s = derive(ch);
+  if (ch.hp <= 0) return;
+  const foes = engagedWith(S, me);
+  const minions = foes.filter(f => f.type === 'minion');
+  const bigs = Object.values(S.enemies).filter(e => e.type !== 'minion').sort((a, b) => (b.target === me) - (a.target === me));
+  const targets = [{ id: 'minions', name: minions.length ? `Minions (${minions.length})` : 'Minions', hitOn: minions.length ? Math.min(...minions.map(m => m.hitOn)) : 4, big: false },
+    ...bigs.map(b => ({ id: b.id, name: b.name, hitOn: b.hitOn, big: true }))];
+  let target = targets.find(t => t.id === preTarget) || (bigs.find(b => b.target === me) && !minions.length ? targets[1] : targets[0]);
+  let hits = null, sixes = 0;
+  const { el, close } = sheet('<div id="as"></div>');
+  const draw = () => {
+    const needSix = hits > 0 && (target.big || s.cleave > 0);
+    el.querySelector('#as').innerHTML = `
+      <h2>Attack</h2>
+      ${targets.length > 1 ? `<div class="targets" style="margin-top:10px">${targets.map(t => `<button class="chip ${t.id === target.id ? 'on' : ''}" data-t="${t.id}">${esc(t.name)}</button>`).join('')}</div>` : ''}
+      <div class="instr">Roll <b>${s.pool}</b> dice. How many show <b>${target.hitOn}+</b>?</div>
+      <div class="pick" id="hits">${Array.from({ length: s.pool + 1 }, (_, i) => `<button class="${hits === i ? 'on' : ''}" data-h="${i}">${i}</button>`).join('')}</div>
+      ${needSix ? `<div class="instr">Of those, how many are <b>6</b>? <span class="faint" style="font-size:14px">${target.big ? `crits deal ×${s.critMult}` : `each 6 cleaves +${s.cleave}`}</span></div>
+        <div class="pick" id="six">${Array.from({ length: hits + 1 }, (_, i) => `<button class="${sixes === i ? 'on' : ''}" data-s="${i}">${i}</button>`).join('')}</div>` : ''}
+      <div style="height:16px"></div>
+      <button class="btn solid block attack" id="strike" ${hits === null ? 'disabled' : ''}>${hits === 0 ? 'A miss' : 'Strike!'}</button>`;
+  };
+  draw();
+  el.addEventListener('click', e => {
+    const t = e.target.closest('[data-t]'); if (t) { target = targets.find(x => x.id === t.dataset.t); sixes = 0; return draw(); }
+    const hb = e.target.closest('[data-h]'); if (hb) { hits = Number(hb.dataset.h); sixes = Math.min(sixes, hits); return draw(); }
+    const sb = e.target.closest('[data-s]'); if (sb) { sixes = Number(sb.dataset.s); return draw(); }
+    if (e.target.closest('#strike')) { close(); act({ type: 'attack', charId: me, targetId: target.id, hits, sixes }).catch(() => {}); }
+  });
+}
+
+function powerSheet(key) {
+  const ch = S.characters[me];
+  const a = CLASSES[ch.cls].abilities.find(x => x.key === key);
+  const ok = ch.energy >= a.cost && ch.hp > 0;
+  const { el, close } = sheet(`<h2>${a.name}</h2><p class="dim" style="font-size:18px">${a.text}</p>
+    <p class="num" style="font-size:22px;color:${ok ? 'var(--aether)' : 'var(--ink-faint)'}">Costs ${a.cost} energy · you have ${ch.energy}</p>
+    <button class="btn aether block attack" id="use" ${ok ? '' : 'disabled'}>${ok ? 'Unleash' : 'Not enough energy'}</button>`);
+  el.querySelector('#use').onclick = () => { close(); act({ type: 'ability', charId: me, key }).catch(() => {}); };
+}
+
+function compare(it) {
+  const ch = S.characters[me];
+  const cur = ch.gear[it.slot];
+  if (!cur) return `<p class="dim">Your ${SLOT_LABEL[it.slot].toLowerCase()} slot is empty.</p>`;
+  return `<p class="faint" style="margin:14px 0 6px">Currently equipped:</p>${itemHTML(cur)}`;
+}
+
+function bagSheet(id) {
+  const it = S.characters[me].bag.find(x => x.id === id);
+  if (!it) return;
+  const { el, close } = sheet(`${itemHTML(it)}${compare(it)}<div class="row" style="margin-top:16px"><button class="btn solid grow" id="eq">Equip</button><button class="btn danger" id="dc">Discard</button></div>`);
+  el.querySelector('#eq').onclick = () => { close(); act({ type: 'equip', charId: me, itemId: id }).catch(() => {}); };
+  el.querySelector('#dc').onclick = () => { if (confirm(`Discard ${it.name}?`)) { close(); act({ type: 'discard', charId: me, itemId: id }).catch(() => {}); } };
+}
+
+function slotSheet(slot) {
+  const it = S.characters[me].gear[slot];
+  if (!it) return toast(`No ${SLOT_LABEL[slot].toLowerCase()} yet — find some loot!`);
+  const { el, close } = sheet(`${itemHTML(it)}<div style="height:14px"></div><button class="btn block" id="un">Move to satchel</button>`);
+  el.querySelector('#un').onclick = () => { close(); act({ type: 'unequip', charId: me, slot }).catch(() => {}); };
+}
+
+function reveal(it) {
+  const r = h(`<div class="reveal r-${it.rarity}"><div class="sunburst"></div><div class="hdr">${RARITIES[it.rarity].label} find!</div><div class="card">${itemHTML(it)}</div><div class="card" style="animation-delay:.1s">${compare(it)}</div><div class="acts"><button class="btn solid grow" id="eq">Equip now</button><button class="btn grow" id="keep">To satchel</button></div></div>`);
+  document.body.appendChild(r);
+  if (navigator.vibrate) navigator.vibrate([40, 60, 120]);
+  r.querySelector('#eq').onclick = () => { r.remove(); act({ type: 'equip', charId: me, itemId: it.id }).catch(() => {}); };
+  r.querySelector('#keep').onclick = () => r.remove();
+}
+</script>
+</body>
+</html>

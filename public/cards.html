@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delvers' Ledger · Loot Cards</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .tools { max-width: 900px; margin: 0 auto; padding: 16px; }
+  .sheetgrid { display: grid; grid-template-columns: repeat(auto-fill, 2.5in); gap: .15in; justify-content: center; padding: 16px; }
+  .card { width: 2.5in; height: 3.5in; position: relative; isolation: isolate; padding: .14in; display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    background: linear-gradient(160deg, var(--rc), color-mix(in srgb, var(--rc) 35%, #000));
+    clip-path: polygon(.18in 0, calc(100% - .18in) 0, 100% .18in, 100% calc(100% - .18in), calc(100% - .18in) 100%, .18in 100%, 0 calc(100% - .18in), 0 .18in);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; break-inside: avoid; }
+  .card::before { content: ''; position: absolute; inset: 3px; z-index: -1; clip-path: inherit;
+    background: repeating-conic-gradient(from 0deg at 50% 46%, color-mix(in srgb, var(--rc) 22%, #14110b) 0 7deg, #14110b 7deg 15deg); }
+  .card .t { font-family: var(--display); font-weight: 900; letter-spacing: .3em; text-transform: uppercase; color: var(--rc); font-size: 20px; }
+  .card .q { background: #f3ead2; padding: 8px; width: 1.55in; }
+  .card .q svg { display: block; width: 100%; height: auto; }
+  .card .c { font-family: var(--display); font-weight: 900; letter-spacing: .25em; font-size: 22px; color: var(--ink); }
+  .card .r { font-family: var(--carved); font-size: 12px; color: var(--ink-dim); letter-spacing: .2em; text-transform: uppercase; }
+  .card .chev { width: 70%; height: 10px; background: repeating-linear-gradient(90deg, var(--rc) 0 2px, transparent 2px 8px); opacity: .7; }
+  @media print { .tools { display: none; } body { background: #fff; } .sheetgrid { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="tools">
+  <div class="rule"><span class="gem"></span>Treasure cards<span class="gem"></span></div>
+  <p class="dim">Each card is a hidden item. Players scan it with their phone camera (or type the code) and the item appears in their satchel. Each card can be claimed once. Print on card stock and hide them in chests, under minis, or behind doors.</p>
+  <div class="row" style="flex-wrap:wrap">
+    <input class="field" id="n" inputmode="numeric" value="9" style="width:90px">
+    <select class="field" id="r" style="width:200px"><option value="random">Random rarity</option><option value="common">Common</option><option value="magic">Magic</option><option value="rare">Rare</option><option value="legendary">Legendary</option></select>
+    <button class="btn solid" id="make">Forge cards</button>
+    <button class="btn" onclick="print()">Print</button>
+    <label class="dim"><input type="checkbox" id="show" checked> Show rarity on card</label>
+    <button class="btn sm danger" id="clear">Void unclaimed</button>
+  </div>
+  <p class="faint" id="count"></p>
+</div>
+<div class="sheetgrid" id="grid"></div>
+<script type="module">
+import { RARITIES } from './engine.js';
+import { $, params, connect, qrSVG, esc } from './ui.js';
+const room = (params.get('room') || '').toUpperCase();
+const pin = localStorage.getItem('dl.pin') || '';
+let S;
+const net = connect({ room, role: 'gm', pin, onState: st => { S = st; draw(); }, onFatal: m => alert(m + ' — open Headquarters first.') });
+function draw() {
+  const cards = Object.values(S.loot);
+  $('#count').textContent = `${cards.length} unclaimed card${cards.length === 1 ? '' : 's'} in game ${room}.`;
+  const show = $('#show').checked;
+  $('#grid').innerHTML = cards.map(it => `<div class="card r-${show ? it.rarity : 'rare'}">
+    <div class="t">Treasure</div><div class="chev"></div>
+    <div class="q">${qrSVG(`${location.origin}/play.html?room=${room}&claim=${it.card}`, 4)}</div>
+    <div class="c">${esc(it.card)}</div><div class="r">${show ? RARITIES[it.rarity].label : 'Unknown'} · ${room}</div></div>`).join('');
+}
+$('#show').onchange = () => S && draw();
+$('#make').onclick = () => net.act({ type: 'makeLootCards', count: Number($('#n').value) || 1, rarity: $('#r').value });
+$('#clear').onclick = () => confirm('Void all unclaimed cards?') && net.act({ type: 'clearLootCards' });
+</script>
+</body>
+</html>
