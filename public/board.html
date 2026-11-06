@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0c0a">
+<title>Delvers' Ledger · Board</title>
+<link rel="stylesheet" href="app.css">
+<script src="vendor/aruco/cv.js"></script>
+<script src="vendor/aruco/aruco.js"></script>
+<style>
+  .bar-top { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 16px; background: linear-gradient(180deg, #16130d, #0d0c0a); border-bottom: 1px solid var(--brass-lo); }
+  .brand { font-family: var(--display); font-weight: 900; letter-spacing: .14em; text-transform: uppercase; font-size: 20px; background: var(--brass-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .layout { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .panel { padding: 14px; }
+  .panel h3 { margin: 0 0 8px; font-family: var(--display); font-weight: 800; letter-spacing: .2em; text-transform: uppercase; font-size: 14px; color: var(--brass); }
+  .snapbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .opt { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: 15px; }
+  .report { font-size: 14px; margin-top: 10px; }
+  .report .ok { color: var(--ok); } .report .bad { color: #ff9ca4; } .report .warn { color: #ffcf7a; }
+  .report div { padding: 3px 0; }
+  video, #overlay { width: 100%; height: auto; display: block; margin-top: 10px; border: 1px solid var(--line); background: #000; }
+  .mapwrap { padding: 12px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--ink-dim); margin-top: 8px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; margin-right: 5px; vertical-align: -1px; }
+  .busy { position: fixed; inset: 0; z-index: 60; background: rgba(5,4,3,.7); display: grid; place-items: center; font-family: var(--display); font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--brass-hi); font-size: 20px; }
+  .help { font-size: 14px; color: var(--ink-dim); }
+  .help li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="bar-top">
+  <a class="btn sm" id="hq" style="text-decoration:none">← Headquarters</a>
+  <span class="brand">Board</span>
+  <span class="roomcode display" id="code" style="letter-spacing:.3em"></span>
+  <div class="conn"></div>
+  <span class="grow"></span>
+  <a class="btn sm" id="print" style="text-decoration:none" target="_blank">Print markers</a>
+  <a class="btn sm" href="rules.html#board" target="_blank" style="text-decoration:none">Rules</a>
+</div>
+<div class="layout">
+  <div class="side">
+    <div class="plate panel">
+      <h3>Snap the board</h3>
+      <div class="snapbtns">
+        <label class="btn solid" for="file" style="cursor:pointer">📷 Photo</label>
+        <button class="btn" id="cam">🎥 Live camera</button>
+      </div>
+      <input type="file" id="file" accept="image/*" capture="environment" class="hidden">
+      <div id="camBox" class="hidden">
+        <video id="video" playsinline muted></video>
+        <div class="row" style="margin-top:8px"><button class="btn solid grow" id="snap">Snap</button><label class="opt" style="margin:0"><input type="checkbox" id="auto"> every 15 s</label></div>
+      </div>
+      <label class="opt"><input type="checkbox" id="engage" checked> Update who is engaged with whom</label>
+      <label class="opt"><input type="checkbox" id="minions" checked> Minions on the board replace the app's minions</label>
+      <div class="row" style="gap:8px;margin-top:6px"><span class="dim" style="font-size:14px">Board</span>
+        <input class="field sm" id="bw" inputmode="numeric" style="width:64px"><span class="dim">×</span><input class="field sm" id="bh" inputmode="numeric" style="width:64px"><span class="dim" style="font-size:14px">inches</span></div>
+      <div class="report" id="report"></div>
+      <canvas id="overlay" class="hidden"></canvas>
+    </div>
+    <div class="plate dim panel" style="margin-top:14px">
+      <h3>How it works</h3>
+      <ul class="help">
+        <li>Print the markers. Put the four <b>corner cards</b> flush into the board's corners.</li>
+        <li>Each hero and each elite or boss has its own marker number (shown here and in Headquarters). Minions share generic markers 30–89.</li>
+        <li>Markers must face up and be visible from above: on the mini's base beside the figure, or on a small flag above it.</li>
+        <li>Take the photo from roughly above, with all four corner cards in view. Angles up to about 55° work.</li>
+        <li>Pieces that aren't seen keep their last state. Undo in Headquarters reverses a bad snap.</li>
+      </ul>
+    </div>
+  </div>
+  <div>
+    <div class="plate mapwrap"><div id="map"></div>
+      <div class="legend"><span><i style="background:var(--brass);border-radius:50%"></i>Hero</span><span><i style="background:#8a3b17"></i>Elite / boss</span><span><i style="background:#4a1f12;border-radius:50%"></i>Minion</span><span><i style="background:#ff8a3d;height:3px"></i>Engaged</span><span id="when"></span></div>
+    </div>
+    <div class="plate dim panel" style="margin-top:14px"><h3>Markers in this game</h3><div id="roster" style="font-size:14px"></div></div>
+  </div>
+</div>
+<script type="module">
+import { CLASSES, MARKER_RANGES, CORNER_LABELS, BOARD_DEFAULT, markerRole } from './engine.js';
+import { $, h, esc, params, connect, toast, boardMapSVG } from './ui.js';
+import { detectBoard, toCanvas } from './board-vision.js';
+
+const room = (params.get('room') || '').toUpperCase();
+if (!room) location.href = './';
+const pin = localStorage.getItem('dl.pin') || '';
+$('#code').textContent = room;
+$('#hq').href = `gm.html?room=${room}`;
+$('#print').href = `markers.html?room=${room}`;
+const OPT = `dl.board.${room}`;
+try { const o = JSON.parse(localStorage.getItem(OPT) || '{}'); if (o.engage === false) $('#engage').checked = false; if (o.minions === false) $('#minions').checked = false; } catch {}
+const saveOpts = () => { try { localStorage.setItem(OPT, JSON.stringify({ engage: $('#engage').checked, minions: $('#minions').checked })); } catch {} };
+$('#engage').onchange = $('#minions').onchange = saveOpts;
+
+let S = null;
+const net = connect({
+  room, role: 'gm', pin,
+  onState: st => { S = st; draw(); },
+  onStatus: on => $('.conn').classList.toggle('on', on),
+  onFatal: m => { alert(m + ': open Headquarters and enter your PIN first.'); location.href = `gm.html?room=${room}`; },
+});
+const size = () => ({ w: Number($('#bw').value) || S?.board?.w || BOARD_DEFAULT.w, h: Number($('#bh').value) || S?.board?.h || BOARD_DEFAULT.h });
+
+function draw() {
+  const B = S.board || {};
+  if (document.activeElement !== $('#bw')) $('#bw').value = B.w || BOARD_DEFAULT.w;
+  if (document.activeElement !== $('#bh')) $('#bh').value = B.h || BOARD_DEFAULT.h;
+  $('#map').innerHTML = B.tokens ? boardMapSVG(S) : `<p class="faint center" style="padding:40px 0">No snapshot yet. Snap a photo of the board.</p>`;
+  $('#when').textContent = B.at ? `Last snapped ${new Date(B.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '';
+  const seen = new Set((B.tokens || []).map(t => t.id));
+  const heroes = S.order.map(id => S.characters[id]);
+  const bigs = Object.values(S.enemies).filter(e => e.type !== 'minion');
+  const tag = (m, label, sub) => `<div class="row" style="padding:3px 0;border-bottom:1px solid #2a2519"><b class="num" style="width:34px;color:var(--brass)">#${m ?? '–'}</b><span class="grow">${label}</span><span class="${seen.has(m) ? 'ok' : 'faint'}" style="font-size:12px">${seen.has(m) ? 'seen' : sub || 'not seen'}</span></div>`;
+  $('#roster').innerHTML = [
+    `<div class="faint" style="margin-bottom:4px">Corners #0–3 · Heroes #4–11 · Elites &amp; bosses #12–29 · Minions #30–89</div>`,
+    ...heroes.map(c => tag(c.marker, `${CLASSES[c.cls].glyph} ${esc(c.name)}`)),
+    ...bigs.map(e => tag(e.marker, `<span style="color:#ffb27d">${esc(e.name)}</span>`)),
+    `<div style="padding:4px 0" class="dim">${(B.tokens || []).filter(t => t.kind === 'minion').length} minion markers seen${B.unknown?.length ? ` · unassigned markers seen: ${B.unknown.map(i => '#' + i).join(', ')}` : ''}</div>`,
+  ].join('');
+}
+
+$('#bw').onchange = $('#bh').onchange = () => net.act({ type: 'boardSize', ...size() }).catch(() => {});
+
+// ------------------------------------------------------------ snapping
+async function process(source) {
+  const busy = h('<div class="busy">Reading the board…</div>');
+  document.body.appendChild(busy);
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    const canvas = toCanvas(source);
+    const { w, h: hh } = size();
+    const r = detectBoard(canvas, w, hh);
+    drawOverlay(canvas, r);
+    if (!r.ok) {
+      $('#report').innerHTML = `<div class="bad">✗ Found ${r.cornersFound.length} of 4 corner cards (${r.cornersFound.map(i => CORNER_LABELS[i]).join(', ') || 'none'}). Get all four in the photo and try again.</div><div class="faint">${r.markers.length} markers seen · ${r.ms} ms</div>`;
+      return;
+    }
+    const res = await net.act({ type: 'boardSync', w, h: hh, tokens: r.tokens.map(t => ({ id: t.id, x: t.x, y: t.y })), engage: $('#engage').checked, syncMinions: $('#engage').checked && $('#minions').checked });
+    const heroes = S.order.map(id => S.characters[id]);
+    const missingHeroes = heroes.filter(c => !r.tokens.some(t => t.id === c.marker)).map(c => c.name);
+    const bigs = Object.values(S.enemies).filter(e => e.type !== 'minion');
+    $('#report').innerHTML = `<div class="ok">✓ All four corners · ${r.tokens.length} pieces placed · ${r.ms} ms</div>
+      <div>Heroes ${res.counts[0]}/${heroes.length}${missingHeroes.length ? ` <span class="warn">· not seen: ${missingHeroes.map(esc).join(', ')}</span>` : ''}</div>
+      <div>Elites &amp; bosses ${res.counts[1]}${bigs.length ? '/' + bigs.length : ''} · minions ${res.counts[2]}</div>
+      ${res.changes.length ? `<div class="dim">${res.changes.map(esc).join('<br>')}</div>` : ''}
+      ${r.rejected?.length ? `<div class="faint">Ignored ${r.rejected.length} odd-sized reading${r.rejected.length > 1 ? 's' : ''}.</div>` : ''}`;
+    toast('Board updated');
+  } catch (e) {
+    if (e.message !== 'offline') $('#report').innerHTML = `<div class="bad">✗ ${esc(e.message || String(e))}</div>`;
+  } finally { busy.remove(); }
+}
+
+function drawOverlay(canvas, r) {
+  const o = $('#overlay');
+  o.classList.remove('hidden');
+  const k = Math.min(1, 1400 / canvas.width);
+  o.width = canvas.width * k; o.height = canvas.height * k;
+  const g = o.getContext('2d');
+  g.drawImage(canvas, 0, 0, o.width, o.height);
+  g.lineWidth = Math.max(2, o.width / 400);
+  g.font = `bold ${Math.max(12, o.width / 70)}px sans-serif`;
+  for (const m of r.markers) {
+    const role = m.id <= MARKER_RANGES.corners[1] ? { kind: 'corner' } : markerRole(S, m.id);
+    const col = { corner: '#7fc66b', hero: '#f3d98e', foe: '#ff8a3d', minion: '#e98f53', unknown: '#9aa' }[role.kind] || '#fff';
+    g.strokeStyle = col; g.fillStyle = col;
+    g.beginPath(); m.corners.forEach(([x, y], i) => (i ? g.lineTo(x * k, y * k) : g.moveTo(x * k, y * k))); g.closePath(); g.stroke();
+    const label = role.kind === 'corner' ? CORNER_LABELS[m.id] : role.name || `#${m.id}`;
+    g.lineWidth = 4; g.strokeStyle = '#000'; g.strokeText(label, m.cx * k + 8, m.cy * k - 8); g.fillText(label, m.cx * k + 8, m.cy * k - 8);
+    g.lineWidth = Math.max(2, o.width / 400);
+  }
+}
+
+$('#file').onchange = async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const img = new Image();
+  img.src = URL.createObjectURL(f);
+  try { await img.decode(); await process(img); } finally { URL.revokeObjectURL(img.src); e.target.value = ''; }
+};
+
+let stream = null, timer = null;
+$('#cam').onclick = async () => {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; $('#camBox').classList.add('hidden'); $('#cam').textContent = '🎥 Live camera'; clearInterval(timer); $('#auto').checked = false; return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 3840 }, height: { ideal: 2160 } } });
+    $('#video').srcObject = stream; await $('#video').play();
+    $('#camBox').classList.remove('hidden'); $('#cam').textContent = '■ Stop camera';
+  } catch (err) { toast('Camera unavailable: ' + (err.message || err), 'err'); }
+};
+$('#snap').onclick = () => process($('#video'));
+$('#auto').onchange = e => { clearInterval(timer); if (e.target.checked) timer = setInterval(() => { if (stream && !document.querySelector('.busy')) process($('#video')); }, 15000); };
+</script>
+</body>
+</html>

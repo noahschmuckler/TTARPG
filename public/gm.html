@@ -151,6 +151,7 @@ function shell() {
       <button class="btn solid" data-a="endRound">End round ⟳</button>
       <button class="btn sm" data-a="undo">↶ Undo</button>
       <a class="btn sm" href="cards.html?room=${room}" target="_blank" style="text-decoration:none">Loot &amp; campaign</a>
+      <a class="btn sm" href="board.html?room=${room}" target="_blank" style="text-decoration:none">📷 Board</a>
       <a class="btn sm" href="rules.html" target="_blank" style="text-decoration:none">Rules</a>
       <button class="btn sm danger" data-a="reset">Reset</button>
     </div>
@@ -181,7 +182,7 @@ function heroCard(ch) {
   const id = ch.id;
   return `<div class="plate hc ${ch.hp <= 0 ? 'down' : ''}">
     <div class="row">
-      <div class="grow"><div class="nm">${C.glyph} ${esc(ch.name)}</div><div class="sub">${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · ${s.armor}% armor · ${ch.kills} slain</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}</div>
+      <div class="grow"><div class="nm">${C.glyph} ${esc(ch.name)}</div><div class="sub">${ch.marker != null ? `◰${ch.marker} · ` : ''}${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · ${s.armor}% armor · ${ch.kills} slain</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}</div>
       <a class="icon" href="play.html?room=${room}&as=${id}" target="_blank" title="Open this hero's phone view">↗</a>
       <button class="icon" data-a="edit" data-id="${id}" title="Edit">✎</button>
     </div>
@@ -234,7 +235,7 @@ function roamPanel() {
   const roaming = all.filter(e => e.type === 'minion' && !e.target).length;
   return `<p class="dim" style="margin:0 0 6px">${minionCount} minion${minionCount === 1 ? '' : 's'} tracked.</p>
     ${roaming ? `<div class="foechips" style="margin-bottom:6px"><span class="fchip">☠ ×${roaming} roaming<button data-a="moveM" data-id="" title="Assign to a hero">⇄</button></span></div>` : ''}
-    ${bigs.map(e => `<div class="foe-row"><div class="row"><span class="nm grow">${e.pinned ? '📌 ' : ''}${esc(e.name)}</span><span class="faint" style="font-size:12px">${ENEMY_TYPES[e.type].label} · ⛨${e.armor || 0}% · ⚔${e.attacks || 1}×${fmt(e.damage)}</span><button class="mini" data-a="rescale" data-e="${e.id}" title="Re-fit health to the party as it is now (keeps its health %)">⟳ Rescale</button><button class="mini" data-a="rmFoe" data-e="${e.id}">✕</button></div>
+    ${bigs.map(e => `<div class="foe-row"><div class="row"><span class="nm grow">${e.pinned ? '📌 ' : ''}${esc(e.name)}${e.marker != null ? ` <span class="faint" style="font-size:12px">◰${e.marker}</span>` : ''}</span><span class="faint" style="font-size:12px">${ENEMY_TYPES[e.type].label} · ⛨${e.armor || 0}% · ⚔${e.attacks || 1}×${fmt(e.damage)}</span><button class="mini" data-a="rescale" data-e="${e.id}" title="Re-fit health to the party as it is now (keeps its health %)">⟳ Rescale</button><button class="mini" data-a="rmFoe" data-e="${e.id}">✕</button></div>
       ${bar('foe', e.hp, e.maxHp, `${fmt(e.hp)} / ${fmt(e.maxHp)}`)}${e.ability ? `<div style="font-size:12px;color:#ffcfa8;margin-top:4px">✦ ${esc(e.ability)}</div>` : ''}
       <details class="foeabs" data-e="${e.id}"><summary>${(e.abilities || []).length ? (e.abilities || []).map(k => `<span class="abtag ${(e.fired || []).includes(k) ? 'fired' : ''}" title="${esc(FOE_ABILITIES[k].text)}">${FOE_ABILITIES[k].icon} ${esc(FOE_ABILITIES[k].name)}${(e.fired || []).includes(k) ? ' ✓' : ''}</span>`).join('') : '<span class="faint">No abilities</span>'} <span class="faint" style="font-size:11px">edit</span></summary>
         <div class="abchips" style="margin-top:6px">${Object.entries(FOE_ABILITIES).map(([k, A]) => `<button class="abchip ${(e.abilities || []).includes(k) ? 'on' : ''}" data-a="foeAb" data-e="${e.id}" data-k="${k}" title="${esc(A.text)}">${A.icon} ${esc(A.name)}</button>`).join('')}</div></details>

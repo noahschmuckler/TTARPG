@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delvers' Ledger · Markers</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .tools { max-width: 900px; margin: 0 auto; padding: 16px; }
+  .printsheet { background: #fff; color: #111; padding: .3in; margin: 0 auto 24px; max-width: 8.5in; }
+  .printsheet h4 { font-family: var(--display); letter-spacing: .2em; text-transform: uppercase; font-size: 12px; margin: .12in 0 .06in; color: #444; }
+  .grid { display: flex; flex-wrap: wrap; gap: .12in; }
+  .tok { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .tok svg { display: block; width: var(--s); height: var(--s); }
+  .tok .l { font-family: 'Josefin Sans', sans-serif; font-size: 8pt; color: #333; max-width: calc(var(--s) + .3in); text-align: center; line-height: 1.05; }
+  .corner { border: 1px dashed #999; width: 2.4in; height: 2.6in; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .corner svg { width: 2in; height: 2in; }
+  .corner .l { font-family: var(--display); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 10pt; }
+  @media print { body { background: #fff; } .tools { display: none; } .printsheet { padding: 0; margin: 0; max-width: none; } .pb { break-before: page; } }
+</style>
+</head>
+<body>
+<div class="tools">
+  <div class="rule"><span class="gem"></span>Board markers<span class="gem"></span></div>
+  <p class="dim">Print on plain paper or sticker sheets <b>at 100% scale</b> (no "fit to page"). Corner cards go flush into the four corners of the board. Stick each piece's marker so it faces up and isn't hidden by the figure: on the base beside the mini, or on a small flag above it.</p>
+  <div class="row" style="flex-wrap:wrap;gap:10px">
+    <label class="dim">Token size <select class="field sm" id="size" style="width:auto;min-height:36px"><option value="0.75">0.75″ (recommended)</option><option value="1">1″</option><option value="0.6">0.6″ (small)</option></select></label>
+    <label class="dim">Minion markers <input class="field sm" id="mcount" inputmode="numeric" value="24" style="width:70px;min-height:36px"></label>
+    <label class="dim"><input type="checkbox" id="spare" checked> Spare elite/boss markers</label>
+    <button class="btn solid" onclick="print()">Print</button>
+  </div>
+</div>
+<div class="printsheet" id="sheet"></div>
+<script type="module">
+import { MARKER_RANGES, CORNER_LABELS } from './engine.js';
+import { $, esc, params, connect } from './ui.js';
+import { markerSVG } from './board-vision.js';
+const room = (params.get('room') || '').toUpperCase();
+const pin = localStorage.getItem('dl.pin') || '';
+let S = null;
+if (room) connect({ room, role: 'gm', pin, onState: st => { S = st; draw(); } });
+else draw();
+const tok = (id, label) => `<div class="tok">${markerSVG(id)}<div class="l">#${id}${label ? ' · ' + esc(label) : ''}</div></div>`;
+function draw() {
+  const s = $('#size').value;
+  const heroes = S ? S.order.map(id => S.characters[id]).filter(c => c.marker != null) : [];
+  const bigs = S ? Object.values(S.enemies).filter(e => e.type !== 'minion' && e.marker != null) : [];
+  const usedB = new Set(bigs.map(e => e.marker));
+  const range = ([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  const n = Math.max(0, Math.min(Number($('#mcount').value) || 0, 60));
+  $('#sheet').style.setProperty('--s', s + 'in');
+  $('#sheet').innerHTML = `
+    <h4>Corner cards: flush into each corner of the board</h4>
+    <div class="grid">${[0, 1, 2, 3].map(i => `<div class="corner">${markerSVG(i)}<div class="l">${['↖', '↗', '↘', '↙'][i]} ${CORNER_LABELS[i]}</div></div>`).join('')}</div>
+    <div class="pb"></div>
+    <h4>Heroes</h4>
+    <div class="grid">${(heroes.length ? heroes.map(c => tok(c.marker, c.name)) : range(MARKER_RANGES.heroes).map(id => tok(id, 'hero'))).join('')}</div>
+    <h4>Elites &amp; bosses</h4>
+    <div class="grid">${bigs.map(e => tok(e.marker, e.name)).join('')}${$('#spare').checked ? range(MARKER_RANGES.bigs).filter(id => !usedB.has(id)).map(id => tok(id, '')).join('') : ''}</div>
+    <h4>Minions</h4>
+    <div class="grid">${range(MARKER_RANGES.minions).slice(0, n).map(id => tok(id, '')).join('')}</div>`;
+}
+$('#size').onchange = $('#mcount').oninput = $('#spare').onchange = draw;
+</script>
+</body>
+</html>

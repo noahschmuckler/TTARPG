@@ -70,6 +70,16 @@ server/node.js     Node host (local / Railway / Linux)
 worker/index.js    Cloudflare host (Durable Object)
 ```
 
+## Board snapshots (camera)
+
+Headquarters → **📷 Board**. Print the markers (**Print markers**: four 2″ corner cards plus 0.75″ tokens), put the corner cards flush into the board's corners and a token on each piece where the camera can see it. Tap **📷 Photo** (or use the live camera, optionally every 15 s) with all four corners in view. The app finds the markers in the browser (pure-JS ArUco detection, `public/board-vision.js`), maps them through a perspective transform onto the grid, and:
+
+- shows a live **board map** in Headquarters and on every phone (your hero highlighted),
+- marks foes whose bases touch a hero as **engaged** with that hero,
+- makes the minions on the board the app's minion list (optional).
+
+Markers: #0–3 corners, #4–11 heroes, #12–29 elites/bosses (assigned automatically, shown as ◰ on their cards), #30–89 minions. In synthetic tests (36″×24″ board, 30–55° camera tilt) 0.75″ markers were found 100% of the time with ~0.03″ position error and no false readings. Height isn't read from photos.
+
 ## Rules page
 
 `/rules.html` (the **Rules** button on the phone and in Headquarters) is the full rulebook. Its class, power, item-set and foe-ability sections are generated from the game data.

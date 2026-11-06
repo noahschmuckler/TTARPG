@@ -447,6 +447,89 @@ export function strikeLeft(ch) {
   return st ? (st.hits || 0) + (st.crits || 0) + (st.minion || 0) : 0;
 }
 
+// ---------------------------------------------------------------- board markers
+// Square fiducial markers (see marker-codes.js). Corner cards sit flush in the board corners,
+// their centres 1″ in from each edge. Heroes and big foes get a marker number automatically;
+// minion markers are generic and the board is the truth for them when synced.
+export const MARKER_RANGES = { corners: [0, 3], heroes: [4, 11], bigs: [12, 29], minions: [30, 89] };
+export const CORNER_LABELS = ['Top left', 'Top right', 'Bottom right', 'Bottom left'];
+export const BOARD_DEFAULT = { w: 36, h: 24 };
+export const cornerPoints = (w, h) => [[1, 1], [w - 1, 1], [w - 1, h - 1], [1, h - 1]];
+
+function freeMarker(used, [lo, hi]) {
+  for (let i = lo; i <= hi; i++) if (!used.has(i)) return i;
+  return null;
+}
+function ensureMarkers(state) {
+  const usedH = new Set(state.order.map(id => state.characters[id].marker).filter(m => m != null));
+  for (const id of state.order) {
+    const c = state.characters[id];
+    if (c.marker == null) { c.marker = freeMarker(usedH, MARKER_RANGES.heroes); if (c.marker != null) usedH.add(c.marker); }
+  }
+  const bigs = Object.values(state.enemies).filter(e => e.type !== 'minion');
+  const usedB = new Set(bigs.map(e => e.marker).filter(m => m != null));
+  for (const e of bigs) if (e.marker == null) { e.marker = freeMarker(usedB, MARKER_RANGES.bigs); if (e.marker != null) usedB.add(e.marker); }
+}
+
+export function markerRole(state, id) {
+  const [c0, c1] = MARKER_RANGES.corners, [m0, m1] = MARKER_RANGES.minions;
+  if (id >= c0 && id <= c1) return { kind: 'corner' };
+  const hero = state.order.map(h => state.characters[h]).find(c => c.marker === id);
+  if (hero) return { kind: 'hero', ref: hero.id, name: hero.name };
+  const foe = Object.values(state.enemies).find(e => e.marker === id);
+  if (foe) return { kind: foe.type === 'minion' ? 'minion' : 'foe', ref: foe.id, name: foe.name };
+  if (id >= m0 && id <= m1) return { kind: 'minion' };
+  return { kind: 'unknown' };
+}
+
+// Foes are engaged with a hero when their bases touch: centres within 1.5″ (bosses 2″, for bigger bases).
+const reachOf = e => (e.type === 'boss' ? 2.0 : 1.5);
+function nearestHero(heroes, x, y, reach, prefer) {
+  const near = heroes.map(h => ({ ...h, d: Math.hypot(h.x - x, h.y - y) })).filter(h => h.d <= reach + 1e-9);
+  if (!near.length) return null;
+  if (prefer && near.some(h => h.ref === prefer)) return prefer;
+  return near.sort((a, b) => a.d - b.d)[0].ref;
+}
+
+// tokens: [{ id, x, y }] in board inches. Records the map and (optionally) re-derives engagement.
+function boardSync(state, a, rng) {
+  const w = Number(a.w) || state.board?.w || BOARD_DEFAULT.w, h = Number(a.h) || state.board?.h || BOARD_DEFAULT.h;
+  const seen = (a.tokens || []).filter(t => Number.isInteger(t.id) && isFinite(t.x) && isFinite(t.y) && t.id > MARKER_RANGES.corners[1]);
+  const tokens = seen.map(t => ({ id: t.id, x: +(+t.x).toFixed(2), y: +(+t.y).toFixed(2), ...markerRole(state, t.id) }));
+  const heroes = tokens.filter(t => t.kind === 'hero');
+  const changes = [];
+  if (a.engage !== false) {
+    for (const t of tokens.filter(t => t.kind === 'foe')) {
+      const e = state.enemies[t.ref];
+      const target = nearestHero(heroes, t.x, t.y, reachOf(e), e.target);
+      if (target !== (e.target || null)) changes.push(`${e.name} → ${target ? state.characters[target].name : 'roaming'}`);
+      e.target = target;
+    }
+    if (a.syncMinions) {
+      const minionTokens = tokens.filter(t => t.kind === 'minion');
+      const keep = new Set();
+      for (const t of minionTokens) {
+        let e = Object.values(state.enemies).find(x => x.type === 'minion' && x.marker === t.id);
+        if (!e) {
+          const T = ENEMY_TYPES.minion;
+          e = { id: uid(rng), type: 'minion', name: 'Minion', hp: 1, maxHp: 1, armor: 0, damage: T.damage, attacks: 1, ability: '', abilities: [], marker: t.id, target: null };
+          state.enemies[e.id] = e;
+        }
+        e.target = nearestHero(heroes, t.x, t.y, reachOf(e), e.target);
+        t.ref = e.id;
+        keep.add(e.id);
+      }
+      let removed = 0;
+      for (const e of Object.values(state.enemies)) if (e.type === 'minion' && !keep.has(e.id)) { delete state.enemies[e.id]; removed++; }
+      changes.push(`${minionTokens.length} minion${minionTokens.length === 1 ? '' : 's'} on the board${removed ? ` (${removed} cleared from the app)` : ''}`);
+    }
+  }
+  state.board = { w, h, at: Date.now(), tokens, unknown: tokens.filter(t => t.kind === 'unknown').map(t => t.id), corners: a.corners ?? 4 };
+  const counts = ['hero', 'foe', 'minion'].map(k => tokens.filter(t => t.kind === k).length);
+  log(state, `📷 Board snapped: ${counts[0]} hero${counts[0] === 1 ? '' : 'es'}, ${counts[1]} foe${counts[1] === 1 ? '' : 's'}, ${counts[2]} minion${counts[2] === 1 ? '' : 's'}.${changes.length ? ' ' + changes.join('; ') + '.' : ''}`, 'info');
+  return { changes, counts };
+}
+
 // ---------------------------------------------------------------- state
 export function newGame(code) {
   return { code, round: 1, characters: {}, order: [], enemies: {}, loot: {}, defense: {}, log: [], rev: 0, created: Date.now() };
@@ -461,7 +544,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy']);
+const GM_ONLY = new Set(['moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -475,6 +558,7 @@ export function apply(state, a, rng = Math.random) {
   } catch (err) {
     return { error: err.message, events: [] };
   }
+  ensureMarkers(state);
   // Discoveries: set powers, set tiers and hidden synergies, announced the first time.
   for (const id of state.order) {
     const c = state.characters[id];
@@ -703,6 +787,11 @@ export function apply(state, a, rng = Math.random) {
         break;
       }
       case 'removeEnemy': delete state.enemies[a.enemyId]; break;
+      case 'boardSync': return { events: [{ type: 'board' }], result: boardSync(state, a, rng) };
+      case 'boardSize': {
+        state.board = { ...(state.board || { tokens: [], unknown: [] }), w: Math.max(6, Math.min(Number(a.w) || 36, 96)), h: Math.max(6, Math.min(Number(a.h) || 24, 96)) };
+        break;
+      }
       case 'rescaleEnemy': { // re-fit a living foe to the party as it is now, keeping its health %
         const e = state.enemies[a.enemyId];
         if (!e) throw new Error('That foe is gone');

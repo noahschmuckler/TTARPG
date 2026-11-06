@@ -124,3 +124,35 @@ export function qrSVG(text, cell = 4) {
 }
 
 export { fmt };
+
+// ------------------------------------------------------------ board map
+// Draws the last board snapshot, resolved against the live game (fallen foes disappear).
+export function boardMapSVG(S, { highlight } = {}) {
+  const B = S.board;
+  if (!B || !B.tokens) return '';
+  const w = B.w || 36, h = B.h || 24;
+  const pos = new Map();
+  const items = [];
+  for (const t of B.tokens) {
+    if (t.kind === 'hero') { const c = S.characters[t.ref]; if (!c) continue; pos.set(c.id, t); items.push({ t, kind: 'hero', label: c.name, me: c.id === highlight, down: c.hp <= 0, hidden: c.hidden }); }
+    else if (t.kind === 'foe' || t.kind === 'minion') {
+      const e = t.ref ? S.enemies[t.ref] : null;
+      if (t.ref && !e) continue; // slain since the snapshot
+      items.push({ t, kind: t.kind, label: e?.name || 'Minion', target: e?.target, pinned: e?.pinned, boss: e?.type === 'boss' });
+    } else items.push({ t, kind: 'unknown', label: `#${t.id}` });
+  }
+  const grid = [];
+  for (let x = 0; x <= w; x++) grid.push(`<line x1="${x}" y1="0" x2="${x}" y2="${h}"/>`);
+  for (let y = 0; y <= h; y++) grid.push(`<line x1="0" y1="${y}" x2="${w}" y2="${y}"/>`);
+  const lines = items.filter(i => i.target && pos.has(i.target)).map(i => { const p = pos.get(i.target); return `<line class="eng" x1="${i.t.x}" y1="${i.t.y}" x2="${p.x}" y2="${p.y}"/>`; });
+  const tok = items.map(i => {
+    const { x, y } = i.t;
+    if (i.kind === 'hero') return `<g class="tok hero ${i.me ? 'me' : ''} ${i.down ? 'down' : ''}"><circle cx="${x}" cy="${y}" r="0.45"/>${i.hidden ? `<circle class="hid" cx="${x}" cy="${y}" r="0.62"/>` : ''}<text x="${x}" y="${y + 0.17}">${esc(i.label[0] || '?')}</text><text class="lab" x="${x}" y="${y - 0.65}">${esc(i.label)}</text></g>`;
+    if (i.kind === 'foe') { const r = i.boss ? 0.75 : 0.5; return `<g class="tok foe ${i.boss ? 'boss' : ''}"><polygon points="${[0, 1, 2, 3, 4, 5].map(k => `${x + r * Math.cos(Math.PI / 3 * k)},${y + r * Math.sin(Math.PI / 3 * k)}`).join(' ')}"/><text class="lab" x="${x}" y="${y - r - 0.2}">${i.pinned ? '📌 ' : ''}${esc(i.label)}</text></g>`; }
+    if (i.kind === 'minion') return `<g class="tok minion"><circle cx="${x}" cy="${y}" r="0.32"/><text x="${x}" y="${y + 0.12}">☠</text></g>`;
+    return `<g class="tok unk"><rect x="${x - 0.3}" y="${y - 0.3}" width="0.6" height="0.6"/><text class="lab" x="${x}" y="${y - 0.45}">${esc(i.label)}</text></g>`;
+  });
+  const corners = [[0, 0], [w - 2, 0], [w - 2, h - 2], [0, h - 2]].map(([x, y]) => `<rect class="corner" x="${x}" y="${y}" width="2" height="2"/>`);
+  return `<svg class="boardmap" viewBox="-0.5 -0.9 ${w + 1} ${h + 1.4}" xmlns="http://www.w3.org/2000/svg">
+    <rect class="felt" x="0" y="0" width="${w}" height="${h}"/><g class="grid">${grid.join('')}</g>${corners.join('')}${lines.join('')}${tok.join('')}</svg>`;
+}

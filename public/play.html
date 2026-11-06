@@ -169,7 +169,7 @@
 <script type="module">
 import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, FOE_ABILITIES, SETS, HIDDEN_DICE, derive, engagedWith, strikeLeft, powersFor, reachText, fmt } from './engine.js';
 let seenDefense = null, defenseOpen = false;
-import { $, h, esc, params, connect, toast, burst, sheet, itemHTML, setsHTML } from './ui.js';
+import { $, h, esc, params, connect, toast, burst, sheet, itemHTML, setsHTML, boardMapSVG } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
 if (!room) location.href = './';
@@ -308,6 +308,7 @@ function skeleton() {
     <div id="defbox"></div>
     <button class="btn solid attack" id="atk"></button>
     <div id="foes"></div>
+    <div id="boardbox"></div>
     <div class="rule"><span class="gem"></span>Powers<span class="gem"></span></div>
     <div class="powers" id="powers"></div>
     <div class="rule"><span class="gem"></span>Gear<span class="gem"></span></div>
@@ -415,6 +416,8 @@ function render() {
     return `<button class="plate power ${ready ? 'ready' : ''}" data-power="${a.key}"><div class="row"><div class="grow">${tag}<div class="pn">${esc(a.name)}${tags}</div><div class="pt">${esc(a.text)}</div></div><div class="cost">${a.cost}</div></div><div class="bar en"><i style="width:${Math.min(100, ch.energy / a.cost * 100)}%"></i></div></button>`;
   }).join('');
   $('#sets').innerHTML = setsHTML(ch);
+  const open = $('#boardbox details')?.open;
+  $('#boardbox').innerHTML = S.board?.tokens?.length ? `<details class="plate" style="margin-top:14px;padding:10px 12px" ${open ? 'open' : ''}><summary class="display" style="cursor:pointer;letter-spacing:.2em;font-size:14px;color:var(--brass)">🗺 Board map <span class="faint" style="font-size:12px;letter-spacing:.06em">· snapped ${new Date(S.board.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></summary><div style="margin-top:8px">${boardMapSVG(S, { highlight: me })}</div></details>` : '';
 
   $('#gear').innerHTML = SLOTS.map(sl => {
     const it = ch.gear[sl];

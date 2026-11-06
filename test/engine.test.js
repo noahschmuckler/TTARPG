@@ -334,3 +334,35 @@ test('movement: position bonuses, hiding, area powers with slams, pins, taunts',
   // 3 blows × 200 = 600, 30% armor → 420, all soaked by the 900 ward (600 Bulwark + 300 Recall)
   assert.equal(s.characters[iron].ward, 900 - 420);
 });
+
+import { markerRole, MARKER_RANGES } from '../public/engine.js';
+
+test('board snapshots: markers, adjacency and minion sync', () => {
+  const s = newGame('BRD');
+  const a = apply(s, { type: 'createCharacter', name: 'A', cls: 'ironclad' }).result.charId;
+  const b = apply(s, { type: 'createCharacter', name: 'B', cls: 'ranger' }).result.charId;
+  assert.deepEqual([s.characters[a].marker, s.characters[b].marker], [4, 5]);
+  apply(s, { type: 'spawn', etype: 'elite', name: 'Brute', target: b });
+  apply(s, { type: 'spawn', etype: 'minion', count: 3, target: a }); // unmarked app minions
+  const brute = Object.values(s.enemies).find(e => e.name === 'Brute');
+  assert.equal(brute.marker, 12);
+  assert.equal(markerRole(s, 12).kind, 'foe');
+  // A at (5.5,5.5), B at (20.5,10.5); Brute next to A (diagonal), minion 30 next to B, minion 31 alone
+  const r = apply(s, { type: 'boardSync', w: 36, h: 24, syncMinions: true, tokens: [
+    { id: 4, x: 5.5, y: 5.5 }, { id: 5, x: 20.5, y: 10.5 }, { id: 12, x: 6.5, y: 6.5 },
+    { id: 30, x: 21.5, y: 10.5 }, { id: 31, x: 30.5, y: 20.5 }, { id: 77, x: 1, y: 1 }, { id: 29, x: 9, y: 9 } ] });
+  assert.equal(brute.target, a);
+  const minions = Object.values(s.enemies).filter(e => e.type === 'minion');
+  assert.deepEqual(minions.map(m => [m.marker, m.target]).sort(), [[30, b], [31, null], [77, null]]); // 3 app minions replaced by the 3 on the board
+  assert.deepEqual(s.board.unknown, [29]);
+  assert.equal(s.board.tokens.length, 7);
+  // engagement off: positions recorded only
+  apply(s, { type: 'boardSync', engage: false, tokens: [{ id: 4, x: 30, y: 20 }, { id: 12, x: 6.5, y: 6.5 }] });
+  assert.equal(brute.target, a);
+  assert.equal(s.board.tokens.find(t => t.id === 4).x, 30);
+  // a removed hero frees its marker for the next hero
+  apply(s, { type: 'removeCharacter', charId: a });
+  const c = apply(s, { type: 'createCharacter', name: 'C', cls: 'arcanist' }).result.charId;
+  assert.equal(s.characters[c].marker, 4);
+  assert.equal(MARKER_RANGES.minions[1], 89);
+});

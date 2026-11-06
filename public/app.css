@@ -221,3 +221,21 @@ label.lbl { display: block; font-family: var(--display); font-weight: 600; lette
 .row { display: flex; gap: 10px; align-items: center; }
 .grow { flex: 1; min-width: 0; }
 .center { text-align: center; }
+
+/* ---------------------------------------------------------- board map */
+.boardmap { width: 100%; height: auto; display: block; }
+.boardmap .felt { fill: #1a1813; stroke: var(--brass-lo); stroke-width: .08; }
+.boardmap .grid line { stroke: #2e2a20; stroke-width: .03; }
+.boardmap .corner { fill: none; stroke: #4a3f27; stroke-width: .06; stroke-dasharray: .2 .15; }
+.boardmap .eng { stroke: #ff8a3d; stroke-width: .08; stroke-dasharray: .25 .12; opacity: .8; }
+.boardmap text { font-family: 'Big Shoulders Display', sans-serif; font-weight: 800; text-anchor: middle; font-size: .5px; fill: #12100b; }
+.boardmap text.lab { font-size: .42px; fill: var(--ink); paint-order: stroke; stroke: #0d0c0a; stroke-width: .12px; font-weight: 700; }
+.boardmap .hero circle { fill: var(--brass); stroke: var(--brass-hi); stroke-width: .06; }
+.boardmap .hero.me circle { fill: var(--aether); stroke: #d7fffa; stroke-width: .1; }
+.boardmap .hero.down circle { fill: #555; }
+.boardmap .hero .hid { fill: none; stroke: #c8b6ff; stroke-width: .06; stroke-dasharray: .15 .1; }
+.boardmap .foe polygon { fill: #8a3b17; stroke: #ff8a3d; stroke-width: .06; }
+.boardmap .foe.boss polygon { fill: #a01f1f; stroke: #ffb27d; }
+.boardmap .minion circle { fill: #4a1f12; stroke: #c0703f; stroke-width: .05; }
+.boardmap .minion text { fill: #ffcfa8; font-size: .36px; }
+.boardmap .unk rect { fill: #333; stroke: #888; stroke-width: .04; }
