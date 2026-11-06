@@ -120,6 +120,7 @@ function shell() {
       <button class="btn sm" data-a="qr">Join QR</button>
       <span class="grow"></span>
       <span class="rnd">Round<b id="rndv"></b></span>
+      <button class="btn danger" data-a="enemyPhase" title="Every hero with foes on them rolls defense">Enemy phase ⚔</button>
       <button class="btn solid" data-a="endRound">End round ⟳</button>
       <button class="btn sm" data-a="undo">↶ Undo</button>
       <a class="btn sm" href="cards.html?room=${room}" target="_blank" style="text-decoration:none">Loot cards</a>
@@ -162,13 +163,14 @@ function heroCard(ch) {
       ${bar('en', ch.energy, s.maxEnergy, `Energy ${ch.energy} / ${s.maxEnergy}`)}
     </div>
     ${ch.buffs.label ? `<div class="dim" style="font-size:13px;color:#aef7ee">⚡ ${esc(ch.buffs.label)} primed</div>` : ''}
+    ${S.defense?.[id] ? `<div class="row" style="margin:4px 0;color:#ff9ca4;font-family:var(--display);font-weight:800;letter-spacing:.1em;text-transform:uppercase;font-size:13px">⏳ Rolling defense…<span class="grow"></span><button class="mini" data-a="cancelDef" data-id="${id}" title="Cancel this hero's defense roll">Skip</button></div>` : ''}
     <div class="ctl"><span class="k">Damage</span><div class="btns">${[100, 250, 500, 1000].map(n => `<button class="mini hurt" data-a="hurt" data-id="${id}" data-n="${n}">−${n}</button>`).join('')}
       <input class="numin" data-keep="dmg-${id}" inputmode="numeric" placeholder="###"><button class="mini hurt" data-a="hurtc" data-id="${id}">Hit</button></div></div>
     <div class="ctl"><span class="k">Heal</span><div class="btns">${[250, 500].map(n => `<button class="mini heal" data-a="heal" data-id="${id}" data-n="${n}">+${n}</button>`).join('')}<button class="mini heal" data-a="full" data-id="${id}">Full</button></div></div>
     <div class="ctl"><span class="k">Energy</span><div class="btns">${[-25, -10, 10, 25].map(n => `<button class="mini en" data-a="energy" data-id="${id}" data-n="${n}">${n > 0 ? '+' : '−'}${Math.abs(n)}</button>`).join('')}</div></div>
     <div class="ctl"><span class="k">Foes</span><div class="btns">${[1, 3, 5].map(n => `<button class="mini foe" data-a="spawnOn" data-id="${id}" data-t="minion" data-n="${n}">+${n} ☠</button>`).join('')}<button class="mini foe" data-a="spawnOn" data-id="${id}" data-t="elite" data-n="1">+Elite</button></div></div>
     ${foes.length ? `<div class="foechips">
-      ${minions.length ? `<span class="fchip">☠ ×${minions.length}<button data-a="rmMinion" data-id="${id}" title="Remove one">−</button><button data-a="clearOn" data-id="${id}" title="Clear">✕</button></span>` : ''}
+      ${minions.length ? `<span class="fchip">☠ ×${minions.length}<button data-a="moveM" data-id="${id}" title="Move minions to another hero">⇄</button><button data-a="rmMinion" data-id="${id}" title="Remove one">−</button><button data-a="clearOn" data-id="${id}" title="Clear">✕</button></span>` : ''}
       ${bigs.map(b => `<span class="fchip">${esc(b.name)} ${fmt(b.hp)}<button data-a="rmFoe" data-e="${b.id}">✕</button></span>`).join('')}
     </div>` : ''}
     <div class="ctl"><span class="k">Loot</span><div class="btns">${RARITY_ORDER.map(r => `<button class="mini r r-${r}" data-a="loot" data-id="${id}" data-r="${r}">${RARITIES[r].label}</button>`).join('')}<button class="mini" data-a="loot" data-id="${id}" data-r="random" title="Random rarity">?</button></div></div>
@@ -193,7 +195,9 @@ function roamPanel() {
   if (!all.length) return `<p class="faint" style="margin:0">The halls are quiet.</p>`;
   const minionCount = all.filter(e => e.type === 'minion').length;
   const bigs = all.filter(e => e.type !== 'minion');
+  const roaming = all.filter(e => e.type === 'minion' && !e.target).length;
   return `<p class="dim" style="margin:0 0 6px">${minionCount} minion${minionCount === 1 ? '' : 's'} tracked.</p>
+    ${roaming ? `<div class="foechips" style="margin-bottom:6px"><span class="fchip">☠ ×${roaming} roaming<button data-a="moveM" data-id="" title="Assign to a hero">⇄</button></span></div>` : ''}
     ${bigs.map(e => `<div class="foe-row"><div class="row"><span class="nm grow">${esc(e.name)}</span><span class="faint" style="font-size:12px">${ENEMY_TYPES[e.type].label} · ${e.hitOn}+</span><button class="mini" data-a="rmFoe" data-e="${e.id}">✕</button></div>
       ${bar('foe', e.hp, e.maxHp, `${fmt(e.hp)} / ${fmt(e.maxHp)}`)}
       <div class="ctl"><select class="field sm grow" data-move="${e.id}" style="min-height:32px"><option value="">Roaming</option>${S.order.map(id => `<option value="${id}" ${e.target === id ? 'selected' : ''}>→ ${esc(S.characters[id].name)}</option>`).join('')}</select>
@@ -220,6 +224,9 @@ function onClick(e) {
   const { a, id, n } = b.dataset;
   switch (a) {
     case 'endRound': return act({ type: 'endRound' });
+    case 'enemyPhase': return act({ type: 'enemyPhase' });
+    case 'cancelDef': return act({ type: 'cancelDefense', charId: id });
+    case 'moveM': return moveSheet(id || null);
     case 'undo': return act({ type: 'undo' });
     case 'reset': if (confirm('Wipe this game? Heroes, foes and loot will be cleared. (Undo can restore it.)')) act({ type: 'resetGame' }); return;
     case 'qr': return qrSheet();
@@ -241,6 +248,27 @@ function onClick(e) {
     }
     case 'edit': return editSheet(id);
   }
+}
+
+function moveSheet(from) {
+  const pool = () => Object.values(S.enemies).filter(e => e.type === 'minion' && (e.target || null) === from).length;
+  const n = pool();
+  if (!n) return;
+  let count = Math.min(n, from ? 1 : n);
+  const dests = [...S.order.filter(id => id !== from).map(id => ({ id, name: S.characters[id].name })), ...(from ? [{ id: '', name: 'Roaming' }] : [])];
+  const { el, close } = sheet('<div id="mv"></div>');
+  const draw = () => {
+    el.querySelector('#mv').innerHTML = `<h2>Move minions</h2>
+      <p class="dim">From <b>${from ? esc(S.characters[from].name) : 'the roaming pack'}</b>. How many?</p>
+      <div class="foechips">${Array.from({ length: n }, (_, i) => `<button class="mini ${count === i + 1 ? 'r r-rare' : ''}" data-c="${i + 1}">${i + 1}</button>`).join('')}</div>
+      <p class="dim" style="margin-top:16px">Send them to:</p>
+      <div class="foechips">${dests.map(d => `<button class="btn sm" data-to="${d.id}">${esc(d.name)}</button>`).join('')}</div>`;
+  };
+  draw();
+  el.addEventListener('click', e => {
+    const c = e.target.closest('[data-c]'); if (c) { count = Number(c.dataset.c); return draw(); }
+    const t = e.target.closest('[data-to]'); if (t) { close(); act({ type: 'moveMinions', from, to: t.dataset.to || null, count }); }
+  });
 }
 
 function qrSheet() {

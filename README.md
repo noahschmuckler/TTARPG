@@ -14,7 +14,9 @@ Phone-first hero sheets and a GM headquarters for a tabletop dungeon crawl playe
 | Minions | One hit = one dead minion. Tap a minion on your phone to slay it directly, or use "+N slain" if the GM isn't tracking them in the app. |
 | Elites / bosses | Each hit deals your **Damage per Hit** (hundreds). Each 6 is a crit (×2, Shadowblade ×3). |
 | Energy | Gained per kill (more for elites/bosses) and at the end of every round. Spend it on your three powers. |
-| Damage taken | GM enters raw damage; your Armor % is subtracted, then any Ward soaks the rest. |
+| Enemy phase | GM taps **Enemy phase**. Every hero with foes on them gets a prompt: roll one die per enemy attack (bosses attack 3 times); each die showing 1–3 is a blow that lands. Heroes with 30%+ armor are only hit on 1–2. |
+| Damage taken | Blows add up by enemy (minion 60, elite 250, boss 600); your Armor % is subtracted, then any Ward soaks the rest. The GM can also deal damage directly. |
+| Assigning foes | Summon foes onto a hero or leave them roaming. ⇄ on any minion group moves some or all of them to another hero (or back to roaming); elites and bosses have a dropdown. |
 | Items | Common → Magic → Rare → Legendary. Legendaries can add an extra attack die or Cleave (each 6 kills an extra minion). |
 
 Five callings: Ironclad (tank), Runepriest (support), Ranger (many dice), Arcanist (big hits, fragile), Shadowblade (crits, energy on kills). All numbers live in `public/engine.js`, so tune away.
@@ -45,7 +47,7 @@ npm run cf:deploy    # prints https://delvers-ledger.<you>.workers.dev
 
 1. Open the site → enter a GM PIN → **New game**. You land in Headquarters with a 4-letter code.
 2. Click **Join QR** and show it to the table. Each player forges a hero.
-3. Summon foes onto heroes (or leave them roaming), let players attack, hit **End round** when everyone has gone.
+3. Each round: summon or move foes onto heroes, let players attack and use powers, tap **Enemy phase** (everyone rolls defense at once), then **End round**.
 4. Print **Loot cards** ahead of time and hide them in the terrain.
 5. Mistakes? **Undo** walks back the last 40 actions. A player without a phone? Click ↗ on their card to open their sheet.
 

@@ -73,3 +73,28 @@ test('room permissions and undo', () => {
   room.handle({ t: 'act', action: { type: 'undo' } }, g);
   assert.equal(room.state.characters[id].hp, 1200);
 });
+
+test('enemy phase: grouped defense rolls, armor narrows landing window', () => {
+  const { s, id } = setup();
+  apply(s, { type: 'spawn', etype: 'minion', count: 4, target: id });
+  apply(s, { type: 'spawn', etype: 'boss', count: 1, target: id, name: 'Wyrm' });
+  const r = apply(s, { type: 'enemyPhase' });
+  assert.deepEqual(r.events[0].targets, [id]);
+  const d = s.defense[id];
+  assert.equal(d.landOn, 2); // Ironclad 30% armor
+  assert.deepEqual(d.groups.map(g => [g.count, g.dice, g.damage]), [[4, 4, 60], [1, 3, 600]]);
+  apply(s, { type: 'defend', charId: id, landed: [2, 1] });
+  // raw 2*60 + 600 = 720, 30% armor blocks 216
+  assert.equal(s.characters[id].hp, 1800 - 504);
+  assert.equal(s.defense[id], undefined);
+});
+
+test('moving minions between heroes and roaming', () => {
+  const { s, id } = setup();
+  const b = apply(s, { type: 'createCharacter', name: 'B', cls: 'ranger' }).result.charId;
+  apply(s, { type: 'spawn', etype: 'minion', count: 5 });
+  apply(s, { type: 'moveMinions', from: null, to: id, count: 3 });
+  apply(s, { type: 'moveMinions', from: id, to: b, count: 1 });
+  const count = t => Object.values(s.enemies).filter(e => e.target === t).length;
+  assert.deepEqual([count(null), count(id), count(b)], [2, 2, 1]);
+});

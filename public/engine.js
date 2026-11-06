@@ -57,9 +57,9 @@ export const CLASSES = {
 
 // ---------------------------------------------------------------- enemies
 export const ENEMY_TYPES = {
-  minion: { label: 'Minion', hp: 1, damage: 60, hitOn: 4, energyMult: 1 },
-  elite: { label: 'Elite', hp: 2400, damage: 250, hitOn: 5, energyMult: 4 },
-  boss: { label: 'Boss', hp: 9000, damage: 600, hitOn: 5, energyMult: 10 },
+  minion: { label: 'Minion', hp: 1, damage: 60, hitOn: 4, energyMult: 1, attacks: 1 },
+  elite: { label: 'Elite', hp: 2400, damage: 250, hitOn: 5, energyMult: 4, attacks: 1 },
+  boss: { label: 'Boss', hp: 9000, damage: 600, hitOn: 5, energyMult: 10, attacks: 3 },
 };
 
 // ---------------------------------------------------------------- items
@@ -163,6 +163,22 @@ export function derive(ch) {
   return s;
 }
 
+// Defense: the hero rolls one die per enemy attack; low rolls are blows that land.
+// Heavy armor (30%+) narrows that window from 1–3 to 1–2.
+export const landOn = s => (s.armor >= 30 ? 2 : 3);
+
+function defenseGroups(state, ch) {
+  const groups = new Map();
+  for (const e of engagedWith(state, ch.id)) {
+    const key = e.type === 'minion' ? `m:${e.name}:${e.damage}` : e.id;
+    const g = groups.get(key) || { name: e.name, type: e.type, count: 0, damage: e.damage, dice: 0 };
+    g.count += 1;
+    g.dice += e.attacks || ENEMY_TYPES[e.type]?.attacks || 1;
+    groups.set(key, g);
+  }
+  return [...groups.values()];
+}
+
 export function engagedWith(state, charId) {
   return Object.values(state.enemies).filter(e => e.target === charId);
 }
@@ -211,7 +227,7 @@ function killMinions(state, ch, n) {
 
 // ---------------------------------------------------------------- state
 export function newGame(code) {
-  return { code, round: 1, characters: {}, order: [], enemies: {}, loot: {}, log: [], rev: 0, created: Date.now() };
+  return { code, round: 1, characters: {}, order: [], enemies: {}, loot: {}, defense: {}, log: [], rev: 0, created: Date.now() };
 }
 
 export function newCharacter(name, cls, rng = Math.random) {
@@ -223,7 +239,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike']);
+const GM_ONLY = new Set(['moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -378,7 +394,7 @@ export function apply(state, a, rng = Math.random) {
         const n = Math.max(1, Math.min(Number(a.count) || 1, 30));
         const hp = Number(a.hp) || T.hp;
         for (let i = 0; i < n; i++) {
-          const e = { id: uid(rng), type: a.etype in ENEMY_TYPES ? a.etype : 'minion', name: a.name || T.label, hp, maxHp: hp, hitOn: Number(a.hitOn) || T.hitOn, damage: Number(a.damage) || T.damage, target: a.target || null };
+          const e = { id: uid(rng), type: a.etype in ENEMY_TYPES ? a.etype : 'minion', name: a.name || T.label, hp, maxHp: hp, hitOn: Number(a.hitOn) || T.hitOn, damage: Number(a.damage) || T.damage, attacks: Number(a.attacks) || T.attacks, target: a.target || null };
           state.enemies[e.id] = e;
         }
         const who = a.target && state.characters[a.target] ? ` upon ${state.characters[a.target].name}` : '';
@@ -387,6 +403,54 @@ export function apply(state, a, rng = Math.random) {
         break;
       }
       case 'removeEnemy': delete state.enemies[a.enemyId]; break;
+      case 'moveMinions': {
+        const from = a.from || null, to = a.to || null;
+        const pool = Object.values(state.enemies).filter(e => e.type === 'minion' && (e.target || null) === from);
+        const n = Math.max(0, Math.min(Number(a.count) || 0, pool.length));
+        for (const e of pool.slice(0, n)) e.target = to;
+        const nm = id => (id ? state.characters[id]?.name || '?' : 'the shadows');
+        if (n) log(state, `${n} minion${n === 1 ? '' : 's'} turn${n === 1 ? 's' : ''} from ${nm(from)} to ${nm(to)}.`, 'spawn');
+        if (n && to) ev.push({ type: 'spawn', target: to, count: n });
+        break;
+      }
+      case 'enemyPhase': {
+        state.defense = {};
+        const targets = [];
+        for (const id of state.order) {
+          const c = state.characters[id];
+          if (c.hp <= 0) continue;
+          const groups = defenseGroups(state, c);
+          if (!groups.length) continue;
+          state.defense[id] = { id: uid(rng), groups, landOn: landOn(derive(c)) };
+          targets.push(id);
+        }
+        if (!targets.length) throw new Error('No foes are engaged with any standing hero');
+        log(state, `⚔ The foes attack! ${targets.map(id => state.characters[id].name).join(', ')} must defend.`, 'hurt');
+        ev.push({ type: 'enemyPhase', targets });
+        break;
+      }
+      case 'defend': {
+        need();
+        const d = state.defense?.[ch.id];
+        if (!d) throw new Error('No attack to defend against');
+        const landed = d.groups.map((g, i) => Math.max(0, Math.min(Number(a.landed?.[i]) || 0, g.dice)));
+        const raw = d.groups.reduce((sum, g, i) => sum + landed[i] * g.damage, 0);
+        const blows = landed.reduce((x, y) => x + y, 0);
+        delete state.defense[ch.id];
+        if (!blows) {
+          ev.push({ type: 'defended', charId: ch.id });
+          log(state, `${ch.name} turns aside every blow!`, 'heal');
+          break;
+        }
+        const r = hurt(ch, raw);
+        ev.push({ type: 'hurt', charId: ch.id, ...r });
+        log(state, `${blows} blow${blows === 1 ? ' lands' : 's land'} on ${ch.name}: ${fmt(r.net)} damage${r.blocked ? ` (${fmt(r.blocked)} blocked)` : ''}${r.warded ? ` (${fmt(r.warded)} warded)` : ''}.${ch.hp <= 0 ? ' DOWN!' : ''}`, 'hurt');
+        break;
+      }
+      case 'cancelDefense': {
+        if (state.defense) { if (a.charId) delete state.defense[a.charId]; else state.defense = {}; }
+        break;
+      }
       case 'clearEnemies': {
         for (const e of Object.values(state.enemies)) if (!a.target || e.target === a.target) delete state.enemies[e.id];
         break;
