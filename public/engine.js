@@ -712,6 +712,18 @@ function newCardCode(state, rng) {
 // fill in as the party goes deeper; everything else is random, with rarity and
 // item power climbing scene by scene.
 export const CACHE_DEFAULTS = { chest: 2, elite: 2, boss: 4 };
+export const SET_SHARE = 0.45; // share of all campaign items that are set pieces
+export const autoFeatured = party => Math.min(Object.keys(SETS).length, Math.max(3, party + 1));
+// How a campaign of `items` items with `want` featured sets will play out.
+export function setPlanFor(items, want) {
+  const budget = Math.floor(items * SET_SHARE);
+  let sets = Math.max(1, Math.min(want, Object.keys(SETS).length));
+  while (sets > 1 && sets * 2 > budget) sets--;
+  const spare = Math.max(0, budget - sets * 2);
+  const pieces = Math.min(budget, sets * 2 + Math.min(spare, sets * 2));
+  const complete = Math.min(sets, Math.floor(spare / 2));
+  return { sets, pieces, complete };
+}
 
 export function planCampaign(state, a, rng = Math.random) {
   const scenes = (a.scenes || []).slice(0, 12).map((sc, i) => ({
@@ -726,11 +738,12 @@ export function planCampaign(state, a, rng = Math.random) {
   const classes = (a.classes?.length ? a.classes : state.order.map(id => state.characters[id].cls)).filter(c => CLASSES[c]);
   const party = Math.max(1, classes.length || 4);
 
-  // 1. pick featured sets: each hero's favourite first, then their second picks, then the rest
-  const featured = [];
+  // 1. pick featured sets: GM-pinned sets first, then each hero's favourite, their second picks, then the rest
+  const featured = (a.pinned || []).filter(k => SETS[k]).filter((k, i, arr) => arr.indexOf(k) === i);
+  const pinnedCount = featured.length;
   for (const rank of [0, 1]) for (const c of classes) { const k = CLASS_SETS[c]?.[rank]; if (k && !featured.includes(k)) featured.push(k); }
   const rest = Object.keys(SETS).filter(k => !featured.includes(k)).sort(() => rng() - 0.5);
-  const want = Math.min(Object.keys(SETS).length, Math.max(3, party + 1));
+  const want = Math.max(pinnedCount, Math.min(Object.keys(SETS).length, Number(a.featuredCount) || autoFeatured(party)));
   while (featured.length < want && rest.length) featured.push(rest.shift());
   featured.length = Math.min(featured.length, want);
 
@@ -747,7 +760,7 @@ export function planCampaign(state, a, rng = Math.random) {
   // 3. set-piece budget: every featured set gets 2+ pieces (power + an upgrade),
   //    then the party's favourite sets are completed first; queue releases each
   //    set's first piece before any second piece, and so on.
-  let budget = Math.floor(totalSlots * 0.45);
+  let budget = Math.floor(totalSlots * SET_SHARE);
   while (featured.length > 1 && featured.length * 2 > budget) featured.pop();
   const cap = Object.fromEntries(featured.map(k => [k, Math.min(2, budget)]));
   let spare = Math.max(0, budget - featured.length * 2);
@@ -805,7 +818,7 @@ export function planCampaign(state, a, rng = Math.random) {
     });
     summary.push({ scene: sc.name, caches: sceneCaches[si].length, items: sceneSlots[si], setPieces: pieces.map(p => SETS[p.set].pieces[p.slot]) });
   });
-  state.campaign = { scenes, per, classes, featured, generated: Date.now() };
+  state.campaign = { scenes, per, classes, featured, featuredCount: Number(a.featuredCount) || null, pinned: a.pinned || [], generated: Date.now() };
   log(state, `The campaign is planned: ${scenes.length} scene${scenes.length > 1 ? 's' : ''}, ${totalSlots} treasures await.`, 'loot');
   return { featured, summary, totalSlots, setPieces: setBudget };
 }

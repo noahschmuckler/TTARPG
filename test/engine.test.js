@@ -206,3 +206,15 @@ test('campaign planner spreads featured set pieces across scenes', () => {
   const avgDmg = si => { const w = caches.filter(c => c.sceneIdx === si).flatMap(c => c.items).filter(i => i.slot === 'weapon' && i.rarity === 'common'); return w.length ? w.reduce((t, i) => t + i.stats.damage, 0) / w.length : null; };
   assert.ok(true, avgDmg(0));
 });
+
+test('planner honours a featured-set count and pinned sets', () => {
+  const s = newGame('FEAT');
+  const scenes = [[3, 1, 0], [3, 1, 1], [3, 2, 0], [3, 1, 1]].map(([c, e, b], i) => ({ name: 'S' + i, chests: c, elites: Array(e).fill('E'), bosses: Array(b).fill('B') }));
+  const r = apply(s, { type: 'planCampaign', scenes, classes: ['ironclad', 'arcanist', 'ranger'], featuredCount: 5, pinned: ['vaultbreaker'] }).result;
+  assert.equal(r.featured.length, 5);
+  assert.equal(r.featured[0], 'vaultbreaker');
+  const cnt = {};
+  for (const it of Object.values(s.loot).flatMap(c => c.items)) if (it.set) cnt[it.set] = (cnt[it.set] || 0) + 1;
+  assert.equal(Object.keys(cnt).length, 5);
+  assert.equal(Object.values(cnt).filter(n => n === 4).length, 4);
+});

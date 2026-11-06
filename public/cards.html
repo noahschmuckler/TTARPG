@@ -54,6 +54,9 @@
   .summary { margin-top: 14px; }
   .featured { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
   .fset { padding: 4px 10px; border: 1px solid var(--rc); color: var(--rc); font-family: var(--carved); font-weight: 800; }
+  .pin { padding: 5px 10px; border: 1px solid #3a3426; background: var(--obsidian); font-family: var(--carved); font-weight: 800; font-size: 14px; color: var(--ink-faint); }
+  .pin.auto { border-color: color-mix(in srgb, var(--rc) 50%, #3a3426); color: color-mix(in srgb, var(--rc) 70%, var(--ink-faint)); }
+  .pin.on { border-color: var(--rc); color: #12100b; background: var(--rc); }
   .sumrow { font-size: 14px; padding: 6px 0; border-bottom: 1px solid #2a2519; }
   @media print {
     .cardwrap .flip { transform: none !important; transition: none !important; } .face.back { display: none; }
@@ -70,6 +73,13 @@
     <p class="dim" style="margin-top:0">Lay out the delve scene by scene. The planner fills every chest, elite and boss with loot: each hero's favoured item sets appear early so new powers unlock in the first scene, sets fill in as the party goes deeper, and rarity and item power climb from scene to scene.</p>
     <label class="lbl">Party callings <span class="faint" id="partyhint"></span></label>
     <div class="party" id="party"></div>
+    <label class="lbl" style="margin-top:14px">Featured sets</label>
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      <select class="field sm" id="fcount" style="width:auto;min-height:36px"></select>
+      <span class="faint" style="font-size:13px">Tap a set to pin it into the campaign:</span>
+    </div>
+    <div class="party" id="pins" style="margin-top:8px"></div>
+    <div class="dim" id="setest" style="font-size:14px;margin-top:8px"></div>
     <label class="lbl" style="margin-top:14px">Items per cache</label>
     <div class="party">
       <span class="step"><span class="nm">Chest</span><input class="field sm" data-per="chest" inputmode="numeric" style="width:54px;min-height:32px"></span>
@@ -109,7 +119,7 @@
 </div>
 <div id="cards"></div>
 <script type="module">
-import { RARITIES, SLOT_LABEL, STAT_INFO, CLASSES, SETS, CLASS_SETS, CACHE_DEFAULTS } from './engine.js';
+import { RARITIES, SLOT_LABEL, STAT_INFO, CLASSES, SETS, SYNERGIES, CLASS_SETS, CACHE_DEFAULTS, autoFeatured, setPlanFor } from './engine.js';
 import { $, params, connect, qrSVG, esc, toast } from './ui.js';
 const flipped = new Set();
 const room = (params.get('room') || '').toUpperCase();
@@ -121,7 +131,7 @@ const net = connect({ room, role: 'gm', pin, onState: st => { S = st; if (!plan)
 // ------------------------------------------------------------ planner state
 function initPlan() {
   try { plan = JSON.parse(localStorage.getItem(DRAFT)); } catch { plan = null; }
-  if (!plan && S.campaign) plan = { classes: countClasses(S.campaign.classes), per: S.campaign.per, scenes: S.campaign.scenes.map(sc => ({ ...sc, elites: sc.elites.join(', '), bosses: sc.bosses.join(', ') })) };
+  if (!plan && S.campaign) plan = { classes: countClasses(S.campaign.classes), per: S.campaign.per, featuredCount: S.campaign.featuredCount || 0, pinned: S.campaign.pinned || [], scenes: S.campaign.scenes.map(sc => ({ ...sc, elites: sc.elites.join(', '), bosses: sc.bosses.join(', ') })) };
   if (!plan) {
     const heroes = S.order.map(id => S.characters[id].cls);
     const classes = countClasses(heroes.length ? heroes : ['ironclad', 'arcanist', 'ranger', 'runepriest']);
@@ -132,6 +142,8 @@ function initPlan() {
       { name: 'The Throne of Ash', chests: n, elites: '', bosses: 'The Ashen Thane' },
     ] };
   }
+  plan.featuredCount ??= 0;
+  plan.pinned ??= [];
   drawPlanner();
 }
 function countClasses(list) { const c = {}; for (const k of list) c[k] = (c[k] || 0) + 1; return c; }
@@ -144,6 +156,8 @@ function drawPlanner() {
   $('#party').innerHTML = Object.entries(CLASSES).map(([k, C]) => `<span class="step ${plan.classes[k] ? 'on' : ''}"><span class="nm">${C.glyph} ${C.name}</span><button data-cls="${k}" data-d="-1">−</button><b>${plan.classes[k] || 0}</b><button data-cls="${k}" data-d="1">+</button></span>`).join('')
     + (heroes.length ? `<button class="btn sm" id="useHeroes">Use current heroes</button>` : '');
   document.querySelectorAll('[data-per]').forEach(i => i.value = plan.per[i.dataset.per]);
+  const party = Object.values(plan.classes).reduce((a, b) => a + b, 0) || 1;
+  $('#fcount').innerHTML = `<option value="0">Auto (${autoFeatured(party)} for ${party} hero${party > 1 ? 'es' : ''})</option>` + [2, 3, 4, 5, 6].map(n => `<option value="${n}" ${plan.featuredCount === n ? 'selected' : ''}>${n} sets</option>`).join('');
   $('#scenes').innerHTML = plan.scenes.map((sc, i) => `<div class="scene" data-i="${i}">
     <div class="wide"><label class="lbl"><span class="idx">${i + 1}</span> · Scene name</label><input class="field sm" data-f="name" value="${esc(sc.name)}"></div>
     <div><label class="lbl">Chests</label><input class="field sm" data-f="chests" inputmode="numeric" value="${sc.chests}"></div>
@@ -162,6 +176,29 @@ function drawTotals() {
   }
   const heroes = Object.values(plan.classes).reduce((a, b) => a + b, 0) || 1;
   $('#totals').textContent = `${caches} cards · ${items} items · about ${Math.round(items / heroes)} per hero`;
+  drawSetEstimate(items, heroes);
+}
+
+// Mirrors the planner: pinned sets, then each calling's favourite, then second picks.
+function predictedSets(want) {
+  const out = [...plan.pinned];
+  const classes = Object.entries(plan.classes).flatMap(([k, n]) => Array(n).fill(k));
+  for (const rank of [0, 1]) for (const c of classes) { const k = CLASS_SETS[c]?.[rank]; if (k && !out.includes(k)) out.push(k); }
+  return out.slice(0, Math.max(plan.pinned.length, want));
+}
+function drawSetEstimate(items, heroes) {
+  const want = Math.max(plan.pinned.length, plan.featuredCount || autoFeatured(heroes));
+  const est = setPlanFor(items, want);
+  const sets = predictedSets(est.sets);
+  const random = est.sets - sets.length;
+  // pieces per set: 2 each, the first `complete` sets get all 4 (same order the planner uses)
+  const cap = Object.fromEntries(sets.map((k, i) => [k, i < est.complete ? 4 : 2]));
+  const syn = SYNERGIES.filter(sy => Object.entries(sy.needs).every(([k, n]) => (cap[k] || 0) >= n));
+  $('#pins').innerHTML = Object.entries(SETS).map(([k, S]) => `<button class="pin ${plan.pinned.includes(k) ? 'on' : sets.includes(k) ? 'auto' : ''}" style="--rc:${S.color}" data-pin="${k}" title="${esc(S.lore)}">${plan.pinned.includes(k) ? '📌 ' : ''}✦ ${esc(S.name)}</button>`).join('');
+  $('#setest').innerHTML = `<b>${est.sets} sets</b> · ${est.pieces} set pieces · <b>${est.complete}</b> can be completed · <b>${syn.length}${random > 0 ? '+' : ''}</b> hidden synergies possible`
+    + (random > 0 ? ` <span class="faint">(${random} more set${random > 1 ? 's' : ''} picked at random)</span>` : '')
+    + (est.sets < want ? ` <span style="color:#ff9ca4">· only room for ${est.sets} sets: add chests or elites for more</span>` : '')
+    + (est.complete < est.sets ? ` <span class="faint">· sets listed first are completed first</span>` : '');
 }
 function drawSummary() {
   const r = lastSummary;
@@ -180,7 +217,10 @@ document.querySelector('.planner').addEventListener('click', e => {
   if (rm) { plan.scenes.splice(Number(rm.dataset.rm), 1); save(); return drawPlanner(); }
   if (e.target.closest('#addScene')) { const n = Object.values(plan.classes).reduce((a, b) => a + b, 0) || 4; plan.scenes.push({ name: `Scene ${plan.scenes.length + 1}`, chests: n, elites: '', bosses: '' }); save(); return drawPlanner(); }
   if (e.target.closest('#plan')) return generate();
+  const pn = e.target.closest('[data-pin]');
+  if (pn) { const k = pn.dataset.pin; plan.pinned = plan.pinned.includes(k) ? plan.pinned.filter(x => x !== k) : [...plan.pinned, k]; save(); return drawTotals(); }
 });
+$('#fcount').onchange = e => { plan.featuredCount = Number(e.target.value); save(); drawTotals(); };
 document.querySelector('.planner').addEventListener('input', e => {
   const f = e.target.dataset.f, per = e.target.dataset.per;
   if (f) { const i = Number(e.target.closest('.scene').dataset.i); plan.scenes[i][f] = f === 'chests' ? Number(e.target.value.replace(/[^\d]/g, '')) || 0 : e.target.value; }
@@ -194,7 +234,7 @@ async function generate() {
   if (Object.values(S.loot).some(c => c.plan) && !confirm('Replace the unclaimed cards from the previous campaign plan?')) return;
   const scenes = plan.scenes.map(sc => ({ name: sc.name, chests: Number(sc.chests) || 0, elites: names(sc.elites), bosses: names(sc.bosses) }));
   try {
-    lastSummary = await net.act({ type: 'planCampaign', scenes, per: plan.per, classes });
+    lastSummary = await net.act({ type: 'planCampaign', scenes, per: plan.per, classes, featuredCount: plan.featuredCount || undefined, pinned: plan.pinned });
     drawSummary();
     $('#filter').value = 'all';
     toast(`${lastSummary.totalSlots} treasures forged across ${scenes.length} scenes`);
