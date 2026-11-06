@@ -1,6 +1,7 @@
 // Cloudflare host: static assets + one Durable Object per game room.
 import { DurableObject } from 'cloudflare:workers';
 import { RoomCore, randomCode } from '../server/room.js';
+import ASSETS from './assets.gen.js';
 
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
 
@@ -28,7 +29,10 @@ export default {
       if (!/^[A-Z]{4}$/.test(code)) return new Response('bad room', { status: 400 });
       return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(req);
     }
-    return env.ASSETS.fetch(req);
+    const path = url.pathname.endsWith('/') ? url.pathname + 'index.html' : url.pathname;
+    const a = ASSETS[path];
+    if (!a) return new Response('Not found', { status: 404 });
+    return new Response(a.body, { headers: { 'content-type': a.type, 'cache-control': 'no-cache' } });
   },
 };
 

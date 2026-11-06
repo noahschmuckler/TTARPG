@@ -8,8 +8,8 @@
     "start": "node server/node.js",
     "dev": "node --watch server/node.js",
     "test": "node --test test/*.test.js",
-    "cf:dev": "wrangler dev",
-    "cf:deploy": "wrangler deploy"
+    "cf:dev": "node scripts/bundle-assets.js && wrangler dev",
+    "cf:deploy": "node scripts/bundle-assets.js && wrangler deploy"
   },
   "dependencies": {
     "ws": "^8.18.0"

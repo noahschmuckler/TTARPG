@@ -37,7 +37,8 @@ export function connect({ room, role, pin, onState, onEvents, onStatus, onFatal 
   setInterval(() => { if (alive) ws.send('{"t":"ping"}'); }, 25000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ws.readyState > 1) open(); });
   return {
-    act(action) {
+    async act(action) {
+      for (let i = 0; !alive && i < 40; i++) await new Promise(r => setTimeout(r, 150));
       return new Promise((res, rej) => {
         if (!alive) { toast('Reconnecting… try again in a moment', 'err'); return rej(new Error('offline')); }
         const id = ++rid;

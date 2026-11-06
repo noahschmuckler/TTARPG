@@ -427,7 +427,7 @@ export function apply(state, a, rng = Math.random) {
         for (let i = 0; i < n; i++) {
           const rarity = a.rarity === 'random' || !a.rarity ? randomRarity(rng) : a.rarity;
           const it = makeItem(rarity, rng);
-          it.card = Math.random().toString(36).slice(2, 8).toUpperCase();
+          do it.card = Array.from({ length: 6 }, () => 'ACDEFGHJKMNPQRTUVWXY34679'[Math.floor(rng() * 25)]).join(''); while (state.loot[it.card]);
           state.loot[it.card] = it;
         }
         break;
