@@ -240,3 +240,37 @@ test('scaled bosses fit the party and grow with its gear', () => {
   apply(s, { type: 'spawn', etype: 'boss', name: 'Plain' });
   assert.equal(Object.values(s.enemies).find(e => e.name === 'Plain').maxHp, 9000);
 });
+
+test('foe ability presets run automatically', () => {
+  const s = newGame('FOE');
+  const a = apply(s, { type: 'createCharacter', name: 'A', cls: 'ironclad' }).result.charId;
+  const b = apply(s, { type: 'createCharacter', name: 'B', cls: 'arcanist' }).result.charId;
+  apply(s, { type: 'spawn', etype: 'boss', name: 'Thane', hp: 1600, armor: 0, target: a, abilities: ['enrage', 'horde', 'regen', 'summoner', 'sweep', 'leech', 'thickhide', 'throes'] });
+  const boss = Object.values(s.enemies)[0];
+  // thick hide: a crit does normal damage
+  apply(s, { type: 'attack', charId: a, hits: 3, sixes: 3 });
+  let r = apply(s, { type: 'spend', charId: a, enemyId: boss.id });
+  assert.equal(boss.hp, 1600 - 420);
+  // drop below half: enrage + horde fire once
+  r = apply(s, { type: 'spend', charId: a, enemyId: boss.id });
+  const fired = r.events.filter(e => e.type === 'foeAbility').map(e => e.key);
+  assert.deepEqual(fired, ['enrage', 'horde']);
+  assert.equal(boss.attacks, 4); assert.equal(boss.damage, 675);
+  assert.equal(Object.values(s.enemies).filter(e => e.type === 'minion').length, 4);
+  r = apply(s, { type: 'spend', charId: a, enemyId: boss.id });
+  assert.equal(r.events.filter(e => e.type === 'foeAbility').length, 0);
+  // end round: regen 5% and 2 summoned minions on its target
+  const hpBefore = boss.hp;
+  apply(s, { type: 'endRound' });
+  assert.equal(boss.hp, hpBefore + 80);
+  assert.equal(Object.values(s.enemies).filter(e => e.type === 'minion' && e.target === a).length, 4);
+  // enemy phase: sweeping boss also attacks B; leech drains both
+  s.characters[a].energy = s.characters[b].energy = 50;
+  apply(s, { type: 'enemyPhase' });
+  assert.ok(s.defense[b].groups.some(g => g.name === 'Thane'));
+  assert.equal(s.characters[a].energy, 40); assert.equal(s.characters[b].energy, 40);
+  // death throes: 300 to every hero, armor applies (Ironclad 30% → 210, Arcanist 8% → 276)
+  const [ha, hb] = [s.characters[a].hp, s.characters[b].hp];
+  apply(s, { type: 'damageEnemy', enemyId: boss.id, amount: 99999 });
+  assert.equal(ha - s.characters[a].hp, 210); assert.equal(hb - s.characters[b].hp, 276);
+});

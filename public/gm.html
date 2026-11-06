@@ -52,6 +52,13 @@
   .qrbox { background: #f3ead2; padding: 14px; width: min(320px, 80vw); margin: 10px auto; }
   .qrbox svg { display: block; width: 100%; height: auto; }
   .gate { max-width: 420px; margin: 18vh auto; padding: 20px; }
+  .abchips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .abchip { padding: 4px 8px; border: 1px solid #5a3a22; background: var(--obsidian); color: #c9a58a; font-size: 13px; font-weight: 600; }
+  .abchip.on { background: #6e3818; border-color: #e98f53; color: #ffe2cc; }
+  .abtag { display: inline-block; margin: 2px 4px 0 0; padding: 1px 6px; border: 1px solid #6e3818; color: #ffcfa8; font-size: 12px; }
+  .abtag.fired { background: #8a2b1a; border-color: #ff8a3d; color: #fff; }
+  .foeabs summary { cursor: pointer; list-style: none; margin-top: 4px; }
+  .foeabs summary::-webkit-details-marker { display: none; }
   .gearline { display: flex; gap: 8px; align-items: baseline; width: 100%; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--line); background: var(--obsidian); text-align: left; font-size: 13px; line-height: 1.4;
     clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
   .gearline:hover { border-color: var(--brass); }
@@ -70,7 +77,7 @@
 <body>
 <div id="root"></div>
 <script type="module">
-import { CLASSES, ENEMY_TYPES, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES } from './engine.js';
+import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES } from './engine.js';
 import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML, setsHTML } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
@@ -78,7 +85,7 @@ if (!room) location.href = './';
 localStorage.setItem('dl.lastRoom', room);
 let pin = localStorage.getItem('dl.pin') || '';
 let S = null, online = false, net = null;
-const spawnCfg = { etype: 'minion', count: 3, target: '', name: '', hp: '', armor: '', attacks: '', damage: '', ability: '', scale: true, rounds: '' };
+const spawnCfg = { etype: 'minion', count: 3, target: '', name: '', hp: '', armor: '', attacks: '', damage: '', ability: '', scale: true, rounds: '', abilities: [] };
 
 function gate(msg) {
   $('#root').innerHTML = `<div class="plate gate"><h2 class="carved" style="color:var(--brass-hi);margin:0">Game ${esc(room)}</h2><p class="dim">${esc(msg || 'Enter your GM PIN')}</p>
@@ -97,6 +104,7 @@ function start() {
       if (e.type === 'loot' && n) toast(`${n} ← ${e.item.name}`);
       if (e.type === 'ability' && n) toast(`${n}: ${e.name}`);
       if (e.type === 'cache' && n) toast(`${n} opened ${e.label}`);
+      if (e.type === 'foeAbility') toast(`${FOE_ABILITIES[e.key].icon} ${e.enemyName}: ${e.name}`);
       if (e.type === 'unlock' && n) toast(`${n}: ${e.kind === 'synergy' ? 'synergy ' : ''}${e.name}!`);
     }),
     onStatus: on => { online = on; $('.conn')?.classList.toggle('on', on); },
@@ -122,7 +130,9 @@ function render() {
       `<div class="plate dim empty"><div class="carved" style="font-size:22px;color:var(--brass-hi)">No heroes yet</div><p class="dim">Show the join code to your players. Each forges a hero on their phone.</p><button class="btn solid" data-a="qr">Show join code</button></div>`;
     $('#spawn').innerHTML = spawnPanel();
     scalePreview();
+    const openAbs = new Set([...document.querySelectorAll('.foeabs[open]')].map(d => d.dataset.e));
     $('#roam').innerHTML = roamPanel();
+    document.querySelectorAll('.foeabs').forEach(d => { if (openAbs.has(d.dataset.e)) d.open = true; });
     if (gearOpen) gearOpen.el.querySelector('#gearbody').innerHTML = gearBody(gearOpen.id);
     $('#log').innerHTML = S.log.slice(0, 60).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join('');
   });
@@ -208,7 +218,9 @@ function spawnPanel() {
     <div><label class="lbl">Armor %</label><input class="field sm" data-cfg="armor" data-keep="cfg-armor" inputmode="numeric" placeholder="${T.armor}%" value="${spawnCfg.armor}"></div>
     <div><label class="lbl">Attacks</label><input class="field sm" data-cfg="attacks" data-keep="cfg-attacks" inputmode="numeric" placeholder="${T.attacks}" value="${spawnCfg.attacks}"></div>
     <div><label class="lbl">Damage / blow</label><input class="field sm" data-cfg="damage" data-keep="cfg-damage" inputmode="numeric" placeholder="${fmt(T.damage)}" value="${spawnCfg.damage}"></div>
-    <div style="grid-column:span 2"><label class="lbl">Ability (shown to players)</label><input class="field sm" data-cfg="ability" data-keep="cfg-ability" placeholder="e.g. Below half health, attacks twice more" value="${esc(spawnCfg.ability)}"></div>
+    ${spawnCfg.etype !== 'minion' ? `<div style="grid-column:span 2"><label class="lbl">Abilities (the app runs these)</label><div class="abchips">${Object.entries(FOE_ABILITIES).map(([k, A]) => `<button class="abchip ${spawnCfg.abilities.includes(k) ? 'on' : ''}" data-a="abToggle" data-k="${k}" title="${esc(A.text)}">${A.icon} ${esc(A.name)}</button>`).join('')}</div>
+      <div class="faint" style="font-size:12px;margin-top:4px">${spawnCfg.abilities.map(k => esc(FOE_ABILITIES[k].text)).join('<br>') || 'Tap to add. Hover for details.'}</div></div>` : ''}
+    <div style="grid-column:span 2"><label class="lbl">Extra note (shown to players)</label><input class="field sm" data-cfg="ability" data-keep="cfg-ability" placeholder="e.g. Below half health, attacks twice more" value="${esc(spawnCfg.ability)}"></div>
     <div style="grid-column:span 2"><label class="lbl">Engaging</label><select class="field sm" data-cfg="target"><option value="">Roaming (anyone can attack)</option>${S.order.map(id => `<option value="${id}" ${spawnCfg.target === id ? 'selected' : ''}>${esc(S.characters[id].name)}</option>`).join('')}</select></div>
   </div><div style="height:10px"></div><button class="btn solid block" data-a="spawn">Summon</button>`;
 }
@@ -223,6 +235,8 @@ function roamPanel() {
     ${roaming ? `<div class="foechips" style="margin-bottom:6px"><span class="fchip">☠ ×${roaming} roaming<button data-a="moveM" data-id="" title="Assign to a hero">⇄</button></span></div>` : ''}
     ${bigs.map(e => `<div class="foe-row"><div class="row"><span class="nm grow">${esc(e.name)}</span><span class="faint" style="font-size:12px">${ENEMY_TYPES[e.type].label} · ⛨${e.armor || 0}% · ⚔${e.attacks || 1}×${fmt(e.damage)}</span><button class="mini" data-a="rescale" data-e="${e.id}" title="Re-fit health to the party as it is now (keeps its health %)">⟳ Rescale</button><button class="mini" data-a="rmFoe" data-e="${e.id}">✕</button></div>
       ${bar('foe', e.hp, e.maxHp, `${fmt(e.hp)} / ${fmt(e.maxHp)}`)}${e.ability ? `<div style="font-size:12px;color:#ffcfa8;margin-top:4px">✦ ${esc(e.ability)}</div>` : ''}
+      <details class="foeabs" data-e="${e.id}"><summary>${(e.abilities || []).length ? (e.abilities || []).map(k => `<span class="abtag ${(e.fired || []).includes(k) ? 'fired' : ''}" title="${esc(FOE_ABILITIES[k].text)}">${FOE_ABILITIES[k].icon} ${esc(FOE_ABILITIES[k].name)}${(e.fired || []).includes(k) ? ' ✓' : ''}</span>`).join('') : '<span class="faint">No abilities</span>'} <span class="faint" style="font-size:11px">edit</span></summary>
+        <div class="abchips" style="margin-top:6px">${Object.entries(FOE_ABILITIES).map(([k, A]) => `<button class="abchip ${(e.abilities || []).includes(k) ? 'on' : ''}" data-a="foeAb" data-e="${e.id}" data-k="${k}" title="${esc(A.text)}">${A.icon} ${esc(A.name)}</button>`).join('')}</div></details>
       <div class="ctl"><select class="field sm grow" data-move="${e.id}" style="min-height:32px"><option value="">Roaming</option>${S.order.map(id => `<option value="${id}" ${e.target === id ? 'selected' : ''}>→ ${esc(S.characters[id].name)}</option>`).join('')}</select>
       <input class="numin" data-keep="edmg-${e.id}" inputmode="numeric" placeholder="dmg"><button class="mini hurt" data-a="dmgFoe" data-e="${e.id}">−</button></div></div>`).join('')}
     <div style="height:10px"></div><button class="btn sm danger block" data-a="clearAll">Clear all foes</button>`;
@@ -278,13 +292,24 @@ function onClick(e) {
     case 'clearOn': return act({ type: 'clearEnemies', target: id });
     case 'rmFoe': return act({ type: 'removeEnemy', enemyId: b.dataset.e });
     case 'rescale': return act({ type: 'rescaleEnemy', enemyId: b.dataset.e });
+    case 'abToggle': {
+      document.querySelectorAll('[data-cfg]').forEach(i => spawnCfg[i.dataset.cfg] = i.value);
+      const k = b.dataset.k;
+      spawnCfg.abilities = spawnCfg.abilities.includes(k) ? spawnCfg.abilities.filter(x => x !== k) : [...spawnCfg.abilities, k];
+      return render();
+    }
+    case 'foeAb': { // toggle an ability on a foe already on the board
+      const e = S.enemies[b.dataset.e]; if (!e) return;
+      const k = b.dataset.k, cur = e.abilities || [];
+      return act({ type: 'editEnemy', enemyId: e.id, abilities: cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k] });
+    }
     case 'clearAll': return act({ type: 'clearEnemies' });
     case 'dmgFoe': { const i = document.querySelector(`[data-keep="edmg-${b.dataset.e}"]`); const v = Number(i.value.replace(/[^\d]/g, '')); if (v) { act({ type: 'damageEnemy', enemyId: b.dataset.e, amount: v }); i.value = ''; } return; }
     case 'loot': return act({ type: 'giveLoot', charId: id, rarity: b.dataset.r });
     case 'spawn': {
       document.querySelectorAll('[data-cfg]').forEach(i => spawnCfg[i.dataset.cfg] = i.value);
       const scale = spawnCfg.etype !== 'minion' && spawnCfg.scale ? (num(spawnCfg.rounds) || SCALE_DEFAULT_ROUNDS[spawnCfg.etype]) : undefined;
-      return act({ type: 'spawn', scale, etype: spawnCfg.etype, count: Number(spawnCfg.count) || 1, target: spawnCfg.target || null, name: spawnCfg.name || undefined, hp: num(spawnCfg.hp), armor: spawnCfg.armor === '' ? undefined : num(spawnCfg.armor) ?? 0, attacks: num(spawnCfg.attacks), damage: num(spawnCfg.damage), ability: spawnCfg.ability || undefined });
+      return act({ type: 'spawn', scale, abilities: spawnCfg.abilities, etype: spawnCfg.etype, count: Number(spawnCfg.count) || 1, target: spawnCfg.target || null, name: spawnCfg.name || undefined, hp: num(spawnCfg.hp), armor: spawnCfg.armor === '' ? undefined : num(spawnCfg.armor) ?? 0, attacks: num(spawnCfg.attacks), damage: num(spawnCfg.damage), ability: spawnCfg.ability || undefined });
     }
     case 'edit': return editSheet(id);
     case 'gear': return gearSheet(id);

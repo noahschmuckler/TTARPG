@@ -276,9 +276,95 @@ export function derive(ch) {
 // Heavy armor (30%+) narrows that window from 1–3 to 1–2.
 export const landOn = s => (s.armor >= 30 ? 2 : 3);
 
+// ---------------------------------------------------------------- foe abilities
+// Presets the app runs by itself. `when`: half (once, at ≤50% health), round
+// (every End round), phase (enemy phase), passive, death.
+export const FOE_ABILITIES = {
+  enrage: { name: 'Enrage', icon: '♨', when: 'half', text: 'At half health: +1 attack and +50% damage per blow.', tag: 'Enraged' },
+  stoneskin: { name: 'Stoneskin', icon: '◆', when: 'half', text: 'At half health: +20% armor.', tag: 'Hardened' },
+  horde: { name: 'Call the Horde', icon: '⚑', when: 'half', text: 'At half health: 2 minions rush every hero.', tag: 'Horde called' },
+  summoner: { name: 'Summoner', icon: '☠', when: 'round', text: 'Every End round: 2 minions join the fight.' },
+  regen: { name: 'Regenerate', icon: '✚', when: 'round', text: 'Every End round: heals 5% of its max health.' },
+  sweep: { name: 'Sweeping Blows', icon: '⟲', when: 'phase', text: 'Enemy phase: attacks every standing hero, not just the one it is fighting.' },
+  leech: { name: 'Energy Leech', icon: 'ϟ', when: 'phase', text: 'Enemy phase: every hero it attacks loses 10 energy.' },
+  thickhide: { name: 'Thick Hide', icon: '⛊', when: 'passive', text: '6s never crit it.' },
+  throes: { name: 'Death Throes', icon: '✹', when: 'death', text: 'On death: explodes for 300 damage to every hero (armor applies).' },
+};
+export const foeHas = (e, k) => (e.abilities || []).includes(k);
+
+function foeAnnounce(state, e, key, ev, detail) {
+  const A = FOE_ABILITIES[key];
+  ev.push({ type: 'foeAbility', enemyId: e.id, enemyName: e.name, key, name: A.name, text: detail || A.text });
+  log(state, `${A.icon} ${e.name}: ${A.name}! ${detail || ''}`.trim(), 'hurt');
+}
+
+function spawnMinionsFor(state, n, targets, rng) {
+  const heroes = targets.filter(id => state.characters[id]?.hp > 0);
+  const T = ENEMY_TYPES.minion;
+  for (let i = 0; i < n; i++) {
+    const e = { id: uid(rng), type: 'minion', name: 'Minion', hp: 1, maxHp: 1, armor: 0, damage: T.damage, attacks: 1, ability: '', target: heroes.length ? heroes[i % heroes.length] : null };
+    state.enemies[e.id] = e;
+  }
+  const per = {};
+  for (let i = 0; i < n && heroes.length; i++) per[heroes[i % heroes.length]] = (per[heroes[i % heroes.length]] || 0) + 1;
+  return Object.entries(per).map(([target, count]) => ({ type: 'spawn', target, count }));
+}
+
+// After a foe takes damage (still alive): half-health triggers fire once.
+function foeDamaged(state, e, ev, rng) {
+  if (e.hp <= 0 || e.hp > e.maxHp / 2) return;
+  e.fired ||= [];
+  for (const key of ['enrage', 'stoneskin', 'horde']) {
+    if (!foeHas(e, key) || e.fired.includes(key)) continue;
+    e.fired.push(key);
+    if (key === 'enrage') { e.attacks = (e.attacks || 1) + 1; e.damage = Math.round(e.damage * 1.5); foeAnnounce(state, e, key, ev, `Now ${e.attacks} attacks of ${fmt(e.damage)}.`); }
+    if (key === 'stoneskin') { e.armor = Math.min(75, (e.armor || 0) + 20); foeAnnounce(state, e, key, ev, `Armor rises to ${e.armor}%.`); }
+    if (key === 'horde') {
+      const heroes = state.order.filter(id => state.characters[id].hp > 0);
+      ev.push(...spawnMinionsFor(state, heroes.length * 2, heroes, rng));
+      foeAnnounce(state, e, key, ev, `${heroes.length * 2} minions rush the heroes!`);
+    }
+  }
+}
+
+// A foe has just died.
+function foeDied(state, e, ev) {
+  if (!foeHas(e, 'throes')) return;
+  const hit = [];
+  for (const id of state.order) {
+    const c = state.characters[id];
+    if (c.hp <= 0) continue;
+    const r = hurt(c, 300);
+    ev.push({ type: 'hurt', charId: c.id, ...r });
+    hit.push(`${c.name} −${fmt(r.net)}`);
+  }
+  foeAnnounce(state, e, 'throes', ev, hit.length ? hit.join(', ') + '.' : '');
+}
+
+// Every End round.
+function foesRoundEnd(state, ev, rng) {
+  for (const e of Object.values(state.enemies)) {
+    if (foeHas(e, 'regen') && e.hp < e.maxHp) {
+      const amt = Math.min(e.maxHp - e.hp, Math.round(e.maxHp * 0.05));
+      e.hp += amt;
+      foeAnnounce(state, e, 'regen', ev, `Heals ${fmt(amt)} (${fmt(e.hp)} / ${fmt(e.maxHp)}).`);
+    }
+    if (foeHas(e, 'summoner')) {
+      const targets = e.target ? [e.target] : state.order;
+      ev.push(...spawnMinionsFor(state, 2, targets, rng));
+      foeAnnounce(state, e, 'summoner', ev, `2 minions answer the call.`);
+    }
+  }
+}
+
+// Foes that attack this hero in the enemy phase: those engaged with them, plus any with Sweeping Blows.
+function attackersOf(state, ch) {
+  return Object.values(state.enemies).filter(e => e.target === ch.id || (foeHas(e, 'sweep') && e.type !== 'minion'));
+}
+
 function defenseGroups(state, ch) {
   const groups = new Map();
-  for (const e of engagedWith(state, ch.id)) {
+  for (const e of attackersOf(state, ch)) {
     const key = e.type === 'minion' ? `m:${e.name}:${e.damage}` : e.id;
     const g = groups.get(key) || { name: e.name, type: e.type, count: 0, damage: e.damage, dice: 0 };
     g.count += 1;
@@ -448,7 +534,7 @@ export function apply(state, a, rng = Math.random) {
           if (!st.hits && !st.crits) throw new Error('Those hits only work on minions');
           const crit = st.crits > 0;
           if (crit) st.crits--; else st.hits--;
-          const raw = s.damage * (crit ? s.critMult : 1) * (st.mult || 1);
+          const raw = s.damage * (crit && !foeHas(e, 'thickhide') ? s.critMult : 1) * (st.mult || 1);
           const dmg = Math.round(raw * (1 - (e.armor || 0) / 100));
           e.hp = Math.max(0, e.hp - dmg);
           let energy = 0;
@@ -459,6 +545,7 @@ export function apply(state, a, rng = Math.random) {
             log(state, `${ch.name} ${crit ? 'crits' : 'hits'} for ${fmt(dmg)} and fells ${e.name}! (+${energy} energy)`, 'kill');
           } else log(state, `${ch.name} ${crit ? 'crits' : 'hits'} ${e.name} for ${fmt(dmg)}.`, 'hit');
           ev.push({ type: 'strike', charId: ch.id, enemyId: e.id, enemyName: e.name, damage: dmg, crit, slain: e.hp <= 0, energy, left: strikeLeft(ch) });
+          if (e.hp <= 0) foeDied(state, e, ev); else foeDamaged(state, e, ev, rng);
         }
         if (!strikeLeft(ch)) delete ch.strike;
         break;
@@ -538,7 +625,7 @@ export function apply(state, a, rng = Math.random) {
         const scale = a.etype !== 'minion' && Number(a.scale) > 0 && state.order.length ? Math.min(Number(a.scale), 20) : 0;
         const hp = scale ? scaledHealth(state, scale, armor) : Number(a.hp) || T.hp;
         for (let i = 0; i < n; i++) {
-          const e = { id: uid(rng), type: a.etype in ENEMY_TYPES ? a.etype : 'minion', name: a.name || T.label, hp, maxHp: hp, armor, ...(scale ? { scaleRounds: scale } : {}), damage: Number(a.damage) || T.damage, attacks: Number(a.attacks) || T.attacks, ability: a.ability ? String(a.ability).slice(0, 140) : '', target: a.target || null };
+          const e = { id: uid(rng), type: a.etype in ENEMY_TYPES ? a.etype : 'minion', name: a.name || T.label, hp, maxHp: hp, armor, ...(scale ? { scaleRounds: scale } : {}), damage: Number(a.damage) || T.damage, attacks: Number(a.attacks) || T.attacks, ability: a.ability ? String(a.ability).slice(0, 140) : '', abilities: a.etype === 'minion' ? [] : (a.abilities || []).filter(k => FOE_ABILITIES[k]), target: a.target || null };
           state.enemies[e.id] = e;
         }
         const who = a.target && state.characters[a.target] ? ` upon ${state.characters[a.target].name}` : '';
@@ -564,6 +651,7 @@ export function apply(state, a, rng = Math.random) {
         for (const k of ['armor', 'damage', 'attacks', 'hp', 'maxHp']) if (a[k] != null && a[k] !== '') e[k] = Math.max(0, Number(a[k]) || 0);
         if (a.name) e.name = String(a.name).slice(0, 40);
         if (a.ability != null) e.ability = String(a.ability).slice(0, 140);
+        if (Array.isArray(a.abilities)) e.abilities = a.abilities.filter(k => FOE_ABILITIES[k]);
         e.hp = Math.min(e.hp, e.maxHp);
         break;
       }
@@ -587,6 +675,11 @@ export function apply(state, a, rng = Math.random) {
           if (!groups.length) continue;
           state.defense[id] = { id: uid(rng), groups, landOn: landOn(derive(c)) };
           targets.push(id);
+          for (const e of attackersOf(state, c).filter(x => foeHas(x, 'leech'))) {
+            const lost = Math.min(c.energy, 10);
+            c.energy -= lost;
+            if (lost) foeAnnounce(state, e, 'leech', ev, `${c.name} loses ${lost} energy.`);
+          }
         }
         if (!targets.length) throw new Error('No foes are engaged with any standing hero');
         log(state, `⚔ The foes attack! ${targets.map(id => state.characters[id].name).join(', ')} must defend.`, 'hurt');
@@ -628,7 +721,8 @@ export function apply(state, a, rng = Math.random) {
         const e = state.enemies[a.enemyId];
         if (!e) break;
         e.hp = Math.max(0, Math.min(e.maxHp, e.hp - (Number(a.amount) || 0)));
-        if (e.hp <= 0) { delete state.enemies[e.id]; log(state, `${e.name} falls.`, 'kill'); }
+        if (e.hp <= 0) { delete state.enemies[e.id]; log(state, `${e.name} falls.`, 'kill'); foeDied(state, e, ev); }
+        else foeDamaged(state, e, ev, rng);
         break;
       }
       case 'endRound': {
@@ -640,6 +734,7 @@ export function apply(state, a, rng = Math.random) {
         state.round += 1;
         log(state, `— Round ${state.round} begins. Energy surges. —`, 'round');
         ev.push({ type: 'round', round: state.round });
+        foesRoundEnd(state, ev, rng);
         break;
       }
       case 'giveLoot': {
