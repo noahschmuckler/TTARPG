@@ -57,7 +57,7 @@
 <body>
 <div id="root"></div>
 <script type="module">
-import { CLASSES, ENEMY_TYPES, derive, engagedWith, fmt, RARITY_ORDER, RARITIES } from './engine.js';
+import { CLASSES, ENEMY_TYPES, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES } from './engine.js';
 import { $, h, esc, params, connect, toast, sheet, qrSVG } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
@@ -65,7 +65,7 @@ if (!room) location.href = './';
 localStorage.setItem('dl.lastRoom', room);
 let pin = localStorage.getItem('dl.pin') || '';
 let S = null, online = false, net = null;
-const spawnCfg = { etype: 'minion', count: 3, target: '', name: '', hp: '', hitOn: '', damage: '' };
+const spawnCfg = { etype: 'minion', count: 3, target: '', name: '', hp: '', armor: '', attacks: '', damage: '', ability: '' };
 
 function gate(msg) {
   $('#root').innerHTML = `<div class="plate gate"><h2 class="carved" style="color:var(--brass-hi);margin:0">Game ${esc(room)}</h2><p class="dim">${esc(msg || 'Enter your GM PIN')}</p>
@@ -163,6 +163,7 @@ function heroCard(ch) {
       ${bar('en', ch.energy, s.maxEnergy, `Energy ${ch.energy} / ${s.maxEnergy}`)}
     </div>
     ${ch.buffs.label ? `<div class="dim" style="font-size:13px;color:#aef7ee">⚡ ${esc(ch.buffs.label)} primed</div>` : ''}
+    ${strikeLeft(ch) ? `<div style="font-size:13px;color:var(--brass-hi)">⚔ ${strikeLeft(ch)} hit${strikeLeft(ch) === 1 ? '' : 's'} to spend</div>` : ''}
     ${S.defense?.[id] ? `<div class="row" style="margin:4px 0;color:#ff9ca4;font-family:var(--display);font-weight:800;letter-spacing:.1em;text-transform:uppercase;font-size:13px">⏳ Rolling defense…<span class="grow"></span><button class="mini" data-a="cancelDef" data-id="${id}" title="Cancel this hero's defense roll">Skip</button></div>` : ''}
     <div class="ctl"><span class="k">Damage</span><div class="btns">${[100, 250, 500, 1000].map(n => `<button class="mini hurt" data-a="hurt" data-id="${id}" data-n="${n}">−${n}</button>`).join('')}
       <input class="numin" data-keep="dmg-${id}" inputmode="numeric" placeholder="###"><button class="mini hurt" data-a="hurtc" data-id="${id}">Hit</button></div></div>
@@ -185,7 +186,10 @@ function spawnPanel() {
     <div><label class="lbl">Count</label><input class="field sm" data-cfg="count" data-keep="cfg-count" inputmode="numeric" value="${spawnCfg.count}"></div>
     <div style="grid-column:span 2"><label class="lbl">Name</label><input class="field sm" data-cfg="name" data-keep="cfg-name" placeholder="${T.label}" value="${esc(spawnCfg.name)}"></div>
     <div><label class="lbl">Health</label><input class="field sm" data-cfg="hp" data-keep="cfg-hp" inputmode="numeric" placeholder="${fmt(T.hp)}" value="${spawnCfg.hp}"></div>
-    <div><label class="lbl">Hits on</label><input class="field sm" data-cfg="hitOn" data-keep="cfg-hit" inputmode="numeric" placeholder="${T.hitOn}+" value="${spawnCfg.hitOn}"></div>
+    <div><label class="lbl">Armor %</label><input class="field sm" data-cfg="armor" data-keep="cfg-armor" inputmode="numeric" placeholder="${T.armor}%" value="${spawnCfg.armor}"></div>
+    <div><label class="lbl">Attacks</label><input class="field sm" data-cfg="attacks" data-keep="cfg-attacks" inputmode="numeric" placeholder="${T.attacks}" value="${spawnCfg.attacks}"></div>
+    <div><label class="lbl">Damage / blow</label><input class="field sm" data-cfg="damage" data-keep="cfg-damage" inputmode="numeric" placeholder="${fmt(T.damage)}" value="${spawnCfg.damage}"></div>
+    <div style="grid-column:span 2"><label class="lbl">Ability (shown to players)</label><input class="field sm" data-cfg="ability" data-keep="cfg-ability" placeholder="e.g. Below half health, attacks twice more" value="${esc(spawnCfg.ability)}"></div>
     <div style="grid-column:span 2"><label class="lbl">Engaging</label><select class="field sm" data-cfg="target"><option value="">Roaming (anyone can attack)</option>${S.order.map(id => `<option value="${id}" ${spawnCfg.target === id ? 'selected' : ''}>${esc(S.characters[id].name)}</option>`).join('')}</select></div>
   </div><div style="height:10px"></div><button class="btn solid block" data-a="spawn">Summon</button>`;
 }
@@ -198,12 +202,14 @@ function roamPanel() {
   const roaming = all.filter(e => e.type === 'minion' && !e.target).length;
   return `<p class="dim" style="margin:0 0 6px">${minionCount} minion${minionCount === 1 ? '' : 's'} tracked.</p>
     ${roaming ? `<div class="foechips" style="margin-bottom:6px"><span class="fchip">☠ ×${roaming} roaming<button data-a="moveM" data-id="" title="Assign to a hero">⇄</button></span></div>` : ''}
-    ${bigs.map(e => `<div class="foe-row"><div class="row"><span class="nm grow">${esc(e.name)}</span><span class="faint" style="font-size:12px">${ENEMY_TYPES[e.type].label} · ${e.hitOn}+</span><button class="mini" data-a="rmFoe" data-e="${e.id}">✕</button></div>
-      ${bar('foe', e.hp, e.maxHp, `${fmt(e.hp)} / ${fmt(e.maxHp)}`)}
+    ${bigs.map(e => `<div class="foe-row"><div class="row"><span class="nm grow">${esc(e.name)}</span><span class="faint" style="font-size:12px">${ENEMY_TYPES[e.type].label} · ⛨${e.armor || 0}% · ⚔${e.attacks || 1}×${fmt(e.damage)}</span><button class="mini" data-a="rmFoe" data-e="${e.id}">✕</button></div>
+      ${bar('foe', e.hp, e.maxHp, `${fmt(e.hp)} / ${fmt(e.maxHp)}`)}${e.ability ? `<div style="font-size:12px;color:#ffcfa8;margin-top:4px">✦ ${esc(e.ability)}</div>` : ''}
       <div class="ctl"><select class="field sm grow" data-move="${e.id}" style="min-height:32px"><option value="">Roaming</option>${S.order.map(id => `<option value="${id}" ${e.target === id ? 'selected' : ''}>→ ${esc(S.characters[id].name)}</option>`).join('')}</select>
       <input class="numin" data-keep="edmg-${e.id}" inputmode="numeric" placeholder="dmg"><button class="mini hurt" data-a="dmgFoe" data-e="${e.id}">−</button></div></div>`).join('')}
     <div style="height:10px"></div><button class="btn sm danger block" data-a="clearAll">Clear all foes</button>`;
 }
+
+const num = v => { const n = Number(String(v ?? '').replace(/[^\d]/g, '')); return String(v ?? '').trim() === '' || Number.isNaN(n) ? undefined : n; };
 
 function hitCustom(id) {
   const i = document.querySelector(`[data-keep="dmg-${id}"]`);
@@ -213,7 +219,7 @@ function hitCustom(id) {
 
 function onChange(e) {
   const c = e.target.dataset.cfg;
-  if (c) { spawnCfg[c] = e.target.value; if (c === 'etype') { spawnCfg.hp = spawnCfg.hitOn = spawnCfg.name = ''; render(); } return; }
+  if (c) { spawnCfg[c] = e.target.value; if (c === 'etype') { spawnCfg.hp = spawnCfg.armor = spawnCfg.attacks = spawnCfg.damage = spawnCfg.name = spawnCfg.ability = ''; render(); } return; }
   const mv = e.target.dataset.move;
   if (mv) act({ type: 'moveEnemy', enemyId: mv, target: e.target.value || null });
 }
@@ -244,7 +250,7 @@ function onClick(e) {
     case 'loot': return act({ type: 'giveLoot', charId: id, rarity: b.dataset.r });
     case 'spawn': {
       document.querySelectorAll('[data-cfg]').forEach(i => spawnCfg[i.dataset.cfg] = i.value);
-      return act({ type: 'spawn', etype: spawnCfg.etype, count: Number(spawnCfg.count) || 1, target: spawnCfg.target || null, name: spawnCfg.name || undefined, hp: Number(String(spawnCfg.hp).replace(/[^\d]/g, '')) || undefined, hitOn: Number(spawnCfg.hitOn) || undefined });
+      return act({ type: 'spawn', etype: spawnCfg.etype, count: Number(spawnCfg.count) || 1, target: spawnCfg.target || null, name: spawnCfg.name || undefined, hp: num(spawnCfg.hp), armor: spawnCfg.armor === '' ? undefined : num(spawnCfg.armor) ?? 0, attacks: num(spawnCfg.attacks), damage: num(spawnCfg.damage), ability: spawnCfg.ability || undefined });
     }
     case 'edit': return editSheet(id);
   }

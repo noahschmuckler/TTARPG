@@ -10,14 +10,14 @@ Phone-first hero sheets and a GM headquarters for a tabletop dungeon crawl playe
 
 | Thing | How it works |
 |---|---|
-| Attack | Roll your **dice pool** of d6s. Every die showing the target's number (4+ for minions, 5+ for elites/bosses) is a hit. Enter the count; the app does the rest. |
-| Minions | One hit = one dead minion. Tap a minion on your phone to slay it directly, or use "+N slain" if the GM isn't tracking them in the app. |
-| Elites / bosses | Each hit deals your **Damage per Hit** (hundreds). Each 6 is a crit (×2, Shadowblade ×3). |
+| Attack | Roll your **dice pool** of d6s. Every die showing **4+** is a hit, against every foe. Enter how many hits and how many 6s; that banks a **pool of hits**. |
+| Spending hits | Tap a minion to slay it (1 hit). Tap an elite or boss to strike it (1 hit = your Damage per Hit, less its armor). 6s are crits (×2, Shadowblade ×3) and are spent on big foes first. "Slay one on the table" spends a hit on an untracked minion. You can tap foes on allies too. Unspent hits vanish at End round. |
+| Foes | All hit on 4+. They differ by health, armor % (cuts hero damage), attacks per enemy phase, damage per blow, and an optional ability note shown to players. Defaults: minion 1 hp / 0% / 1×60, elite 2,000 / 20% / 2×200, boss 9,000 / 35% / 3×450. |
 | Energy | Gained per kill (more for elites/bosses) and at the end of every round. Spend it on your three powers. |
 | Enemy phase | GM taps **Enemy phase**. Every hero with foes on them gets a prompt: roll one die per enemy attack (bosses attack 3 times); each die showing 1–3 is a blow that lands. Heroes with 30%+ armor are only hit on 1–2. |
 | Damage taken | Blows add up by enemy (minion 60, elite 250, boss 600); your Armor % is subtracted, then any Ward soaks the rest. The GM can also deal damage directly. |
 | Assigning foes | Summon foes onto a hero or leave them roaming. ⇄ on any minion group moves some or all of them to another hero (or back to roaming); elites and bosses have a dropdown. |
-| Items | Common → Magic → Rare → Legendary. Legendaries can add an extra attack die or Cleave (each 6 kills an extra minion). |
+| Items | Common → Magic → Rare → Legendary. Legendaries can add an extra attack die or Cleave (each 6 also grants a free minion-only hit). Minion-slaying powers likewise add minion-only hits to your pool. |
 
 Five callings: Ironclad (tank), Runepriest (support), Ranger (many dice), Arcanist (big hits, fragile), Shadowblade (crits, energy on kills). All numbers live in `public/engine.js`, so tune away.
 

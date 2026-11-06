@@ -63,6 +63,18 @@
   .bigfoe { width: 100%; padding: 12px 14px; --plate-bg: #1f130b; }
   .bigfoe .nm { font-family: var(--carved); font-weight: 800; color: #ffb27d; font-size: 18px; }
 
+  .pool { margin-top: 14px; padding: 12px 14px; --plate-bg: #2a2110; text-align: center; }
+  .pool .ph { font-family: var(--display); font-weight: 900; font-size: 30px; letter-spacing: .06em; color: var(--brass-hi); line-height: 1; }
+  .pool .ps { font-family: var(--display); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; color: var(--ink-dim); margin-top: 4px; }
+  .armed .minion { animation: ready 1s ease-in-out infinite; }
+  .armed .bigfoe { cursor: pointer; animation: ready 1s ease-in-out infinite; }
+  @keyframes ready { 50% { filter: drop-shadow(0 0 8px rgba(243,217,142,.7)); } }
+  .others { margin-top: 12px; }
+  .ogrp { display: inline-flex; align-items: center; gap: 8px; margin: 0 8px 8px 0; padding: 6px 10px 6px 6px; border: 1px solid #6e3818; background: #1f130b; color: #ffcfa8; font-family: var(--display); font-weight: 800; letter-spacing: .04em; }
+  .ogrp .minion { width: 40px; height: 40px; font-size: 17px; }
+  .float { position: fixed; left: 50%; top: 38%; z-index: 75; pointer-events: none; transform: translateX(-50%); font-family: var(--display); font-weight: 900; font-size: 34px; letter-spacing: .04em; color: var(--brass-hi); text-shadow: 0 0 18px rgba(243,217,142,.6), 0 3px 0 #000; animation: floatup .8s forwards; white-space: nowrap; }
+  .float.crit { color: #ffb27d; font-size: 44px; }
+  @keyframes floatup { from { opacity: 0; transform: translate(-50%, 20px) scale(.8); } 20% { opacity: 1; transform: translate(-50%, 0) scale(1.05); } to { opacity: 0; transform: translate(-50%, -50px); } }
   .tally { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
   .powers { display: grid; gap: 10px; }
@@ -117,7 +129,7 @@
 <body>
 <div class="wrap" id="app"><p class="center dim" style="margin-top:40vh">Opening the ledger…</p></div>
 <script type="module">
-import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, derive, engagedWith, fmt } from './engine.js';
+import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, derive, engagedWith, strikeLeft, fmt } from './engine.js';
 let seenDefense = null, defenseOpen = false;
 import { $, h, esc, params, connect, toast, burst, sheet, itemHTML } from './ui.js';
 
@@ -145,12 +157,20 @@ function tryClaim() {
   act({ type: 'claimLoot', charId: me, card }).catch(() => {});
 }
 
+function floatText(text, cls = '') {
+  const f = h(`<div class="float ${cls}">${esc(text)}</div>`);
+  document.body.appendChild(f);
+  if (navigator.vibrate) navigator.vibrate(15);
+  setTimeout(() => f.remove(), 850);
+}
+
 // ---------------------------------------------------------- events
 function onEvent(e) {
   const mine = e.charId === me;
   const who = S?.characters[e.charId]?.name || 'Someone';
-  if (e.type === 'kills' && mine) burst(e.kills ? `${e.kills} slain` : 'Miss', e.energy ? `+${e.energy} energy` : '', e.kills ? '' : 'hurt');
-  else if (e.type === 'strike' && mine) burst(e.slain ? 'Felled!' : fmt(e.damage), e.slain ? `${e.enemyName} · +${e.energy} energy` : `damage to ${e.enemyName}`);
+  if (e.type === 'rolled' && mine) burst(e.hits ? `${e.hits} hit${e.hits > 1 ? 's' : ''}` : 'Miss', e.hits ? 'tap foes to spend them' : 'the foes stand firm', e.hits ? '' : 'hurt');
+  else if (e.type === 'kills' && mine) floatText(`☠ +${e.energy}⚡`);
+  else if (e.type === 'strike' && mine) e.slain ? burst('Felled!', `${e.enemyName} · +${e.energy} energy`) : floatText(`${e.crit ? 'CRIT ' : ''}−${fmt(e.damage)}`, e.crit ? 'crit' : '');
   else if (e.type === 'hurt' && mine) {
     burst(`−${fmt(e.net)}`, [e.blocked && `${fmt(e.blocked)} blocked`, e.warded && `${fmt(e.warded)} warded`].filter(Boolean).join(' · '), 'hurt');
     document.body.classList.remove('shake'); void document.body.offsetWidth; document.body.classList.add('shake');
@@ -243,12 +263,16 @@ function skeleton() {
     const t = e.target;
     if (t.closest('#atk')) return attackSheet();
     if (t.closest('#defend')) return defenseSheet();
-    const m = t.closest('.minion');
-    if (m) { m.classList.add('dying'); return act({ type: 'tapKill', charId: me, enemyId: m.dataset.id }).catch(() => m.classList.remove('dying')); }
-    const big = t.closest('[data-foe]');
-    if (big) return attackSheet(big.dataset.foe);
-    const q = t.closest('[data-qk]');
-    if (q) return act({ type: 'quickKill', charId: me, n: Number(q.dataset.qk) });
+    const tgt = t.closest('[data-spend]');
+    if (tgt) {
+      const ch = S.characters[me];
+      if (!strikeLeft(ch)) return toast('Roll an attack first, then tap foes to spend your hits');
+      const big = tgt.dataset.big === '1';
+      if (big && !(ch.strike.hits || ch.strike.crits)) return toast('Those hits only work on minions');
+      if (tgt.classList.contains('minion')) tgt.classList.add('dying');
+      return act({ type: 'spend', charId: me, enemyId: tgt.dataset.spend }).catch(() => tgt.classList.remove('dying'));
+    }
+    if (t.closest('#endAtk')) return act({ type: 'endAttack', charId: me });
     const p = t.closest('[data-power]');
     if (p) return powerSheet(p.dataset.power);
     const sl = t.closest('[data-slot]');
@@ -286,19 +310,33 @@ function render() {
   $('#defbox').innerHTML = D ? `<button class="btn danger defend" id="defend">⚔ Foes attack! Roll defense</button>` : '';
   if (D && D.id !== seenDefense) { seenDefense = D.id; if (!defenseOpen) setTimeout(defenseSheet, 50); }
   const atk = $('#atk');
+  const left = strikeLeft(ch), st = ch.strike || {};
+  atk.classList.toggle('hidden', left > 0);
   atk.disabled = ch.hp <= 0;
   atk.innerHTML = ch.hp <= 0 ? 'Fallen — await healing' : `Attack · roll ${s.pool} <span class="dice">${'<i class="die"></i>'.repeat(Math.min(s.pool, 8))}</span>`;
 
   // foes
-  const foes = engagedWith(S, me);
-  const minions = foes.filter(f => f.type === 'minion');
-  const bigs = foes.filter(f => f.type !== 'minion');
-  const others = Object.values(S.enemies).filter(e => e.type !== 'minion' && e.target !== me);
+  const mine = engagedWith(S, me);
+  const minions = mine.filter(f => f.type === 'minion');
+  const all = Object.values(S.enemies);
+  const bigs = all.filter(e => e.type !== 'minion').sort((x, y) => (y.target === me) - (x.target === me));
+  const otherMinions = new Map();
+  for (const e of all) if (e.type === 'minion' && e.target !== me) { const k = e.target || ''; otherMinions.set(k, [...(otherMinions.get(k) || []), e]); }
+  const bigFoe = b => `<div class="plate bigfoe" data-spend="${b.id}" data-big="1" style="margin-top:10px">
+      <div class="row"><div class="nm grow">${esc(b.name)}</div><span class="faint" style="font-size:13px">${b.target === me ? 'on you' : b.target ? 'on ' + esc(S.characters[b.target]?.name || '?') : 'roaming'}</span></div>
+      <div class="bar foe" style="margin-top:8px"><i style="width:${(b.hp / b.maxHp) * 100}%"></i><span>${fmt(b.hp)} / ${fmt(b.maxHp)}</span></div>
+      <div class="faint" style="font-size:13px;margin-top:6px">⛨ ${b.armor || 0}% armor · ⚔ ${b.attacks || 1} attack${(b.attacks || 1) > 1 ? 's' : ''} × ${fmt(b.damage)}${b.ability ? `<br><span style="color:#ffcfa8">✦ ${esc(b.ability)}</span>` : ''}</div></div>`;
+  $('#foes').className = left ? 'armed' : '';
   $('#foes').innerHTML = `
-    <div class="rule"><span class="gem"></span>${foes.length ? 'Foes upon you' : 'Tally kills'}<span class="gem"></span></div>
-    ${minions.length ? `<p class="faint center" style="margin:0 0 10px;font-size:14px">Tap a minion to slay it</p><div class="foes">${minions.map(m => `<button class="minion" data-id="${m.id}" aria-label="${esc(m.name)}">☠</button>`).join('')}</div>` : ''}
-    ${[...bigs, ...others].map(b => `<div class="plate bigfoe" data-foe="${b.id}" style="margin-top:10px"><div class="row"><div class="nm grow">${esc(b.name)}</div><span class="faint" style="font-size:13px">${b.target === me ? 'on you' : b.target ? 'on ' + esc(S.characters[b.target]?.name || '?') : 'roaming'} · hits on ${b.hitOn}+</span></div><div class="bar foe" style="margin-top:8px"><i style="width:${(b.hp / b.maxHp) * 100}%"></i><span>${fmt(b.hp)} / ${fmt(b.maxHp)}</span></div></div>`).join('')}
-    ${!minions.length ? `<div class="tally" style="margin-top:10px">${[1, 2, 3].map(n => `<button class="btn" data-qk="${n}">+${n} slain</button>`).join('')}</div>` : ''}`;
+    ${left ? `<div class="plate pool"><div class="ph">⚔ ${left} hit${left === 1 ? '' : 's'} to spend</div>
+      <div class="ps">${[st.hits && `${st.hits} normal`, st.crits && `${st.crits} crit${st.crits > 1 ? 's' : ''} ×${s.critMult}`, st.minion && `${st.minion} minion-only`, st.mult > 1 && `×${st.mult} damage`].filter(Boolean).join(' · ')}</div>
+      <div class="ps" style="color:var(--ink)">Tap minions to slay · tap elites & bosses to strike</div>
+      <div class="row" style="margin-top:10px"><button class="btn sm grow" data-spend="table">☠ Slay one on the table</button><button class="btn sm danger" id="endAtk">Done</button></div></div>` : ''}
+    <div class="rule"><span class="gem"></span>${mine.length ? 'Foes upon you' : 'Foes'}<span class="gem"></span></div>
+    ${minions.length ? `<div class="foes">${minions.map(m => `<button class="minion" data-spend="${m.id}" aria-label="${esc(m.name)}">☠</button>`).join('')}</div>` : ''}
+    ${bigs.map(bigFoe).join('')}
+    ${otherMinions.size ? `<div class="others">${[...otherMinions].map(([t, list]) => `<span class="ogrp"><button class="minion" data-spend="${list[0].id}">☠</button>×${list.length} ${t ? 'on ' + esc(S.characters[t]?.name || '?') : 'roaming'}</span>`).join('')}</div>` : ''}
+    ${!all.length ? `<p class="faint center" style="margin:0">No foes tracked. After rolling, use “Slay one on the table” for each minion you cut down.</p>` : ''}`;
 
   $('#powers').innerHTML = C.abilities.map(a => {
     const ready = ch.energy >= a.cost && ch.hp > 0;
@@ -347,35 +385,26 @@ function defenseSheet() {
 }
 
 // ---------------------------------------------------------- attack flow
-function attackSheet(preTarget) {
+function attackSheet() {
   const ch = S.characters[me], s = derive(ch);
   if (ch.hp <= 0) return;
-  const foes = engagedWith(S, me);
-  const minions = foes.filter(f => f.type === 'minion');
-  const bigs = Object.values(S.enemies).filter(e => e.type !== 'minion').sort((a, b) => (b.target === me) - (a.target === me));
-  const targets = [{ id: 'minions', name: minions.length ? `Minions (${minions.length})` : 'Minions', hitOn: minions.length ? Math.min(...minions.map(m => m.hitOn)) : 4, big: false },
-    ...bigs.map(b => ({ id: b.id, name: b.name, hitOn: b.hitOn, big: true }))];
-  let target = targets.find(t => t.id === preTarget) || (bigs.find(b => b.target === me) && !minions.length ? targets[1] : targets[0]);
   let hits = null, sixes = 0;
   const { el, close } = sheet('<div id="as"></div>');
   const draw = () => {
-    const needSix = hits > 0 && (target.big || s.cleave > 0);
     el.querySelector('#as').innerHTML = `
       <h2>Attack</h2>
-      ${targets.length > 1 ? `<div class="targets" style="margin-top:10px">${targets.map(t => `<button class="chip ${t.id === target.id ? 'on' : ''}" data-t="${t.id}">${esc(t.name)}</button>`).join('')}</div>` : ''}
-      <div class="instr">Roll <b>${s.pool}</b> dice. How many show <b>${target.hitOn}+</b>?</div>
-      <div class="pick" id="hits">${Array.from({ length: s.pool + 1 }, (_, i) => `<button class="${hits === i ? 'on' : ''}" data-h="${i}">${i}</button>`).join('')}</div>
-      ${needSix ? `<div class="instr">Of those, how many are <b>6</b>? <span class="faint" style="font-size:14px">${target.big ? `crits deal ×${s.critMult}` : `each 6 cleaves +${s.cleave}`}</span></div>
-        <div class="pick" id="six">${Array.from({ length: hits + 1 }, (_, i) => `<button class="${sixes === i ? 'on' : ''}" data-s="${i}">${i}</button>`).join('')}</div>` : ''}
+      <div class="instr">Roll <b>${s.pool}</b> dice. How many show <b>4+</b>?</div>
+      <div class="pick">${Array.from({ length: s.pool + 1 }, (_, i) => `<button class="${hits === i ? 'on' : ''}" data-h="${i}">${i}</button>`).join('')}</div>
+      ${hits > 0 ? `<div class="instr">Of those, how many are <b>6</b>? <span class="faint" style="font-size:14px">crits strike elites & bosses for ×${s.critMult}${s.cleave ? ` · each also grants ${s.cleave} free minion kill` : ''}</span></div>
+        <div class="pick">${Array.from({ length: hits + 1 }, (_, i) => `<button class="${sixes === i ? 'on' : ''}" data-s="${i}">${i}</button>`).join('')}</div>` : ''}
       <div style="height:16px"></div>
-      <button class="btn solid block attack" id="strike" ${hits === null ? 'disabled' : ''}>${hits === 0 ? 'A miss' : 'Strike!'}</button>`;
+      <button class="btn solid block attack" id="strike" ${hits === null ? 'disabled' : ''}>${hits === null ? 'Count your dice' : hits === 0 ? 'A miss' : `Ready ${hits} hit${hits > 1 ? 's' : ''}`}</button>`;
   };
   draw();
   el.addEventListener('click', e => {
-    const t = e.target.closest('[data-t]'); if (t) { target = targets.find(x => x.id === t.dataset.t); sixes = 0; return draw(); }
     const hb = e.target.closest('[data-h]'); if (hb) { hits = Number(hb.dataset.h); sixes = Math.min(sixes, hits); return draw(); }
     const sb = e.target.closest('[data-s]'); if (sb) { sixes = Number(sb.dataset.s); return draw(); }
-    if (e.target.closest('#strike')) { close(); act({ type: 'attack', charId: me, targetId: target.id, hits, sixes }).catch(() => {}); }
+    if (e.target.closest('#strike')) { close(); act({ type: 'attack', charId: me, hits, sixes }).catch(() => {}); }
   });
 }
 

@@ -2,7 +2,7 @@
 // Pure functions over a plain JSON game state. Used by the server (authoritative)
 // and by the browser (for derived stats and display). No DOM, no I/O.
 
-export const HIT_ON_DEFAULT = 4;
+export const HIT_ON = 4; // every foe is hit on a 4, 5 or 6
 
 // ---------------------------------------------------------------- classes
 // Base stats are deliberately "big number" ARPG-scale. Players never add them up;
@@ -14,7 +14,7 @@ export const CLASSES = {
     abilities: [
       { key: 'charge', name: 'Cleaving Charge', cost: 30, text: 'Roll +2 dice on your next attack.', effect: { kind: 'buff', bonusDice: 2 } },
       { key: 'bulwark', name: 'Iron Bulwark', cost: 40, text: 'Gain a 600-point ward that soaks damage.', effect: { kind: 'ward', amount: 600, who: 'self' } },
-      { key: 'quake', name: 'Earthsplitter', cost: 80, text: 'Slay up to 5 minions engaged with you.', effect: { kind: 'smite', kills: 5 } },
+      { key: 'quake', name: 'Earthsplitter', cost: 80, text: 'Gain 5 minion-slaying hits. Tap minions to cut them down.', effect: { kind: 'smite', kills: 5 } },
     ],
   },
   runepriest: {
@@ -32,7 +32,7 @@ export const CLASSES = {
     abilities: [
       { key: 'volley', name: 'Volley', cost: 35, text: 'Roll +3 dice on your next attack.', effect: { kind: 'buff', bonusDice: 3 } },
       { key: 'pierce', name: 'Piercing Shot', cost: 50, text: 'Your next attack deals double damage.', effect: { kind: 'buff', damageMult: 2 } },
-      { key: 'rain', name: 'Rain of Bolts', cost: 80, text: 'Slay up to 6 minions engaged with you.', effect: { kind: 'smite', kills: 6 } },
+      { key: 'rain', name: 'Rain of Bolts', cost: 80, text: 'Gain 6 minion-slaying hits. Tap minions to cut them down.', effect: { kind: 'smite', kills: 6 } },
     ],
   },
   arcanist: {
@@ -40,7 +40,7 @@ export const CLASSES = {
     base: { maxHp: 1000, armor: 8, dice: 2, damage: 650, energyPerKill: 7, energyPerRound: 20, maxEnergy: 100, critMult: 2, cleave: 0 },
     abilities: [
       { key: 'lance', name: 'Ember Lance', cost: 30, text: 'Your next attack deals double damage.', effect: { kind: 'buff', damageMult: 2 } },
-      { key: 'glyph', name: 'Frost Glyph', cost: 45, text: 'Slay up to 3 minions engaged with you.', effect: { kind: 'smite', kills: 3 } },
+      { key: 'glyph', name: 'Frost Glyph', cost: 45, text: 'Gain 3 minion-slaying hits. Tap minions to cut them down.', effect: { kind: 'smite', kills: 3 } },
       { key: 'meteor', name: 'Meteor', cost: 90, text: 'Next attack: +4 dice and double damage.', effect: { kind: 'buff', bonusDice: 4, damageMult: 2 } },
     ],
   },
@@ -57,9 +57,9 @@ export const CLASSES = {
 
 // ---------------------------------------------------------------- enemies
 export const ENEMY_TYPES = {
-  minion: { label: 'Minion', hp: 1, damage: 60, hitOn: 4, energyMult: 1, attacks: 1 },
-  elite: { label: 'Elite', hp: 2400, damage: 250, hitOn: 5, energyMult: 4, attacks: 1 },
-  boss: { label: 'Boss', hp: 9000, damage: 600, hitOn: 5, energyMult: 10, attacks: 3 },
+  minion: { label: 'Minion', hp: 1, damage: 60, armor: 0, attacks: 1, energyMult: 1 },
+  elite: { label: 'Elite', hp: 2000, damage: 200, armor: 20, attacks: 2, energyMult: 4 },
+  boss: { label: 'Boss', hp: 9000, damage: 450, armor: 35, attacks: 3, energyMult: 10 },
 };
 
 // ---------------------------------------------------------------- items
@@ -209,20 +209,13 @@ function hurt(ch, amount, ignoreArmor = false) {
   ch.ward = (ch.ward || 0) - warded;
   net -= warded;
   ch.hp = Math.max(0, ch.hp - net);
+  if (ch.hp <= 0) delete ch.strike;
   return { net, blocked, warded };
 }
 
-function killMinions(state, ch, n) {
-  // Kills tracked minions first; if the GM isn't tracking minions virtually,
-  // kills still count (they're the ones on the physical table).
-  const tracked = engagedWith(state, ch.id).filter(e => e.type === 'minion');
-  const removed = tracked.slice(0, n);
-  for (const e of removed) delete state.enemies[e.id];
-  const kills = tracked.length ? removed.length : n;
-  ch.kills += kills;
-  const s = derive(ch);
-  const energy = gainEnergy(ch, kills * s.energyPerKill);
-  return { kills, energy };
+export function strikeLeft(ch) {
+  const st = ch.strike;
+  return st ? (st.hits || 0) + (st.crits || 0) + (st.minion || 0) : 0;
 }
 
 // ---------------------------------------------------------------- state
@@ -239,7 +232,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike']);
+const GM_ONLY = new Set(['moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -274,55 +267,55 @@ export function apply(state, a, rng = Math.random) {
         log(state, `${ch.name} leaves the party.`);
         break;
       }
-      case 'attack': {
+      case 'attack': { // roll → bank a pool of hits to spend by tapping foes
         need();
         if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
+        if (strikeLeft(ch) && !a.force) throw new Error('Spend your remaining hits first');
         const s = derive(ch);
         const hits = Math.max(0, Math.min(Number(a.hits) || 0, s.pool));
         const sixes = Math.max(0, Math.min(Number(a.sixes) || 0, hits));
-        const mult = ch.buffs.damageMult || 1;
+        const minion = (ch.strike?.minion || 0) + sixes * s.cleave;
+        ch.strike = { hits: hits - sixes, crits: sixes, minion, mult: ch.buffs.damageMult || 1 };
         ch.buffs = {};
-        if (!a.targetId || a.targetId === 'minions') {
-          const { kills, energy } = killMinions(state, ch, hits + sixes * s.cleave);
-          ev.push({ type: 'kills', charId: ch.id, kills, energy, hits, sixes });
-          log(state, `${ch.name} rolls ${hits} hit${hits === 1 ? '' : 's'} — ${kills} minion${kills === 1 ? '' : 's'} slain (+${energy} energy).`, 'kill');
+        ev.push({ type: 'rolled', charId: ch.id, hits, sixes });
+        log(state, hits ? `${ch.name} rolls ${hits} hit${hits === 1 ? '' : 's'}${sixes ? ` (${sixes} crit${sixes > 1 ? 's' : ''})` : ''}.` : `${ch.name} rolls and misses.`, 'hit');
+        break;
+      }
+      case 'spend': { // tap a foe: spend one hit on it ('table' = an untracked minion on the board)
+        need();
+        if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
+        const st = ch.strike || {};
+        if (!strikeLeft(ch)) throw new Error('No hits left. Roll an attack first');
+        const s = derive(ch);
+        const e = a.enemyId === 'table' ? null : state.enemies[a.enemyId];
+        if (a.enemyId !== 'table' && !e) throw new Error('That foe is already gone');
+        if (!e || e.type === 'minion') {
+          if (st.minion) st.minion--; else if (st.hits) st.hits--; else st.crits--;
+          if (e) delete state.enemies[e.id];
+          ch.kills += 1;
+          const energy = gainEnergy(ch, s.energyPerKill);
+          ev.push({ type: 'kills', charId: ch.id, kills: 1, energy, left: strikeLeft(ch) });
+          log(state, `${ch.name} slays ${e ? 'a ' + e.name : 'a minion'}. (+${energy} energy)`, 'kill');
         } else {
-          const e = state.enemies[a.targetId];
-          if (!e) throw new Error('That foe is already gone');
-          const dmg = Math.round(((hits - sixes) * s.damage + sixes * s.damage * s.critMult) * mult);
+          if (!st.hits && !st.crits) throw new Error('Those hits only work on minions');
+          const crit = st.crits > 0;
+          if (crit) st.crits--; else st.hits--;
+          const raw = s.damage * (crit ? s.critMult : 1) * (st.mult || 1);
+          const dmg = Math.round(raw * (1 - (e.armor || 0) / 100));
           e.hp = Math.max(0, e.hp - dmg);
           let energy = 0;
           if (e.hp <= 0) {
             delete state.enemies[e.id];
             ch.kills += 1;
             energy = gainEnergy(ch, s.energyPerKill * (ENEMY_TYPES[e.type]?.energyMult || 1));
-            log(state, `${ch.name} deals ${fmt(dmg)} and fells ${e.name}! (+${energy} energy)`, 'kill');
-          } else {
-            log(state, `${ch.name} strikes ${e.name} for ${fmt(dmg)}${sixes ? ` (${sixes} crit${sixes > 1 ? 's' : ''})` : ''}.`, 'hit');
-          }
-          ev.push({ type: 'strike', charId: ch.id, enemyId: e.id, enemyName: e.name, damage: dmg, slain: e.hp <= 0, energy, hits, sixes });
+            log(state, `${ch.name} ${crit ? 'crits' : 'hits'} for ${fmt(dmg)} and fells ${e.name}! (+${energy} energy)`, 'kill');
+          } else log(state, `${ch.name} ${crit ? 'crits' : 'hits'} ${e.name} for ${fmt(dmg)}.`, 'hit');
+          ev.push({ type: 'strike', charId: ch.id, enemyId: e.id, enemyName: e.name, damage: dmg, crit, slain: e.hp <= 0, energy, left: strikeLeft(ch) });
         }
+        if (!strikeLeft(ch)) delete ch.strike;
         break;
       }
-      case 'tapKill': {
-        need();
-        const e = state.enemies[a.enemyId];
-        if (!e || e.type !== 'minion') throw new Error('That minion is already gone');
-        delete state.enemies[e.id];
-        ch.kills += 1;
-        const energy = gainEnergy(ch, derive(ch).energyPerKill);
-        ev.push({ type: 'kills', charId: ch.id, kills: 1, energy });
-        log(state, `${ch.name} slays a ${e.name}. (+${energy} energy)`, 'kill');
-        break;
-      }
-      case 'quickKill': { // physical-only play: "I killed N"
-        need();
-        const n = Math.max(1, Math.min(Number(a.n) || 1, 20));
-        const { kills, energy } = killMinions(state, ch, n);
-        ev.push({ type: 'kills', charId: ch.id, kills, energy });
-        log(state, `${ch.name} slays ${kills} minion${kills === 1 ? '' : 's'}. (+${energy} energy)`, 'kill');
-        break;
-      }
+      case 'endAttack': { need(); delete ch.strike; break; }
       case 'ability': {
         need();
         if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
@@ -349,9 +342,9 @@ export function apply(state, a, rng = Math.random) {
         } else if (f.kind === 'energize') {
           for (const c of f.who === 'others' ? others : party) gainEnergy(c, f.amount);
         } else if (f.kind === 'smite') {
-          const { kills, energy } = killMinions(state, ch, f.kills);
-          ev.push({ type: 'kills', charId: ch.id, kills, energy });
-          detail = ` — ${kills} slain`;
+          ch.strike = ch.strike || { hits: 0, crits: 0, minion: 0, mult: 1 };
+          ch.strike.minion += f.kills;
+          detail = ` — ${f.kills} minion-slaying hits`;
         }
         ev.unshift({ type: 'ability', charId: ch.id, name: ab.name });
         log(state, `${ch.name} unleashes ${ab.name}${detail}.`, 'ability');
@@ -394,7 +387,7 @@ export function apply(state, a, rng = Math.random) {
         const n = Math.max(1, Math.min(Number(a.count) || 1, 30));
         const hp = Number(a.hp) || T.hp;
         for (let i = 0; i < n; i++) {
-          const e = { id: uid(rng), type: a.etype in ENEMY_TYPES ? a.etype : 'minion', name: a.name || T.label, hp, maxHp: hp, hitOn: Number(a.hitOn) || T.hitOn, damage: Number(a.damage) || T.damage, attacks: Number(a.attacks) || T.attacks, target: a.target || null };
+          const e = { id: uid(rng), type: a.etype in ENEMY_TYPES ? a.etype : 'minion', name: a.name || T.label, hp, maxHp: hp, armor: a.armor != null && a.armor !== '' ? Math.max(0, Math.min(90, Number(a.armor) || 0)) : T.armor, damage: Number(a.damage) || T.damage, attacks: Number(a.attacks) || T.attacks, ability: a.ability ? String(a.ability).slice(0, 140) : '', target: a.target || null };
           state.enemies[e.id] = e;
         }
         const who = a.target && state.characters[a.target] ? ` upon ${state.characters[a.target].name}` : '';
@@ -403,6 +396,15 @@ export function apply(state, a, rng = Math.random) {
         break;
       }
       case 'removeEnemy': delete state.enemies[a.enemyId]; break;
+      case 'editEnemy': {
+        const e = state.enemies[a.enemyId];
+        if (!e) break;
+        for (const k of ['armor', 'damage', 'attacks', 'hp', 'maxHp']) if (a[k] != null && a[k] !== '') e[k] = Math.max(0, Number(a[k]) || 0);
+        if (a.name) e.name = String(a.name).slice(0, 40);
+        if (a.ability != null) e.ability = String(a.ability).slice(0, 140);
+        e.hp = Math.min(e.hp, e.maxHp);
+        break;
+      }
       case 'moveMinions': {
         const from = a.from || null, to = a.to || null;
         const pool = Object.values(state.enemies).filter(e => e.type === 'minion' && (e.target || null) === from);
@@ -470,6 +472,7 @@ export function apply(state, a, rng = Math.random) {
       case 'endRound': {
         for (const id of state.order) {
           const c = state.characters[id];
+          delete c.strike;
           if (c.hp > 0) gainEnergy(c, derive(c).energyPerRound);
         }
         state.round += 1;
