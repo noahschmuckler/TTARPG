@@ -113,3 +113,16 @@ test('moving minions between heroes and roaming', () => {
   const count = t => Object.values(s.enemies).filter(e => e.target === t).length;
   assert.deepEqual([count(null), count(id), count(b)], [2, 2, 1]);
 });
+
+test('heroes can give items, including equipped ones', () => {
+  const { s, id } = setup();
+  const b = apply(s, { type: 'createCharacter', name: 'B', cls: 'ranger' }).result.charId;
+  apply(s, { type: 'giveLoot', charId: id, rarity: 'rare', slot: 'helm' });
+  const it = s.characters[id].bag[0];
+  apply(s, { type: 'equip', charId: id, itemId: it.id });
+  const r = apply(s, { type: 'giveItem', charId: id, itemId: it.id, to: b });
+  assert.equal(r.events[0].from, 'Brokk');
+  assert.equal(s.characters[id].gear.helm, undefined);
+  assert.ok(s.characters[id].hp <= derive(s.characters[id]).maxHp);
+  assert.equal(s.characters[b].bag[0].id, it.id);
+});

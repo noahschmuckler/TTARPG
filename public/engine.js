@@ -533,6 +533,23 @@ export function apply(state, a, rng = Math.random) {
         if (it) { delete ch.gear[a.slot]; ch.bag.push(it); clampChar(ch); }
         break;
       }
+      case 'giveItem': {
+        need();
+        const to = state.characters[a.to];
+        if (!to || to.id === ch.id) throw new Error('Choose another hero');
+        let it = null;
+        const i = ch.bag.findIndex(x => x.id === a.itemId);
+        if (i >= 0) it = ch.bag.splice(i, 1)[0];
+        else {
+          const slot = Object.keys(ch.gear).find(k => ch.gear[k]?.id === a.itemId);
+          if (slot) { it = ch.gear[slot]; delete ch.gear[slot]; clampChar(ch); }
+        }
+        if (!it) throw new Error('Item not found');
+        to.bag.push(it);
+        ev.push({ type: 'loot', charId: to.id, item: it, from: ch.name });
+        log(state, `${ch.name} gives ${it.name} to ${to.name}.`, 'loot');
+        break;
+      }
       case 'discard': {
         need();
         ch.bag = ch.bag.filter(x => x.id !== a.itemId);

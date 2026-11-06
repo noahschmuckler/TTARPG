@@ -177,7 +177,7 @@ function onEvent(e) {
   }
   else if (e.type === 'defended' && mine) burst('Unscathed', 'every blow turned aside', 'energy');
   else if (e.type === 'heal' && mine) burst(`+${fmt(e.amount)}`, 'health restored', 'energy');
-  else if (e.type === 'loot' && mine) reveal(e.item);
+  else if (e.type === 'loot' && mine) reveal(e.item, e.from);
   else if (e.type === 'ability' && !mine) toast(`${who} unleashes ${e.name}`);
   else if (e.type === 'ability' && mine) burst(e.name, 'unleashed', 'energy');
   else if (e.type === 'round') toast(`Round ${e.round} — your energy surges`);
@@ -425,10 +425,27 @@ function compare(it) {
   return `<p class="faint" style="margin:14px 0 6px">Currently equipped:</p>${itemHTML(cur)}`;
 }
 
+function giveHTML() {
+  const others = S.order.filter(id => id !== me).map(id => S.characters[id]);
+  if (!others.length) return '';
+  return `<p class="dim" style="margin:18px 0 8px">Give to a companion:</p><div class="row" style="flex-wrap:wrap">${others.map(c => `<button class="btn sm" data-give="${c.id}">${esc(c.name)}</button>`).join('')}</div>`;
+}
+function wireGive(el, it, close) {
+  el.addEventListener('click', e => {
+    const g = e.target.closest('[data-give]');
+    if (!g) return;
+    const to = S.characters[g.dataset.give];
+    if (!confirm(`Give ${it.name} to ${to.name}?`)) return;
+    close();
+    act({ type: 'giveItem', charId: me, itemId: it.id, to: to.id }).then(() => toast(`${it.name} sent to ${to.name}`)).catch(() => {});
+  });
+}
+
 function bagSheet(id) {
   const it = S.characters[me].bag.find(x => x.id === id);
   if (!it) return;
-  const { el, close } = sheet(`${itemHTML(it)}${compare(it)}<div class="row" style="margin-top:16px"><button class="btn solid grow" id="eq">Equip</button><button class="btn danger" id="dc">Discard</button></div>`);
+  const { el, close } = sheet(`${itemHTML(it)}${compare(it)}<div class="row" style="margin-top:16px"><button class="btn solid grow" id="eq">Equip</button><button class="btn danger" id="dc">Discard</button></div>${giveHTML()}`);
+  wireGive(el, it, close);
   el.querySelector('#eq').onclick = () => { close(); act({ type: 'equip', charId: me, itemId: id }).catch(() => {}); };
   el.querySelector('#dc').onclick = () => { if (confirm(`Discard ${it.name}?`)) { close(); act({ type: 'discard', charId: me, itemId: id }).catch(() => {}); } };
 }
@@ -436,12 +453,13 @@ function bagSheet(id) {
 function slotSheet(slot) {
   const it = S.characters[me].gear[slot];
   if (!it) return toast(`No ${SLOT_LABEL[slot].toLowerCase()} yet — find some loot!`);
-  const { el, close } = sheet(`${itemHTML(it)}<div style="height:14px"></div><button class="btn block" id="un">Move to satchel</button>`);
+  const { el, close } = sheet(`${itemHTML(it)}<div style="height:14px"></div><button class="btn block" id="un">Move to satchel</button>${giveHTML()}`);
+  wireGive(el, it, close);
   el.querySelector('#un').onclick = () => { close(); act({ type: 'unequip', charId: me, slot }).catch(() => {}); };
 }
 
-function reveal(it) {
-  const r = h(`<div class="reveal r-${it.rarity}"><div class="sunburst"></div><div class="hdr">${RARITIES[it.rarity].label} find!</div><div class="card">${itemHTML(it)}</div><div class="card" style="animation-delay:.1s">${compare(it)}</div><div class="acts"><button class="btn solid grow" id="eq">Equip now</button><button class="btn grow" id="keep">To satchel</button></div></div>`);
+function reveal(it, from) {
+  const r = h(`<div class="reveal r-${it.rarity}"><div class="sunburst"></div><div class="hdr">${from ? `Gift from ${esc(from)}!` : `${RARITIES[it.rarity].label} find!`}</div><div class="card">${itemHTML(it)}</div><div class="card" style="animation-delay:.1s">${compare(it)}</div><div class="acts"><button class="btn solid grow" id="eq">Equip now</button><button class="btn grow" id="keep">To satchel</button></div></div>`);
   document.body.appendChild(r);
   if (navigator.vibrate) navigator.vibrate([40, 60, 120]);
   r.querySelector('#eq').onclick = () => { r.remove(); act({ type: 'equip', charId: me, itemId: it.id }).catch(() => {}); };

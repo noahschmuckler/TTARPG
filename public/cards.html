@@ -8,6 +8,11 @@
 <style>
   .tools { max-width: 900px; margin: 0 auto; padding: 16px; }
   .sheetgrid { display: grid; grid-template-columns: repeat(auto-fill, 2.5in); gap: .15in; justify-content: center; padding: 16px; }
+  .cardwrap { width: 2.5in; height: 3.5in; perspective: 1200px; cursor: pointer; break-inside: avoid; }
+  .flip { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.3,.7,.2,1); }
+  .cardwrap.flipped .flip { transform: rotateY(180deg); }
+  .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+  .face.back { transform: rotateY(180deg); }
   .card { width: 2.5in; height: 3.5in; position: relative; isolation: isolate; padding: .14in; display: flex; flex-direction: column; align-items: center; justify-content: space-between;
     background: linear-gradient(160deg, var(--rc), color-mix(in srgb, var(--rc) 35%, #000));
     clip-path: polygon(.18in 0, calc(100% - .18in) 0, 100% .18in, 100% calc(100% - .18in), calc(100% - .18in) 100%, .18in 100%, 0 calc(100% - .18in), 0 .18in);
@@ -20,7 +25,16 @@
   .card .c { font-family: var(--display); font-weight: 900; letter-spacing: .25em; font-size: 22px; color: var(--ink); }
   .card .r { font-family: var(--carved); font-size: 12px; color: var(--ink-dim); letter-spacing: .2em; text-transform: uppercase; }
   .card .chev { width: 70%; height: 10px; background: repeating-linear-gradient(90deg, var(--rc) 0 2px, transparent 2px 8px); opacity: .7; }
-  @media print { .tools { display: none; } body { background: #fff; } .sheetgrid { padding: 0; } }
+  .back .card { justify-content: flex-start; gap: 6px; text-align: center; }
+  .back .card::before { background: radial-gradient(ellipse at 50% 0, color-mix(in srgb, var(--rc) 30%, #14110b), #14110b 70%); }
+  .back .nm { font-family: var(--carved); font-weight: 800; font-size: 19px; line-height: 1.1; color: var(--rc); margin-top: 6px; }
+  .back .mt { font-family: var(--display); letter-spacing: .16em; text-transform: uppercase; font-size: 11px; color: var(--ink-dim); }
+  .back .sts { width: 100%; margin-top: 6px; }
+  .back .st { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 2px; border-bottom: 1px solid #2a2519; text-align: left; }
+  .back .st b { font-family: var(--display); font-weight: 800; font-size: 15px; }
+  .back .st.legend b { color: var(--r-legendary); }
+  .back .foot { margin-top: auto; font-family: var(--display); font-weight: 800; letter-spacing: .25em; font-size: 13px; color: var(--ink-faint); }
+  @media print { .cardwrap .flip { transform: none !important; transition: none !important; } .face.back { display: none; } .tools { display: none; } body { background: #fff; } .sheetgrid { padding: 0; } }
 </style>
 </head>
 <body>
@@ -36,11 +50,13 @@
     <button class="btn sm danger" id="clear">Void unclaimed</button>
   </div>
   <p class="faint" id="count"></p>
+  <div class="row"><button class="btn sm" id="flipAll">Flip all</button><span class="faint" style="font-size:14px">Tap any card to see the treasure inside. Printing always uses the QR side.</span></div>
 </div>
 <div class="sheetgrid" id="grid"></div>
 <script type="module">
-import { RARITIES } from './engine.js';
+import { RARITIES, SLOT_LABEL, STAT_INFO } from './engine.js';
 import { $, params, connect, qrSVG, esc } from './ui.js';
+const flipped = new Set();
 const room = (params.get('room') || '').toUpperCase();
 const pin = localStorage.getItem('dl.pin') || '';
 let S;
@@ -49,12 +65,34 @@ function draw() {
   const cards = Object.values(S.loot);
   $('#count').textContent = `${cards.length} unclaimed card${cards.length === 1 ? '' : 's'} in game ${room}.`;
   const show = $('#show').checked;
-  $('#grid').innerHTML = cards.map(it => `<div class="card r-${show ? it.rarity : 'rare'}">
-    <div class="t">Treasure</div><div class="chev"></div>
-    <div class="q">${qrSVG(`${location.origin}/play.html?room=${room}&claim=${it.card}`, 4)}</div>
-    <div class="c">${esc(it.card)}</div><div class="r">${show ? RARITIES[it.rarity].label : 'Unknown'} · ${room}</div></div>`).join('');
+  $('#grid').innerHTML = cards.map(it => `<div class="cardwrap ${flipped.has(it.card) ? 'flipped' : ''}" data-card="${it.card}"><div class="flip">
+    <div class="face front"><div class="card r-${show ? it.rarity : 'rare'}">
+      <div class="t">Treasure</div><div class="chev"></div>
+      <div class="q">${qrSVG(`${location.origin}/play.html?room=${room}&claim=${it.card}`, 4)}</div>
+      <div class="c">${esc(it.card)}</div><div class="r">${show ? RARITIES[it.rarity].label : 'Unknown'} · ${room}</div></div></div>
+    <div class="face back"><div class="card r-${it.rarity}">
+      <div class="t">${RARITIES[it.rarity].label}</div><div class="chev"></div>
+      <div class="nm">${esc(it.name)}</div>
+      <div class="mt">${SLOT_LABEL[it.slot]}${it.name.includes(it.base) ? '' : ' · ' + esc(it.base)}</div>
+      <div class="sts">${Object.entries(it.stats).map(([k, v]) => `<div class="st ${k === 'dice' || k === 'cleave' ? 'legend' : ''}"><span>${esc(STAT_INFO[k].label)}</span><b>${esc(STAT_INFO[k].fmt(v))}</b></div>`).join('')}</div>
+      <div class="foot">${esc(it.card)}</div></div></div>
+  </div></div>`).join('');
 }
 $('#show').onchange = () => S && draw();
+$('#grid').onclick = e => {
+  const w = e.target.closest('.cardwrap');
+  if (!w) return;
+  const c = w.dataset.card;
+  flipped.has(c) ? flipped.delete(c) : flipped.add(c);
+  w.classList.toggle('flipped');
+};
+$('#flipAll').onclick = () => {
+  const all = Object.keys(S.loot);
+  const anyFront = all.some(c => !flipped.has(c));
+  flipped.clear();
+  if (anyFront) all.forEach(c => flipped.add(c));
+  draw();
+};
 $('#make').onclick = () => net.act({ type: 'makeLootCards', count: Number($('#n').value) || 1, rarity: $('#r').value });
 $('#clear').onclick = () => confirm('Void all unclaimed cards?') && net.act({ type: 'clearLootCards' });
 </script>
