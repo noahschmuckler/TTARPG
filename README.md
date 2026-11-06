@@ -10,6 +10,9 @@ Phone-first hero sheets and a GM headquarters for a tabletop dungeon crawl playe
 
 | Thing | How it works |
 |---|---|
+| Turn | A move + one action (Attack, Power or Sprint), in any order; the move can be split around the action. Move: Ironclad/Runepriest/Arcanist 5, Ranger 6, Shadowblade 7. Reach: Ironclad and Shadowblade adjacent; Runepriest 6″, Arcanist 8″, Ranger 12″. |
+| Position | **High ground** and **Flanking** each add +1 die (toggles on the attack sheet). Attacking **from hiding** adds +3. Walking away from adjacent foes gives each a **free blow** (*Break away* on the phone); movement powers avoid it. **Surrounded** (3+ foes) or attacked **from higher ground**: +1 defense die. |
+| Positional powers | Every class power moves the hero or moves foes (leap, teleport, grapple, vanish, push, pull, taunt, pin, swap). Do it on the table, then tap who it caught; tap twice for **slammed** (into a wall, a foe or off a ledge) = +1 hit. Full text on the in-app **Rules** page. |
 | Attack | Roll your **dice pool** of d6s. Every die showing **4+** is a hit, against every foe. Enter how many hits and how many 6s; that banks a **pool of hits**. |
 | Spending hits | Tap a minion to slay it (1 hit). Tap an elite or boss to strike it (1 hit = your Damage per Hit, less its armor). 6s are crits (×2, Shadowblade ×3) and are spent on big foes first. "Slay one on the table" spends a hit on an untracked minion. You can tap foes on allies too. Unspent hits vanish at End round. |
 | Foe abilities | Tick presets when summoning an elite or boss (or edit them on the board) and the app runs them: **Enrage**, **Stoneskin**, **Call the Horde** (at half health, once), **Summoner**, **Regenerate** (every End round), **Sweeping Blows**, **Energy Leech** (enemy phase), **Thick Hide** (6s don't crit it), **Death Throes** (explodes on death). Every phone gets an alert when one fires. Defined in `FOE_ABILITIES` in `public/engine.js`. |
@@ -66,6 +69,10 @@ server/room.js     room authority: permissions + undo
 server/node.js     Node host (local / Railway / Linux)
 worker/index.js    Cloudflare host (Durable Object)
 ```
+
+## Rules page
+
+`/rules.html` (the **Rules** button on the phone and in Headquarters) is the full rulebook. Its class, power, item-set and foe-ability sections are generated from the game data.
 
 ## Later: camera + projector
 

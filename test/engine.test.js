@@ -32,7 +32,7 @@ test('hits are capped by dice pool; buffs add dice and are consumed', () => {
   assert.equal(s.characters[id].strike.hits, 3);
   apply(s, { type: 'endAttack', charId: id });
   s.characters[id].energy = 100;
-  apply(s, { type: 'ability', charId: id, key: 'charge' });
+  apply(s, { type: 'ability', charId: id, key: 'leap' });
   assert.equal(derive(s.characters[id]).pool, 5);
   apply(s, { type: 'attack', charId: id, hits: 5 });
   assert.equal(derive(s.characters[id]).pool, 3);
@@ -46,8 +46,9 @@ test('crits go to big foes first, enemy armor cuts damage, smite gives minion-on
   apply(s, { type: 'spend', charId: id, enemyId: eid });
   assert.equal(s.enemies[eid].hp, 2000 - 840 * 0.8); // crit first: 420×2, 20% armor
   s.characters[id].energy = 100;
-  apply(s, { type: 'ability', charId: id, key: 'quake' });
-  assert.deepEqual(s.characters[id].strike, { hits: 1, crits: 0, minion: 5, mult: 1 });
+  equipSet(s, id, 'thunderforge', 'helm'); // Thunderclap: 3 minion-only hits
+  apply(s, { type: 'ability', charId: id, key: 'set:thunderforge' });
+  assert.deepEqual(s.characters[id].strike, { hits: 1, crits: 0, minion: 3, mult: 1 });
   apply(s, { type: 'spend', charId: id, enemyId: eid });
   assert.match(apply(s, { type: 'spend', charId: id, enemyId: eid }).error, /only work on minions/);
   apply(s, { type: 'endRound' });
@@ -97,7 +98,8 @@ test('enemy phase: grouped defense rolls, armor narrows landing window', () => {
   assert.deepEqual(r.events[0].targets, [id]);
   const d = s.defense[id];
   assert.equal(d.landOn, 2); // Ironclad 30% armor
-  assert.deepEqual(d.groups.map(g => [g.count, g.dice, g.damage]), [[4, 4, 60], [1, 3, 450]]);
+  assert.equal(d.surrounded, true); // 5 foes on him: +1 die to the minion group
+  assert.deepEqual(d.groups.map(g => [g.count, g.dice, g.damage]), [[4, 5, 60], [1, 3, 450]]);
   apply(s, { type: 'defend', charId: id, landed: [2, 1] });
   // raw 2*60 + 450 = 570, 30% armor blocks 171
   assert.equal(s.characters[id].hp, 1800 - 399);
@@ -273,4 +275,62 @@ test('foe ability presets run automatically', () => {
   const [ha, hb] = [s.characters[a].hp, s.characters[b].hp];
   apply(s, { type: 'damageEnemy', enemyId: boss.id, amount: 99999 });
   assert.equal(ha - s.characters[a].hp, 210); assert.equal(hb - s.characters[b].hp, 276);
+});
+
+test('movement: position bonuses, hiding, area powers with slams, pins, taunts', () => {
+  const s = newGame('MOVE');
+  const iron = apply(s, { type: 'createCharacter', name: 'Iron', cls: 'ironclad' }).result.charId;
+  const shade = apply(s, { type: 'createCharacter', name: 'Shade', cls: 'shadowblade' }).result.charId;
+  const priest = apply(s, { type: 'createCharacter', name: 'Priest', cls: 'runepriest' }).result.charId;
+  assert.equal(derive(s.characters[shade]).move, 7);
+  // high ground + flanking: pool 3 + 2
+  apply(s, { type: 'attack', charId: iron, hits: 9, bonus: 2 });
+  assert.equal(s.characters[iron].strike.hits, 5);
+  apply(s, { type: 'endAttack', charId: iron });
+  // Earthsplitter: 2 minions + an elite slammed into a wall (2 hits)
+  apply(s, { type: 'spawn', etype: 'minion', count: 2, target: iron });
+  apply(s, { type: 'spawn', etype: 'elite', name: 'Brute', hp: 3000, armor: 0, target: iron });
+  const ids = Object.keys(s.enemies);
+  const brute = Object.values(s.enemies).find(e => e.name === 'Brute');
+  s.characters[iron].energy = 100;
+  apply(s, { type: 'ability', charId: iron, key: 'quake', targets: ids, slammed: [brute.id], tableKills: 1 });
+  assert.equal(brute.hp, 3000 - 2 * 420);
+  assert.equal(Object.keys(s.enemies).length, 1);
+  assert.equal(s.characters[iron].kills, 3);
+  // Smoke Bomb: hidden, foe stops fighting you; enemy phase skips; +3 dice from hiding
+  apply(s, { type: 'moveEnemy', enemyId: brute.id, target: shade });
+  s.characters[shade].energy = 100;
+  apply(s, { type: 'ability', charId: shade, key: 'smoke', targets: [brute.id] });
+  assert.equal(brute.target, null);
+  apply(s, { type: 'moveEnemy', enemyId: brute.id, target: shade });
+  assert.match(apply(s, { type: 'enemyPhase' }).error, /unhidden/);
+  apply(s, { type: 'attack', charId: shade, hits: 6 });
+  assert.equal(s.characters[shade].strike.hits, 6);
+  assert.equal(s.characters[shade].hidden, undefined);
+  apply(s, { type: 'endAttack', charId: shade });
+  // Disengage: free blows, foe goes roaming
+  const r = apply(s, { type: 'disengage', charId: shade, enemyIds: [brute.id] });
+  assert.equal(brute.target, null);
+  assert.equal(s.defense[shade].groups[0].dice, 1);
+  apply(s, { type: 'defend', charId: shade, landed: [1] });
+  // Hammer (pin) and Recall (swap)
+  apply(s, { type: 'moveEnemy', enemyId: brute.id, target: iron });
+  s.characters[priest].energy = 100;
+  apply(s, { type: 'ability', charId: priest, key: 'hammer', targets: [brute.id] });
+  assert.equal(brute.pinned, true);
+  assert.match(apply(s, { type: 'ability', charId: priest, key: 'recall' }).error, /ally/);
+  apply(s, { type: 'ability', charId: priest, key: 'recall', allies: [iron] });
+  assert.equal(brute.target, priest);
+  assert.equal(s.characters[iron].ward, 300);
+  apply(s, { type: 'endRound' });
+  assert.equal(brute.pinned, undefined);
+  // Bulwark taunts
+  s.characters[iron].energy = 100;
+  apply(s, { type: 'ability', charId: iron, key: 'bulwark', targets: [brute.id] });
+  assert.equal(brute.target, iron);
+  // defending against a foe on higher ground: +1 die on the hardest-hitting group
+  apply(s, { type: 'enemyPhase' });
+  apply(s, { type: 'defend', charId: iron, landed: [3], highGround: true });
+  // 3 blows × 200 = 600, 30% armor → 420, all soaked by the 900 ward (600 Bulwark + 300 Recall)
+  assert.equal(s.characters[iron].ward, 900 - 420);
 });

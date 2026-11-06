@@ -10,53 +10,67 @@ export const HIT_ON = 4; // every foe is hit on a 4, 5 or 6
 // ---------------------------------------------------------------- classes
 // Base stats are deliberately "big number" ARPG-scale. Players never add them up;
 // the app does. Dice = how many d6 the hero rolls on an attack.
+// move: squares (inches) per turn. reach: 0 = adjacent foes only, else range in inches (line of sight).
+// Power `target`: what the player taps after moving things on the table.
+//   { foes: 'where', max?, optional? } or { allies: 'where', exactly?, optional? }
+// Effect kinds: buff, ward, heal, energize, smite (see sets.js) plus the positional ones:
+//   areaHit { hits }  each tapped foe takes hits (minions die); a tapped foe marked "slammed" takes +1
+//   push / pull       the player moves the foes on the table (no app effect beyond "slammed")
+//   pin               tapped foes can't move until End round
+//   taunt             tapped foes now engage you
+//   shake             tapped foes stop engaging you
+//   hide              you become Hidden: skipped by the enemy phase; your next attack gets +3 dice
+//   swap { ward }     trade places with the tapped ally: foes switch targets, both gain a ward
+//   allyWard { amount, heal }  you and tapped allies gain a ward and heal %
 export const CLASSES = {
   ironclad: {
     name: 'Ironclad', role: 'Shieldwall warrior', glyph: '⛨',
-    base: { maxHp: 1800, armor: 30, dice: 3, damage: 420, energyPerKill: 8, energyPerRound: 10, maxEnergy: 100, critMult: 2, cleave: 0 },
+    base: { maxHp: 1800, armor: 30, dice: 3, damage: 420, energyPerKill: 8, energyPerRound: 10, maxEnergy: 100, critMult: 2, cleave: 0, move: 5, reach: 0 },
     abilities: [
-      { key: 'charge', name: 'Cleaving Charge', cost: 30, text: 'Roll +2 dice on your next attack.', effect: { kind: 'buff', bonusDice: 2 } },
-      { key: 'bulwark', name: 'Iron Bulwark', cost: 40, text: 'Gain a 600-point ward that soaks damage.', effect: { kind: 'ward', amount: 600, who: 'self' } },
-      { key: 'quake', name: 'Earthsplitter', cost: 80, text: 'Gain 5 minion-slaying hits. Tap minions to cut them down.', effect: { kind: 'smite', kills: 5 } },
+      { key: 'leap', name: 'Leaping Strike', cost: 30, tags: ['move'], text: 'Leap up to 4″, even 3″ up onto a platform, ignoring free blows. +2 dice on your next attack.', effects: [{ kind: 'buff', bonusDice: 2 }] },
+      { key: 'quake', name: 'Earthsplitter', cost: 55, tags: ['push', 'area'], text: 'Slam the ground: every foe within 2″ of you takes a hit and is pushed 3″ straight away from you. Push them on the table, then tap every foe it hit.', target: { foes: 'within 2″ of you' }, effects: [{ kind: 'areaHit', hits: 1 }, { kind: 'push', inches: 3 }] },
+      { key: 'bulwark', name: 'Iron Bulwark', cost: 40, tags: ['taunt'], text: 'Gain a 600 ward and roar: every foe within 3″ must come to you. Move them next to you, then tap them; they now fight you.', target: { foes: 'within 3″ of you', optional: true }, effects: [{ kind: 'ward', amount: 600, who: 'self' }, { kind: 'taunt' }] },
     ],
   },
   runepriest: {
     name: 'Runepriest', role: 'Forge-cleric', glyph: 'ᛟ',
-    base: { maxHp: 1400, armor: 20, dice: 2, damage: 300, energyPerKill: 6, energyPerRound: 18, maxEnergy: 100, critMult: 2, cleave: 0 },
+    base: { maxHp: 1400, armor: 20, dice: 2, damage: 300, energyPerKill: 6, energyPerRound: 18, maxEnergy: 100, critMult: 2, cleave: 0, move: 5, reach: 6 },
     abilities: [
-      { key: 'mend', name: 'Mending Rune', cost: 35, text: 'Heal every hero for 20% of their max health.', effect: { kind: 'heal', pct: 20, who: 'party' } },
-      { key: 'ward', name: 'Ward of Stone', cost: 45, text: 'Every hero gains a 350-point ward.', effect: { kind: 'ward', amount: 350, who: 'party' } },
-      { key: 'bless', name: 'Forge-Blessing', cost: 60, text: 'Every other hero gains 25 energy.', effect: { kind: 'energize', amount: 25, who: 'others' } },
+      { key: 'recall', name: 'Rune of Recall', cost: 30, tags: ['move', 'ally'], text: 'Swap places with an ally within 10″. Neither of you suffers free blows, foes turn on whoever now stands before them, and you both gain a 300 ward.', target: { allies: 'within 10″', exactly: 1 }, effects: [{ kind: 'swap', ward: 300 }] },
+      { key: 'circle', name: 'Warding Circle', cost: 45, tags: ['zone', 'ally'], text: 'Draw a 2″ circle around you: you and every ally inside gain a 300 ward and heal 10%. Foes can\'t step into it until End round. Tap the allies inside.', target: { allies: 'inside the circle', optional: true }, effects: [{ kind: 'allyWard', amount: 300, heal: 10 }] },
+      { key: 'hammer', name: 'Hammer of the Deep', cost: 40, tags: ['push', 'pin'], text: 'Strike one foe within 6″: it takes 2 hits, is knocked 3″ straight back and is Pinned until End round. Push it, then tap it.', target: { foes: 'one foe within 6″', max: 1 }, effects: [{ kind: 'areaHit', hits: 2 }, { kind: 'push', inches: 3 }, { kind: 'pin' }] },
     ],
   },
   ranger: {
     name: 'Ranger', role: 'Deep-tunnel marksman', glyph: '➶',
-    base: { maxHp: 1200, armor: 12, dice: 4, damage: 360, energyPerKill: 10, energyPerRound: 10, maxEnergy: 100, critMult: 2, cleave: 0 },
+    base: { maxHp: 1200, armor: 12, dice: 4, damage: 360, energyPerKill: 10, energyPerRound: 10, maxEnergy: 100, critMult: 2, cleave: 0, move: 6, reach: 12 },
     abilities: [
-      { key: 'volley', name: 'Volley', cost: 35, text: 'Roll +3 dice on your next attack.', effect: { kind: 'buff', bonusDice: 3 } },
-      { key: 'pierce', name: 'Piercing Shot', cost: 50, text: 'Your next attack deals double damage.', effect: { kind: 'buff', damageMult: 2 } },
-      { key: 'rain', name: 'Rain of Bolts', cost: 80, text: 'Gain 6 minion-slaying hits. Tap minions to cut them down.', effect: { kind: 'smite', kills: 6 } },
+      { key: 'grapple', name: 'Grapple Line', cost: 25, tags: ['move', 'height'], text: 'Haul yourself up to 8″ to any higher point you can see, ignoring free blows. +1 die on your next attack, on top of high ground.', effects: [{ kind: 'buff', bonusDice: 1 }] },
+      { key: 'vanish', name: 'Vanish', cost: 35, tags: ['move', 'stealth'], text: 'Move up to 4″ and become Hidden: foes ignore you in the enemy phase, and your next attack from hiding gets +3 dice.', effects: [{ kind: 'hide' }] },
+      { key: 'pin', name: 'Pinning Shot', cost: 40, tags: ['pin'], text: 'Pin up to 2 foes within 12″: they can\'t move until End round. +2 dice on your next attack. Tap them.', target: { foes: 'up to 2 foes within 12″', max: 2 }, effects: [{ kind: 'pin' }, { kind: 'buff', bonusDice: 2 }] },
     ],
   },
   arcanist: {
     name: 'Arcanist', role: 'Ember-sage', glyph: '✶',
-    base: { maxHp: 1000, armor: 8, dice: 2, damage: 650, energyPerKill: 7, energyPerRound: 20, maxEnergy: 100, critMult: 2, cleave: 0 },
+    base: { maxHp: 1000, armor: 8, dice: 2, damage: 650, energyPerKill: 7, energyPerRound: 20, maxEnergy: 100, critMult: 2, cleave: 0, move: 5, reach: 8 },
     abilities: [
-      { key: 'lance', name: 'Ember Lance', cost: 30, text: 'Your next attack deals double damage.', effect: { kind: 'buff', damageMult: 2 } },
-      { key: 'glyph', name: 'Frost Glyph', cost: 45, text: 'Gain 3 minion-slaying hits. Tap minions to cut them down.', effect: { kind: 'smite', kills: 3 } },
-      { key: 'meteor', name: 'Meteor', cost: 90, text: 'Next attack: +4 dice and double damage.', effect: { kind: 'buff', bonusDice: 4, damageMult: 2 } },
+      { key: 'blink', name: 'Blink', cost: 25, tags: ['move', 'teleport'], text: 'Teleport up to 6″, to any height and through anything, ignoring free blows. Gain a 200 ward.', effects: [{ kind: 'ward', amount: 200, who: 'self' }] },
+      { key: 'well', name: 'Gravity Well', cost: 45, tags: ['pull', 'pin', 'area'], text: 'Pick a point within 8″: every foe within 3″ of it is dragged next to that point and Pinned until End round. +2 dice on your next attack. Move them, then tap them.', target: { foes: 'within 3″ of the point' }, effects: [{ kind: 'pull' }, { kind: 'pin' }, { kind: 'buff', bonusDice: 2 }] },
+      { key: 'meteor', name: 'Meteor', cost: 80, tags: ['area'], text: 'Pick a point within 10″: every foe within 2″ of it takes 2 hits (minions are slain). Tap them.', target: { foes: 'within 2″ of the point' }, effects: [{ kind: 'areaHit', hits: 2 }] },
     ],
   },
   shadowblade: {
     name: 'Shadowblade', role: 'Vault-breaker rogue', glyph: '⚔',
-    base: { maxHp: 1100, armor: 15, dice: 3, damage: 480, energyPerKill: 12, energyPerRound: 8, maxEnergy: 100, critMult: 3, cleave: 0 },
+    base: { maxHp: 1100, armor: 15, dice: 3, damage: 480, energyPerKill: 12, energyPerRound: 8, maxEnergy: 100, critMult: 3, cleave: 0, move: 7, reach: 0 },
     abilities: [
-      { key: 'vanish', name: 'Vanish', cost: 30, text: 'Gain a 450-point ward.', effect: { kind: 'ward', amount: 450, who: 'self' } },
-      { key: 'backstab', name: 'Backstab', cost: 40, text: 'Your next attack deals triple damage.', effect: { kind: 'buff', damageMult: 3 } },
-      { key: 'cuts', name: 'Thousand Cuts', cost: 75, text: 'Roll +4 dice on your next attack.', effect: { kind: 'buff', bonusDice: 4 } },
+      { key: 'step', name: 'Shadowstep', cost: 35, tags: ['move', 'teleport'], text: 'Teleport behind a foe within 6″, ignoring free blows. Your next attack deals triple damage.', effects: [{ kind: 'buff', damageMult: 3 }] },
+      { key: 'smoke', name: 'Smoke Bomb', cost: 30, tags: ['stealth'], text: 'Become Hidden. Foes next to you lose you: tap them and they stop fighting you. Your next attack from hiding gets +3 dice.', target: { foes: 'next to you', optional: true }, effects: [{ kind: 'hide' }, { kind: 'shake' }] },
+      { key: 'cuts', name: 'Thousand Cuts', cost: 70, tags: [], text: 'Roll +4 dice on your next attack.', effects: [{ kind: 'buff', bonusDice: 4 }] },
     ],
   },
 };
+export const reachText = r => (r ? `${r}″ range` : 'adjacent');
+export const HIDDEN_DICE = 3;
 
 // ---------------------------------------------------------------- enemies
 export const ENEMY_TYPES = {
@@ -204,7 +218,7 @@ export function describeEffects(effects) {
 // Class powers plus any set powers unlocked by equipped pieces (strengthened by synergies).
 export function powersFor(ch) {
   const C = CLASSES[ch.cls] || CLASSES.ironclad;
-  const out = C.abilities.map(a => ({ ...a, effects: [a.effect] }));
+  const out = C.abilities.map(a => ({ ...a, effects: a.effects || [a.effect] }));
   const counts = setCounts(ch);
   const syn = activeSynergies(ch, counts);
   for (const [k, n] of Object.entries(counts)) {
@@ -362,13 +376,14 @@ function attackersOf(state, ch) {
   return Object.values(state.enemies).filter(e => e.target === ch.id || (foeHas(e, 'sweep') && e.type !== 'minion'));
 }
 
-function defenseGroups(state, ch) {
+function defenseGroups(state, ch) { return defenseGroupsFrom(attackersOf(state, ch)); }
+function defenseGroupsFrom(list, dice = e => e.attacks || ENEMY_TYPES[e.type]?.attacks || 1) {
   const groups = new Map();
-  for (const e of attackersOf(state, ch)) {
+  for (const e of list) {
     const key = e.type === 'minion' ? `m:${e.name}:${e.damage}` : e.id;
     const g = groups.get(key) || { name: e.name, type: e.type, count: 0, damage: e.damage, dice: 0 };
     g.count += 1;
-    g.dice += e.attacks || ENEMY_TYPES[e.type]?.attacks || 1;
+    g.dice += dice(e);
     groups.set(key, g);
   }
   return [...groups.values()];
@@ -506,11 +521,15 @@ export function apply(state, a, rng = Math.random) {
         if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
         if (strikeLeft(ch) && !a.force) throw new Error('Spend your remaining hits first');
         const s = derive(ch);
-        const hits = Math.max(0, Math.min(Number(a.hits) || 0, s.pool));
+        const bonus = Math.max(0, Math.min(Number(a.bonus) || 0, 2)); // high ground, flanking
+        const fromHiding = ch.hidden ? HIDDEN_DICE : 0;
+        const pool = s.pool + bonus + fromHiding;
+        const hits = Math.max(0, Math.min(Number(a.hits) || 0, pool));
         const sixes = Math.max(0, Math.min(Number(a.sixes) || 0, hits));
         const minion = (ch.strike?.minion || 0) + sixes * s.cleave;
         ch.strike = { hits: hits - sixes, crits: sixes, minion, mult: ch.buffs.damageMult || 1 };
         ch.buffs = {};
+        if (ch.hidden) { delete ch.hidden; log(state, `${ch.name} strikes from hiding!`, 'hit'); }
         ev.push({ type: 'rolled', charId: ch.id, hits, sixes });
         log(state, hits ? `${ch.name} rolls ${hits} hit${hits === 1 ? '' : 's'}${sixes ? ` (${sixes} crit${sixes > 1 ? 's' : ''})` : ''}.` : `${ch.name} rolls and misses.`, 'hit');
         break;
@@ -557,6 +576,11 @@ export function apply(state, a, rng = Math.random) {
         const ab = powersFor(ch).find(x => x.key === a.key);
         if (!ab) throw new Error('Unknown ability');
         if (ch.energy < ab.cost) throw new Error('Not enough energy');
+        const T = ab.target || {};
+        const foes = [...new Set(a.targets || [])].map(id => state.enemies[id]).filter(Boolean).slice(0, T.max || 99);
+        const slammed = new Set(a.slammed || []);
+        const allies = [...new Set(a.allies || [])].map(id => state.characters[id]).filter(c => c && c.id !== ch.id);
+        if (T.allies && T.exactly && allies.length !== T.exactly) throw new Error(`Choose ${T.exactly === 1 ? 'an ally' : T.exactly + ' allies'}`);
         ch.energy -= ab.cost;
         const others = state.order.map(id => state.characters[id]).filter(c => c.id !== ch.id);
         const party = [ch, ...others];
@@ -580,6 +604,51 @@ export function apply(state, a, rng = Math.random) {
           ch.strike = ch.strike || { hits: 0, crits: 0, minion: 0, mult: 1 };
           ch.strike.minion += f.kills;
           detail = ` — ${f.kills} minion-slaying hits`;
+        } else if (f.kind === 'areaHit') {
+          const s = derive(ch);
+          let slain = 0;
+          for (const e of foes) {
+            if (!state.enemies[e.id]) continue;
+            const hits = f.hits + (slammed.has(e.id) ? 1 : 0);
+            if (e.type === 'minion') { delete state.enemies[e.id]; slain++; ch.kills++; gainEnergy(ch, s.energyPerKill); continue; }
+            const dmg = Math.round(hits * s.damage * (1 - (e.armor || 0) / 100));
+            e.hp = Math.max(0, e.hp - dmg);
+            ev.push({ type: 'strike', charId: ch.id, enemyId: e.id, enemyName: e.name, damage: dmg, crit: false, slain: e.hp <= 0, energy: 0, left: strikeLeft(ch) });
+            if (e.hp <= 0) {
+              delete state.enemies[e.id]; ch.kills++; slain++;
+              gainEnergy(ch, s.energyPerKill * (ENEMY_TYPES[e.type]?.energyMult || 1));
+              log(state, `${ch.name}'s ${ab.name} fells ${e.name}!`, 'kill');
+              foeDied(state, e, ev);
+            } else { log(state, `${ab.name} hits ${e.name} for ${fmt(dmg)}${slammed.has(e.id) ? ' (slammed!)' : ''}.`, 'hit'); foeDamaged(state, e, ev, rng); }
+          }
+          const table = Math.max(0, Math.min(Number(a.tableKills) || 0, 20)); // untracked minions caught on the table
+          if (table) { slain += table; ch.kills += table; gainEnergy(ch, table * s.energyPerKill); }
+          if (slain) ev.push({ type: 'kills', charId: ch.id, kills: slain, energy: 0 });
+          detail = ` — ${foes.length + table} caught${slain ? `, ${slain} slain` : ''}`;
+        } else if (f.kind === 'pin') {
+          for (const e of foes) if (state.enemies[e.id]) e.pinned = true;
+        } else if (f.kind === 'taunt') {
+          for (const e of foes) if (state.enemies[e.id]) e.target = ch.id;
+          if (foes.length) detail = ` — ${foes.length} foe${foes.length > 1 ? 's' : ''} turn to face ${ch.name}`;
+        } else if (f.kind === 'shake') {
+          for (const e of foes) if (state.enemies[e.id]?.target === ch.id) e.target = null;
+        } else if (f.kind === 'hide') {
+          ch.hidden = true;
+        } else if (f.kind === 'swap') {
+          const ally = allies[0];
+          for (const e of Object.values(state.enemies)) {
+            if (e.target === ch.id) e.target = ally.id; else if (e.target === ally.id) e.target = ch.id;
+          }
+          ch.ward = (ch.ward || 0) + f.ward; ally.ward = (ally.ward || 0) + f.ward;
+          detail = ` — trading places with ${ally.name}`;
+        } else if (f.kind === 'allyWard') {
+          for (const c of [ch, ...allies]) {
+            if (c.hp <= 0 && c.id !== ch.id) continue;
+            c.ward = (c.ward || 0) + f.amount;
+            const m = derive(c).maxHp;
+            c.hp = Math.min(m, c.hp + Math.round(m * (f.heal || 0) / 100));
+          }
+          if (allies.length) detail = ` — sheltering ${allies.map(c => c.name).join(', ')}`;
         }
         }
         ev.unshift({ type: 'ability', charId: ch.id, name: ab.name });
@@ -665,15 +734,33 @@ export function apply(state, a, rng = Math.random) {
         if (n && to) ev.push({ type: 'spawn', target: to, count: n });
         break;
       }
+      case 'disengage': { // stepping away from adjacent foes: each gets a free blow (1 die)
+        need();
+        if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
+        if (state.defense?.[ch.id]) throw new Error('Finish your defense roll first');
+        const leaving = [...new Set(a.enemyIds || [])].map(id => state.enemies[id]).filter(e => e && e.target === ch.id);
+        if (!leaving.length) throw new Error('Choose the foes you are leaving');
+        for (const e of leaving) e.target = null;
+        if (ch.hidden) { log(state, `${ch.name} slips away unseen.`, 'info'); break; }
+        state.defense ||= {};
+        state.defense[ch.id] = { id: uid(rng), groups: defenseGroupsFrom(leaving, () => 1), landOn: landOn(derive(ch)), breakaway: true };
+        log(state, `${ch.name} breaks away: ${leaving.length} free blow${leaving.length > 1 ? 's' : ''}!`, 'hurt');
+        ev.push({ type: 'enemyPhase', targets: [ch.id] });
+        break;
+      }
       case 'enemyPhase': {
         state.defense = {};
         const targets = [];
         for (const id of state.order) {
           const c = state.characters[id];
-          if (c.hp <= 0) continue;
+          if (c.hp <= 0 || c.hidden) continue;
           const groups = defenseGroups(state, c);
           if (!groups.length) continue;
-          state.defense[id] = { id: uid(rng), groups, landOn: landOn(derive(c)) };
+          // Surrounded: 3+ foes on you → one extra die against you (added to the most numerous group).
+          const count = groups.reduce((t, g) => t + g.count, 0);
+          const surrounded = count >= 3;
+          if (surrounded) groups.reduce((m, g) => (g.count > m.count ? g : m), groups[0]).dice += 1;
+          state.defense[id] = { id: uid(rng), groups, landOn: landOn(derive(c)), surrounded };
           targets.push(id);
           for (const e of attackersOf(state, c).filter(x => foeHas(x, 'leech'))) {
             const lost = Math.min(c.energy, 10);
@@ -681,7 +768,7 @@ export function apply(state, a, rng = Math.random) {
             if (lost) foeAnnounce(state, e, 'leech', ev, `${c.name} loses ${lost} energy.`);
           }
         }
-        if (!targets.length) throw new Error('No foes are engaged with any standing hero');
+        if (!targets.length) throw new Error('No foes are engaged with any standing, unhidden hero');
         log(state, `⚔ The foes attack! ${targets.map(id => state.characters[id].name).join(', ')} must defend.`, 'hurt');
         ev.push({ type: 'enemyPhase', targets });
         break;
@@ -690,7 +777,9 @@ export function apply(state, a, rng = Math.random) {
         need();
         const d = state.defense?.[ch.id];
         if (!d) throw new Error('No attack to defend against');
-        const landed = d.groups.map((g, i) => Math.max(0, Math.min(Number(a.landed?.[i]) || 0, g.dice)));
+        // A foe striking from higher ground adds a die to the hardest-hitting group.
+        const top = d.groups.reduce((m, g, i) => (g.damage > d.groups[m].damage ? i : m), 0);
+        const landed = d.groups.map((g, i) => Math.max(0, Math.min(Number(a.landed?.[i]) || 0, g.dice + (a.highGround && i === top ? 1 : 0))));
         const raw = d.groups.reduce((sum, g, i) => sum + landed[i] * g.damage, 0);
         const blows = landed.reduce((x, y) => x + y, 0);
         delete state.defense[ch.id];
@@ -731,6 +820,7 @@ export function apply(state, a, rng = Math.random) {
           delete c.strike;
           if (c.hp > 0) gainEnergy(c, derive(c).energyPerRound);
         }
+        for (const e of Object.values(state.enemies)) delete e.pinned;
         state.round += 1;
         log(state, `— Round ${state.round} begins. Energy surges. —`, 'round');
         ev.push({ type: 'round', round: state.round });

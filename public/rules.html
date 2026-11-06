@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0c0a">
+<title>Delvers' Ledger · Rules</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  body { font-size: 17px; line-height: 1.5; }
+  .wrap { max-width: 760px; }
+  .top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: linear-gradient(180deg, #16130d, #0d0c0aee); border-bottom: 1px solid var(--brass-lo); }
+  .top h1 { margin: 0; font-family: var(--display); font-weight: 900; letter-spacing: .14em; text-transform: uppercase; font-size: 20px; background: var(--brass-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+  .toc a { font-family: var(--display); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 12px; color: var(--brass); text-decoration: none; padding: 4px 8px; border: 1px solid var(--line); }
+  h2 { font-family: var(--carved); color: var(--brass-hi); font-size: 24px; margin: 34px 0 6px; scroll-margin-top: 64px; }
+  h3 { font-family: var(--display); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: 15px; color: var(--brass); margin: 18px 0 4px; }
+  p, li { color: var(--ink); }
+  ul { padding-left: 20px; margin: 6px 0; }
+  li { margin: 4px 0; }
+  b { color: var(--brass-hi); }
+  .box { padding: 12px 14px; margin: 10px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 8px 0; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #2a2519; vertical-align: top; }
+  th { font-family: var(--display); letter-spacing: .12em; text-transform: uppercase; font-size: 12px; color: var(--ink-dim); font-weight: 700; }
+  .cls { margin: 12px 0; padding: 12px 14px; }
+  .cls .cn { font-family: var(--carved); font-weight: 800; font-size: 20px; color: var(--brass-hi); }
+  .stats { font-family: var(--display); letter-spacing: .06em; font-size: 14px; color: var(--ink-dim); margin: 2px 0 8px; }
+  .pw { padding: 6px 0; border-top: 1px solid #2a2519; }
+  .pw .pn { font-weight: 700; color: var(--ink); }
+  .pw .pd { font-size: 15px; color: var(--ink-dim); margin-top: 2px; }
+  .pw .cost { float: right; font-family: var(--display); font-weight: 900; color: var(--aether); }
+  .tag { display: inline-block; font-family: var(--display); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 10px; padding: 1px 5px; border: 1px solid var(--line); color: var(--ink-dim); margin-left: 4px; vertical-align: 2px; }
+  .dim { color: var(--ink-dim); }
+  .updated { font-size: 13px; color: var(--ink-faint); }
+</style>
+</head>
+<body>
+<div class="top"><button class="btn sm" id="back">← Back</button><h1>Rules</h1></div>
+<div class="wrap">
+  <p class="updated">These rules match the app: the classes, powers, item sets and foe abilities below are drawn straight from the game itself.</p>
+  <nav class="toc">
+    <a href="#round">The round</a><a href="#move">Moving</a><a href="#height">Height</a><a href="#attack">Attacking</a><a href="#powers">Powers &amp; position</a>
+    <a href="#breakaway">Breaking away</a><a href="#defense">Defending</a><a href="#foes">Foes</a><a href="#energy">Energy</a><a href="#loot">Loot &amp; sets</a><a href="#classes">Callings</a><a href="#abilities">Foe abilities</a>
+  </nav>
+
+  <h2 id="round">The round</h2>
+  <ol>
+    <li><b>Heroes act</b>, in any order. Each hero gets <b>a move and one action</b>, in any order, and the move can be split around the action: step in, strike, step back out.</li>
+    <li><b>Enemy phase.</b> The GM moves the foes, then taps <i>Enemy phase</i>. Every hero with foes on them rolls defense on their phone.</li>
+    <li><b>End round.</b> Everyone gains energy, Pins wear off, and foes with round abilities (Summoner, Regenerate) act.</li>
+  </ol>
+  <p><b>Actions:</b> <i>Attack</i>, use a <i>Power</i>, or <i>Sprint</i> (move again instead of acting).</p>
+
+  <h2 id="move">Moving</h2>
+  <ul>
+    <li>The board is a 1″ grid. Each square is 1″. <b>Diagonal steps count as 1.</b></li>
+    <li>Your <b>Move</b> is shown on your sheet (Ironclad 5, Runepriest 5, Arcanist 5, Ranger 6, Shadowblade 7).</li>
+    <li>You can't move through foes. You can move through allies but can't end on them.</li>
+    <li><b>Reach:</b> melee callings attack <b>adjacent</b> foes only (including diagonals, and within 1″ of height). Ranged callings attack anything within their range that they can see.</li>
+    <li>If you are next to a foe and want to walk away, see <a href="#breakaway">Breaking away</a>.</li>
+  </ul>
+
+  <h2 id="height">Height</h2>
+  <ul>
+    <li><b>Stairs and ramps</b> cost normal movement.</li>
+    <li><b>Climbing</b> a ledge or ladder costs <b>2 squares per 1″</b> of height.</li>
+    <li><b>Dropping down</b> up to 2″ is free. Each inch beyond that deals <b>100 damage</b> (the GM applies it).</li>
+    <li><b>High ground:</b> attacking a foe that stands lower than you gives <b>+1 die</b>.</li>
+    <li>A foe striking you <b>from higher ground</b> adds <b>+1 die</b> against you when you defend.</li>
+    <li><b>Ledges are weapons.</b> A foe pushed off a ledge or into a wall counts as <b>slammed</b> (see below).</li>
+  </ul>
+
+  <h2 id="attack">Attacking</h2>
+  <ul>
+    <li>Tap <b>Attack</b>, roll your dice pool, and count the dice showing <b>4, 5 or 6</b>. That's your pool of <b>hits</b>. Then say how many are 6s: those are <b>crits</b>.</li>
+    <li>Before rolling, tick what you've earned: <b>High ground</b> (+1 die) and <b>Flanking</b> (+1 die: an ally stands on the far side of your target).</li>
+    <li>Attacking <b>from hiding</b> adds <b>+3 dice</b> automatically, and ends your Hidden state.</li>
+    <li><b>Spend hits by tapping foes:</b> a minion dies to one hit. An elite or boss takes your damage per hit, minus its armor. Crits hit big foes harder and are spent on them first.</li>
+    <li>No foes tracked in the app? Use <i>Slay one on the table</i> for each minion you cut down.</li>
+    <li>Unspent hits vanish at End round.</li>
+  </ul>
+
+  <h2 id="powers">Powers &amp; position</h2>
+  <ul>
+    <li>Powers cost energy. Many of them move <i>you</i> (leap, teleport, grapple, vanish) or move <i>foes</i> (push, pull, taunt).</li>
+    <li>Movement powers <b>ignore free blows</b>. That's how you get out of a crowd.</li>
+    <li><b>Do it on the table, then tap it in the app:</b> move the minis first, then tap every foe the power caught. Tap a foe twice to mark it <b>slammed</b>.</li>
+    <li><b>Slammed:</b> a foe pushed or pulled into a wall, another foe, or off a ledge takes <b>+1 hit</b>. Minions die.</li>
+    <li><b>Pushes</b> go straight away from you; a foe stops if it hits something. <b>Pulls</b> drag foes next to the point.</li>
+    <li><b>Pinned</b> foes can't move until End round. <b>Taunted</b> foes now fight the hero who taunted them.</li>
+    <li><b>Hidden</b> heroes are ignored in the enemy phase. Moving and breaking away don't reveal you, but attacking does.</li>
+  </ul>
+
+  <h2 id="breakaway">Breaking away</h2>
+  <ul>
+    <li>Walking away from foes that are next to you gives <b>each of them a free blow</b> (1 defense die each).</li>
+    <li>On your phone, tap <b>Break away</b>, choose the foes you're leaving, and roll the free blows. Those foes stop fighting you.</li>
+    <li>Teleports, leaps, grapples, swaps and being Hidden <b>avoid free blows</b> entirely.</li>
+  </ul>
+
+  <h2 id="defense">Defending</h2>
+  <ul>
+    <li>In the enemy phase, roll <b>one die per enemy attack</b>. Each die showing <b>1, 2 or 3</b> is a blow that lands. With <b>30%+ armor</b>, only <b>1 or 2</b> land.</li>
+    <li><b>Surrounded:</b> with 3 or more foes on you, you roll <b>+1 die</b>.</li>
+    <li>A foe on <b>higher ground</b>: tick it on the defense prompt for <b>+1 die</b>.</li>
+    <li>Blows add up; your armor % is subtracted, then any <b>ward</b> soaks the rest.</li>
+  </ul>
+
+  <h2 id="foes">How foes move (GM)</h2>
+  <ul>
+    <li><b>Minions</b> move 5″ toward the nearest hero they can reach and engage them.</li>
+    <li><b>Elites</b> move 6″ toward whoever hurt them last.</li>
+    <li><b>Bosses</b> move 6″ toward the hero with the most kills.</li>
+    <li>Pinned foes don't move. Foes don't chase heroes they can't see (Hidden).</li>
+    <li>New minions arrive at <b>spawn points</b>: doors, stairs, board edges.</li>
+    <li>In the app, a foe <b>engaged</b> with a hero means it's adjacent to them. Use the ⇄ and dropdown controls to update this as foes move.</li>
+  </ul>
+
+  <h2 id="energy">Energy</h2>
+  <ul>
+    <li>Gained for every kill (more for elites and bosses) and at every End round.</li>
+    <li>Spent on powers. A power glows on your phone when you can afford it.</li>
+  </ul>
+
+  <h2 id="loot">Loot &amp; item sets</h2>
+  <ul>
+    <li>There's no XP and no levels. <b>You grow through loot.</b> Scan treasure cards in chests and under elite and boss minis; one card can hold several items.</li>
+    <li>Compare and trade: tap any item to give it to an ally.</li>
+    <li><b>Set pieces</b> (coloured): <b>one equipped piece unlocks the set's power</b>, and every extra piece strengthens it and may add bonuses.</li>
+    <li><b>Hidden synergies</b>: wearing pieces from two different sets can unlock secret combinations. Your phone will tell you when you discover one.</li>
+  </ul>
+  <div id="sets"></div>
+
+  <h2 id="classes">Callings</h2>
+  <div id="classlist"></div>
+
+  <h2 id="abilities">Foe abilities</h2>
+  <p class="dim">The app runs these automatically, and your phone announces them when they fire.</p>
+  <div id="foeabs"></div>
+  <div style="height:40px"></div>
+</div>
+<script type="module">
+import { CLASSES, FOE_ABILITIES, SETS, reachText, fmt, describeEffects, statsText } from './engine.js';
+import { $, esc } from './ui.js';
+$('#back').onclick = () => (history.length > 1 ? history.back() : (location.href = './'));
+
+$("#classlist").innerHTML = Object.values(CLASSES).map(C => `<div class="plate cls">
+  <div class="cn">${C.glyph} ${esc(C.name)} <span class="dim" style="font-size:14px;font-family:var(--body)">${esc(C.role)}</span></div>
+  <div class="stats">Move ${C.base.move}″ · ${reachText(C.base.reach)} · ${C.base.dice} dice · ${fmt(C.base.damage)} per hit · ${fmt(C.base.maxHp)} health · ${C.base.armor}% armor</div>
+  ${C.abilities.map(a => `<div class="pw"><span class="cost">${a.cost}</span><span class="pn">${esc(a.name)}</span>${(a.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('')}<div class="pd">${esc(a.text)}</div></div>`).join('')}
+</div>`).join('');
+
+$('#foeabs').innerHTML = `<table><tr><th>Ability</th><th>What it does</th></tr>${Object.values(FOE_ABILITIES).map(A => `<tr><td><b>${A.icon} ${esc(A.name)}</b></td><td>${esc(A.text)}</td></tr>`).join('')}</table>`;
+
+$('#sets').innerHTML = `<table><tr><th>Set</th><th>Power (1 piece; stronger with each piece)</th><th>Bonuses</th></tr>${Object.values(SETS).map(S => `<tr><td><b style="color:${S.color}">✦ ${esc(S.name)}</b></td><td><b>${esc(S.power.name)}</b>: ${esc(describeEffects(S.power.effects(1)))}</td><td>${S.bonuses.map(b => `${b.n} pieces: ${esc(statsText(b.stats))}`).join('<br>')}</td></tr>`).join('')}</table>`;
+</script>
+</body>
+</html>
