@@ -1,5 +1,5 @@
 // Shared browser helpers: connection, DOM, item cards, toasts, QR.
-import { STAT_INFO, SLOT_LABEL, RARITIES, fmt } from './engine.js';
+import { STAT_INFO, SLOT_LABEL, RARITIES, SETS, SYNERGIES, fmt, setCounts, activeSynergies, powersFor, statsText, synergyText, describeEffects } from './engine.js';
 import qrcode from './vendor/qrcode.mjs';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -83,7 +83,37 @@ export function itemHTML(it, extra = '') {
     const I = STAT_INFO[k];
     return `<div class="stat ${k === 'dice' || k === 'cleave' ? 'legend' : ''}"><span>${esc(I.label)}</span><b>${esc(I.fmt(v))}</b></div>`;
   }).join('');
-  return `<div class="item r-${it.rarity}"><div class="iname">${esc(it.name)}</div><div class="imeta">${R.label} ${SLOT_LABEL[it.slot]}${it.name.includes(it.base) ? '' : ` · ${esc(it.base)}`}</div>${lines}${extra}</div>`;
+  const S = it.set && SETS[it.set];
+  return `<div class="item r-${it.rarity}" ${S ? `style="--rc:${S.color}"` : ''}><div class="iname">${esc(it.name)}</div><div class="imeta">${S ? `✦ ${esc(S.name)} set · ${SLOT_LABEL[it.slot]}` : `${R.label} ${SLOT_LABEL[it.slot]}${it.name.includes(it.base) ? '' : ` · ${esc(it.base)}`}`}</div>${lines}${S ? `<div class="setnote">Set power: ${esc(S.power.name)}</div>` : ''}${extra}</div>`;
+}
+
+// Sets the hero owns pieces of (equipped or in the satchel), their tiers, and synergies.
+export function setsHTML(ch, { gm = false } = {}) {
+  const counts = setCounts(ch);
+  const owned = {};
+  for (const it of [...Object.values(ch.gear || {}), ...(ch.bag || [])]) if (it?.set) (owned[it.set] ||= new Set()).add(it.slot);
+  const powers = powersFor(ch);
+  const keys = Object.keys(owned);
+  const found = new Set(ch.found || []);
+  const active = new Set(activeSynergies(ch).map(sy => sy.key));
+  const known = SYNERGIES.filter(sy => found.has('syn:' + sy.key) || (gm && Object.keys(sy.needs).some(k => owned[k])));
+  const hidden = SYNERGIES.length - known.length;
+  if (!keys.length && !known.length) return `<p class="faint center" style="margin:0;font-size:14px">No set pieces yet. Equip one to unlock a new power.${hidden ? ` ${hidden} hidden synergies are waiting to be found.` : ''}</p>`;
+  const sets = keys.map(k => {
+    const S = SETS[k], n = counts[k] || 0, pw = powers.find(p => p.set === k);
+    const pips = Object.entries(S.pieces).map(([slot, name]) => {
+      const eq = ch.gear?.[slot]?.set === k, has = owned[k].has(slot);
+      return `<span class="pip ${eq ? 'on' : has ? 'bag' : ''}" title="${esc(name)}${eq ? ' (equipped)' : has ? ' (in satchel)' : ''}">${SLOT_LABEL[slot]}</span>`;
+    }).join('');
+    const preview = describeEffects(S.power.effects(Math.max(1, n)));
+    const tiers = [`<div class="tier ${n >= 1 ? 'on' : ''}"><b>1</b><span>${esc(S.power.name)}: ${esc(n ? pw.text : preview)}${pw?.boosted?.length ? ` <i>(boosted by ${esc(pw.boosted.join(', '))})</i>` : ''}</span></div>`,
+      ...S.bonuses.map(b => `<div class="tier ${n >= b.n ? 'on' : ''}"><b>${b.n}</b><span>${esc(statsText(b.stats))}</span></div>`)].join('');
+    return `<div class="setcard" style="--rc:${S.color}"><div class="row"><span class="sn grow">✦ ${esc(S.name)}</span><span class="num">${n}/4</span></div>
+      <div class="pips">${pips}</div>${tiers}<div class="tier faint"><b>+</b><span>Each piece equipped strengthens ${esc(S.power.name)}.</span></div></div>`;
+  }).join('');
+  const syn = known.map(sy => `<div class="syncard ${active.has(sy.key) ? 'on' : ''}"><div class="row"><span class="sn grow">⟡ ${esc(sy.name)}</span><span class="faint" style="font-size:12px">${active.has(sy.key) ? 'ACTIVE' : 'dormant'}</span></div>
+    <div class="faint" style="font-size:13px">${Object.entries(sy.needs).map(([k, n]) => `${n} ${esc(SETS[k].name)}`).join(' + ')}</div><div style="font-size:14px">${esc(synergyText(sy))}</div></div>`).join('');
+  return `${sets}${syn}${!gm && hidden ? `<p class="faint center" style="font-size:13px;margin:8px 0 0">⟡ ${hidden} hidden synerg${hidden === 1 ? 'y waits' : 'ies wait'} to be discovered by combining pieces of different sets.</p>` : ''}`;
 }
 
 export function qrSVG(text, cell = 4) {

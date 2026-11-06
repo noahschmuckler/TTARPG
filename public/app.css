@@ -162,6 +162,21 @@ label.lbl { display: block; font-family: var(--display); font-weight: 600; lette
 .item .stat { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; padding: 2px 0; }
 .item .stat b { font-family: var(--display); font-weight: 800; color: var(--ink); font-size: 17px; }
 .item .stat.legend b { color: var(--r-legendary); }
+.r-set { --rc: #57d68d; }
+.item .setnote { margin-top: 6px; font-family: var(--display); letter-spacing: .1em; text-transform: uppercase; font-size: 12px; color: var(--rc); }
+.setcard, .syncard { --c: 10px; position: relative; isolation: isolate; padding: 10px 12px; margin-bottom: 10px; border-left: 3px solid var(--rc, var(--brass)); background: linear-gradient(90deg, color-mix(in srgb, var(--rc, var(--brass)) 12%, transparent), transparent 70%), var(--basalt); }
+.setcard .sn, .syncard .sn { font-family: var(--carved); font-weight: 800; font-size: 17px; color: var(--rc, var(--brass-hi)); }
+.syncard { --rc: #e7d9ff; }
+.syncard:not(.on) { opacity: .65; }
+.pips { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 8px; }
+.pip { font-family: var(--display); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 11px; padding: 3px 7px; border: 1px solid #3a3426; color: var(--ink-faint); }
+.pip.bag { border-color: var(--rc); color: var(--ink-dim); border-style: dashed; }
+.pip.on { background: var(--rc); border-color: var(--rc); color: #12100b; }
+.tier { display: flex; gap: 8px; font-size: 14px; padding: 2px 0; color: var(--ink-faint); }
+.tier b { font-family: var(--display); font-weight: 900; width: 14px; flex: none; color: inherit; }
+.tier.on { color: var(--ink); }
+.tier.on b { color: var(--rc); }
+.tier i { color: #e7d9ff; font-style: normal; }
 
 /* ---------------------------------------------------------- bars */
 .bar { position: relative; height: 20px; background: #0a0907; border: 1px solid var(--line); overflow: hidden; }

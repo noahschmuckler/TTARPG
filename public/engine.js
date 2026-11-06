@@ -2,6 +2,9 @@
 // Pure functions over a plain JSON game state. Used by the server (authoritative)
 // and by the browser (for derived stats and display). No DOM, no I/O.
 
+import { SETS, SYNERGIES, CLASS_SETS } from './sets.js';
+export { SETS, SYNERGIES, CLASS_SETS };
+
 export const HIT_ON = 4; // every foe is hit on a 4, 5 or 6
 
 // ---------------------------------------------------------------- classes
@@ -91,8 +94,9 @@ export const RARITIES = {
   magic: { label: 'Magic', affixes: 2, power: 0.85 },
   rare: { label: 'Rare', affixes: 3, power: 1.0 },
   legendary: { label: 'Legendary', affixes: 3, power: 1.35 },
+  set: { label: 'Set', affixes: 2, power: 1.0 },
 };
-export const RARITY_ORDER = ['common', 'magic', 'rare', 'legendary'];
+export const RARITY_ORDER = ['common', 'magic', 'rare', 'legendary', 'set'];
 
 const BASES = {
   weapon: ['Warhammer', 'Bearded Axe', 'Arbalest', 'Rune Staff', 'Twin Dirks', 'Maul', 'Pick-Axe'],
@@ -103,18 +107,26 @@ const BASES = {
   amulet: ['Torc', 'Rune Pendant', 'Medallion', 'Chain of Office'],
   ring: ['Signet', 'Band', 'Ring of Office', 'Knuckle-Ring'],
 };
-const PREFIX = ['Runeforged', 'Deepstone', 'Emberwrought', 'Gilded', 'Anvil-Struck', 'Mithral-Shod', 'Thane\'s', 'Bronzebound', 'Hearthfire', 'Obsidian'];
+const PREFIX = ['Runeforged', 'Granite', 'Emberwrought', 'Gilded', 'Anvil-Struck', 'Mithral-Shod', 'Thane\'s', 'Bronzebound', 'Hearthfire', 'Obsidian'];
 const SUFFIX = ['of the Anvil', 'of Deep Halls', 'of the Eighth Gate', 'of Ash and Iron', 'of the Last Vault', 'of Grudges', 'of the Mountain King', 'of Brass Thunder'];
-const LEGEND = ['Grudgebearer', 'Hammer of Kazrun', 'The Stonefather\'s Oath', 'Lantern-Eater', 'Dawn Under Mountain', 'Ninth Rivet', 'Kingsfall', 'The Unbroken Seam', 'Ember-Heart', 'Vaultbreaker'];
+const LEGEND = ['Grudgebearer', 'Hammer of Kazrun', 'The Stonefather\'s Oath', 'Lantern-Eater', 'Dawn Under Mountain', 'Ninth Rivet', 'Kingsfall', 'The Unbroken Seam', 'Ember-Heart', 'Lockjaw'];
 
 const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
 const roll = (rng, lo, hi) => lo + Math.floor(rng() * (hi - lo + 1));
 export const uid = (rng = Math.random) => Math.floor(rng() * 2 ** 32).toString(36) + Date.now().toString(36).slice(-4);
 
-export function makeItem(rarity = 'magic', rng = Math.random, slot) {
+// level: item power multiplier (1 = scene one; the planner raises it scene by scene)
+export function makeItem(rarity = 'magic', rng = Math.random, slot, level = 1, setKey) {
   const R = RARITIES[rarity] || RARITIES.magic;
+  let set = null;
+  if (rarity === 'set') {
+    const keys = Object.keys(SETS).filter(k => !slot || SETS[k].pieces[slot]);
+    setKey = setKey && SETS[setKey] && (!slot || SETS[setKey].pieces[slot]) ? setKey : pick(rng, keys.length ? keys : Object.keys(SETS));
+    set = SETS[setKey];
+    if (!slot || !set.pieces[slot]) slot = pick(rng, Object.keys(set.pieces));
+  }
   slot = slot || pick(rng, SLOTS);
-  const base = pick(rng, BASES[slot]);
+  const base = set ? set.pieces[slot] : pick(rng, BASES[slot]);
   const keys = [SLOT_PRIMARY[slot]];
   const pool = Object.keys(AFFIX_RANGE).filter(k => k !== keys[0]);
   while (keys.length < R.affixes) {
@@ -124,25 +136,28 @@ export function makeItem(rarity = 'magic', rng = Math.random, slot) {
   const stats = {};
   for (const k of keys) {
     const [lo, hi] = AFFIX_RANGE[k];
-    let v = roll(rng, lo, hi) * R.power;
+    let v = roll(rng, lo, hi) * R.power * level;
     if (k === 'critMult') v = Math.max(1, Math.round(v)) / 4;
     else if (k === 'maxHp' || k === 'damage') v = Math.max(10, Math.round(v / 10) * 10);
     else v = Math.max(1, Math.round(v));
     stats[k] = v;
   }
   let name;
-  if (rarity === 'legendary') {
+  if (set) name = base;
+  else if (rarity === 'legendary') {
     if (rng() < 0.5) stats.dice = 1; else stats.cleave = 1;
     name = pick(rng, LEGEND);
   } else if (rarity === 'rare') name = `${pick(rng, PREFIX)} ${base} ${pick(rng, SUFFIX)}`;
   else if (rarity === 'magic') name = rng() < 0.5 ? `${pick(rng, PREFIX)} ${base}` : `${base} ${pick(rng, SUFFIX)}`;
   else name = `Iron ${base}`;
-  return { id: uid(rng), name, base, slot, rarity, stats };
+  const it = { id: uid(rng), name, base, slot, rarity, stats };
+  if (set) it.set = setKey;
+  return it;
 }
 
 export function randomRarity(rng = Math.random) {
   const r = rng();
-  return r < 0.45 ? 'common' : r < 0.78 ? 'magic' : r < 0.95 ? 'rare' : 'legendary';
+  return r < 0.43 ? 'common' : r < 0.75 ? 'magic' : r < 0.91 ? 'rare' : r < 0.96 ? 'legendary' : 'set';
 }
 
 // ---------------------------------------------------------------- helpers
@@ -151,13 +166,107 @@ export function fmt(n) {
   return Math.round(n).toLocaleString('en-US');
 }
 
+// ---------------------------------------------------------------- sets
+export function setCounts(ch) {
+  const c = {};
+  for (const it of Object.values(ch.gear || {})) if (it?.set) c[it.set] = (c[it.set] || 0) + 1;
+  return c;
+}
+export function activeSynergies(ch, counts = setCounts(ch)) {
+  return SYNERGIES.filter(sy => Object.entries(sy.needs).every(([k, n]) => (counts[k] || 0) >= n));
+}
+
+function mergeEffects(base, add) {
+  const out = base.map(e => ({ ...e }));
+  for (const a of add) {
+    const t = out.find(e => e.kind === a.kind && (e.who || '') === (a.who || ''));
+    if (!t) { out.push({ ...a, ...(a.damageMult ? { damageMult: 1 + a.damageMult } : {}) }); continue; }
+    for (const [k, v] of Object.entries(a)) {
+      if (typeof v !== 'number') continue;
+      t[k] = (t[k] ?? (k === 'damageMult' ? 1 : 0)) + v;
+    }
+  }
+  return out;
+}
+
+const whoText = { self: '', party: 'every hero ', others: 'every other hero ' };
+export function describeEffects(effects) {
+  return effects.map(e => {
+    if (e.kind === 'smite') return `gain ${e.kills} minion-slaying hits`;
+    if (e.kind === 'buff') return [e.bonusDice && `+${e.bonusDice} dice`, e.damageMult > 1 && `×${+e.damageMult.toFixed(2)} damage`].filter(Boolean).join(' and ') + ' on your next attack';
+    if (e.kind === 'ward') return e.who === 'party' ? `every hero gains a ${fmt(e.amount)} ward` : `gain a ${fmt(e.amount)} ward`;
+    if (e.kind === 'heal') return `heal ${e.who === 'party' ? 'every hero' : 'yourself'} for ${e.pct}% of max health`;
+    if (e.kind === 'energize') return `${whoText[e.who] || ''}gains ${e.amount} energy`;
+    return '';
+  }).filter(Boolean).join('; ').replace(/^./, c => c.toUpperCase()) + '.';
+}
+
+// Class powers plus any set powers unlocked by equipped pieces (strengthened by synergies).
+export function powersFor(ch) {
+  const C = CLASSES[ch.cls] || CLASSES.ironclad;
+  const out = C.abilities.map(a => ({ ...a, effects: [a.effect] }));
+  const counts = setCounts(ch);
+  const syn = activeSynergies(ch, counts);
+  for (const [k, n] of Object.entries(counts)) {
+    const P = SETS[k].power;
+    let effects = P.effects(n), cost = P.cost;
+    const boosted = [];
+    for (const sy of syn) {
+      const m = sy.mods?.[P.key];
+      if (!m) continue;
+      if (m.add) effects = mergeEffects(effects, m.add);
+      if (m.cost) cost += m.cost;
+      boosted.push(sy.name);
+    }
+    out.push({ key: P.key, name: P.name, cost: Math.max(5, cost), text: describeEffects(effects), effects, set: k, pieces: n, boosted });
+  }
+  return out;
+}
+
+// Everything a hero has unlocked from gear, as stable keys (used for "discovered!" moments).
+function unlockKeys(ch) {
+  const counts = setCounts(ch);
+  const keys = [];
+  for (const [k, n] of Object.entries(counts)) for (let i = 1; i <= n; i++) keys.push(`set:${k}:${i}`);
+  for (const sy of activeSynergies(ch, counts)) keys.push(`syn:${sy.key}`);
+  return keys;
+}
+function unlockEvent(ch, key) {
+  const [kind, id, n] = key.split(':');
+  if (kind === 'syn') {
+    const sy = SYNERGIES.find(x => x.key === id);
+    return { type: 'unlock', charId: ch.id, kind: 'synergy', name: sy.name, text: synergyText(sy) };
+  }
+  const S = SETS[id], pw = powersFor(ch).find(p => p.key === S.power.key);
+  const bonus = S.bonuses.find(b => b.n === Number(n));
+  const parts = [];
+  if (Number(n) === 1) parts.push(pw?.text || '');
+  else parts.push(`${S.power.name} grows stronger (${n} pieces).`);
+  if (bonus) parts.push(statsText(bonus.stats));
+  return { type: 'unlock', charId: ch.id, kind: Number(n) === 1 ? 'power' : 'tier', set: id, name: Number(n) === 1 ? S.power.name : `${S.name} ×${n}`, text: parts.join(' ') };
+}
+export function statsText(stats) {
+  return Object.entries(stats).map(([k, v]) => `${STAT_INFO[k].fmt(v)} ${STAT_INFO[k].label}`).join(', ');
+}
+export function synergyText(sy) {
+  const parts = [];
+  if (sy.stats) parts.push(statsText(sy.stats));
+  for (const [pk, m] of Object.entries(sy.mods || {})) {
+    const setKey = pk.split(':')[1], nm = SETS[setKey].power.name;
+    if (m.add) parts.push(`${nm} also: ${describeEffects(m.add).replace(/\.$/, '').toLowerCase()}`);
+    if (m.cost) parts.push(`${nm} costs ${-m.cost} less energy`);
+  }
+  return parts.join('. ') + '.';
+}
+
 export function derive(ch) {
   const C = CLASSES[ch.cls] || CLASSES.ironclad;
   const s = { ...C.base };
-  for (const it of Object.values(ch.gear || {})) {
-    if (!it) continue;
-    for (const [k, v] of Object.entries(it.stats)) s[k] = (s[k] || 0) + v;
-  }
+  const add = stats => { for (const [k, v] of Object.entries(stats)) s[k] = (s[k] || 0) + v; };
+  for (const it of Object.values(ch.gear || {})) if (it) add(it.stats);
+  const counts = setCounts(ch);
+  for (const [k, n] of Object.entries(counts)) for (const b of SETS[k].bonuses) if (n >= b.n) add(b.stats);
+  for (const sy of activeSynergies(ch, counts)) if (sy.stats) add(sy.stats);
   s.armor = Math.min(s.armor, 75);
   s.pool = s.dice + (ch.buffs?.bonusDice || 0);
   return s;
@@ -232,7 +341,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy']);
+const GM_ONLY = new Set(['moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -240,7 +349,27 @@ export function apply(state, a, rng = Math.random) {
   const ev = [];
   const ch = a.charId ? state.characters[a.charId] : null;
   const need = () => { if (!ch) throw new Error('No such hero'); };
+  let out;
   try {
+    out = applyInner();
+  } catch (err) {
+    return { error: err.message, events: [] };
+  }
+  // Discoveries: set powers, set tiers and hidden synergies, announced the first time.
+  for (const id of state.order) {
+    const c = state.characters[id];
+    c.found ||= [];
+    for (const key of unlockKeys(c)) {
+      if (c.found.includes(key)) continue;
+      c.found.push(key);
+      const e = unlockEvent(c, key);
+      out.events.push(e);
+      log(state, e.kind === 'synergy' ? `✦ ${c.name} discovers a hidden synergy: ${e.name}!` : e.kind === 'power' ? `✦ ${c.name} unlocks ${e.name}!` : `✦ ${c.name}'s ${e.name} set grows stronger.`, 'ability');
+    }
+  }
+  return out;
+
+  function applyInner() {
     switch (a.type) {
       case 'createCharacter': {
         if (state.order.length >= 8) throw new Error('The party is full');
@@ -319,14 +448,14 @@ export function apply(state, a, rng = Math.random) {
       case 'ability': {
         need();
         if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
-        const ab = CLASSES[ch.cls].abilities.find(x => x.key === a.key);
+        const ab = powersFor(ch).find(x => x.key === a.key);
         if (!ab) throw new Error('Unknown ability');
         if (ch.energy < ab.cost) throw new Error('Not enough energy');
         ch.energy -= ab.cost;
-        const f = ab.effect;
         const others = state.order.map(id => state.characters[id]).filter(c => c.id !== ch.id);
         const party = [ch, ...others];
         let detail = '';
+        for (const f of ab.effects) {
         if (f.kind === 'buff') {
           ch.buffs.bonusDice = (ch.buffs.bonusDice || 0) + (f.bonusDice || 0);
           ch.buffs.damageMult = Math.max(ch.buffs.damageMult || 1, f.damageMult || 1);
@@ -345,6 +474,7 @@ export function apply(state, a, rng = Math.random) {
           ch.strike = ch.strike || { hits: 0, crits: 0, minion: 0, mult: 1 };
           ch.strike.minion += f.kills;
           detail = ` — ${f.kills} minion-slaying hits`;
+        }
         }
         ev.unshift({ type: 'ability', charId: ch.id, name: ab.name });
         log(state, `${ch.name} unleashes ${ab.name}${detail}.`, 'ability');
@@ -489,26 +619,36 @@ export function apply(state, a, rng = Math.random) {
         log(state, `${ch.name} finds ${item.name} (${RARITIES[item.rarity].label}).`, 'loot');
         break;
       }
-      case 'makeLootCards': {
+      case 'makeLootCards': { // loose cards: each holds `per` random items
         const n = Math.max(1, Math.min(Number(a.count) || 1, 40));
+        const per = Math.max(1, Math.min(Number(a.per) || 1, 6));
         for (let i = 0; i < n; i++) {
-          const rarity = a.rarity === 'random' || !a.rarity ? randomRarity(rng) : a.rarity;
-          const it = makeItem(rarity, rng);
-          do it.card = Array.from({ length: 6 }, () => 'ACDEFGHJKMNPQRTUVWXY34679'[Math.floor(rng() * 25)]).join(''); while (state.loot[it.card]);
-          state.loot[it.card] = it;
+          const items = Array.from({ length: per }, () => makeItem(a.rarity === 'random' || !a.rarity ? randomRarity(rng) : a.rarity, rng, undefined, Number(a.level) || 1));
+          const card = newCardCode(state, rng);
+          state.loot[card] = { card, kind: per > 1 ? 'chest' : 'single', label: per > 1 ? 'Treasure chest' : 'Treasure', items };
         }
         break;
       }
-      case 'clearLootCards': state.loot = {}; break;
+      case 'planCampaign': {
+        const r = planCampaign(state, a, rng);
+        return { events: [], result: r };
+      }
+      case 'clearLootCards': {
+        if (a.scene === undefined) state.loot = {};
+        else for (const [k, c] of Object.entries(state.loot)) if (String(c.sceneIdx) === String(a.scene)) delete state.loot[k];
+        break;
+      }
+      case 'voidCard': delete state.loot[a.card]; break;
       case 'claimLoot': {
         need();
-        const it = state.loot[String(a.card || '').toUpperCase()];
-        if (!it) throw new Error('That treasure has already been claimed');
-        delete state.loot[it.card];
-        delete it.card;
-        ch.bag.push(it);
-        ev.push({ type: 'loot', charId: ch.id, item: it });
-        log(state, `${ch.name} claims ${it.name} (${RARITIES[it.rarity].label}) from a hidden cache!`, 'loot');
+        const c = state.loot[String(a.card || '').toUpperCase().trim()];
+        if (!c) throw new Error('That treasure has already been claimed');
+        delete state.loot[c.card];
+        const items = c.items || [c]; // older cards held a single item
+        for (const it of items) { delete it.card; ch.bag.push(it); }
+        if (items.length === 1) ev.push({ type: 'loot', charId: ch.id, item: items[0] });
+        else ev.push({ type: 'cache', charId: ch.id, items, label: c.label, kind: c.kind });
+        log(state, items.length === 1 ? `${ch.name} claims ${items[0].name} (${RARITIES[items[0].rarity].label})!` : `${ch.name} opens ${c.label || 'a cache'}: ${items.map(i => i.name).join(', ')}.`, 'loot');
         break;
       }
       case 'equip': {
@@ -557,8 +697,115 @@ export function apply(state, a, rng = Math.random) {
       }
       default: throw new Error('Unknown action ' + a.type);
     }
-  } catch (err) {
-    return { error: err.message, events: [] };
+    return { events: ev };
   }
-  return { events: ev };
+}
+
+function newCardCode(state, rng) {
+  let c;
+  do c = Array.from({ length: 6 }, () => 'ACDEFGHJKMNPQRTUVWXY34679'[Math.floor(rng() * 25)]).join(''); while (state.loot[c]);
+  return c;
+}
+
+// ---------------------------------------------------------------- campaign planner
+// Spreads set pieces across the whole campaign so powers unlock early and sets
+// fill in as the party goes deeper; everything else is random, with rarity and
+// item power climbing scene by scene.
+export const CACHE_DEFAULTS = { chest: 2, elite: 2, boss: 4 };
+
+export function planCampaign(state, a, rng = Math.random) {
+  const scenes = (a.scenes || []).slice(0, 12).map((sc, i) => ({
+    name: String(sc.name || `Scene ${i + 1}`).slice(0, 40),
+    chests: Math.max(0, Math.min(Number(sc.chests) || 0, 12)),
+    elites: (sc.elites || []).slice(0, 8).map(x => String(x || 'Elite').slice(0, 40)),
+    bosses: (sc.bosses || []).slice(0, 4).map(x => String(x || 'Boss').slice(0, 40)),
+  }));
+  if (!scenes.length) throw new Error('Add at least one scene');
+  const per = { ...CACHE_DEFAULTS, ...(a.per || {}) };
+  for (const k of Object.keys(per)) per[k] = Math.max(1, Math.min(Number(per[k]) || CACHE_DEFAULTS[k], 6));
+  const classes = (a.classes?.length ? a.classes : state.order.map(id => state.characters[id].cls)).filter(c => CLASSES[c]);
+  const party = Math.max(1, classes.length || 4);
+
+  // 1. pick featured sets: each hero's favourite first, then their second picks, then the rest
+  const featured = [];
+  for (const rank of [0, 1]) for (const c of classes) { const k = CLASS_SETS[c]?.[rank]; if (k && !featured.includes(k)) featured.push(k); }
+  const rest = Object.keys(SETS).filter(k => !featured.includes(k)).sort(() => rng() - 0.5);
+  const want = Math.min(Object.keys(SETS).length, Math.max(3, party + 1));
+  while (featured.length < want && rest.length) featured.push(rest.shift());
+  featured.length = Math.min(featured.length, want);
+
+  // 2. caches and item slots per scene
+  const sceneCaches = scenes.map((sc, si) => [
+    ...Array.from({ length: sc.chests }, (_, i) => ({ kind: 'chest', label: `${sc.name} · Chest ${i + 1}` })),
+    ...sc.elites.map(n => ({ kind: 'elite', label: n })),
+    ...sc.bosses.map(n => ({ kind: 'boss', label: n })),
+  ].map(c => ({ ...c, sceneIdx: si, scene: sc.name, slots: per[c.kind] })));
+  const sceneSlots = sceneCaches.map(cs => cs.reduce((t, c) => t + c.slots, 0));
+  const totalSlots = sceneSlots.reduce((x, y) => x + y, 0);
+  if (!totalSlots) throw new Error('Add some chests, elites or bosses');
+
+  // 3. set-piece budget: every featured set gets 2+ pieces (power + an upgrade),
+  //    then the party's favourite sets are completed first; queue releases each
+  //    set's first piece before any second piece, and so on.
+  let budget = Math.floor(totalSlots * 0.45);
+  while (featured.length > 1 && featured.length * 2 > budget) featured.pop();
+  const cap = Object.fromEntries(featured.map(k => [k, Math.min(2, budget)]));
+  let spare = Math.max(0, budget - featured.length * 2);
+  for (const k of featured) { const extra = Math.min(2, spare); cap[k] += extra; spare -= extra; }
+  const queue = [];
+  const pieceOrder = Object.fromEntries(featured.map(k => [k, Object.keys(SETS[k].pieces).sort(() => rng() - 0.5)]));
+  for (let r = 0; r < 4; r++) for (const k of [...featured].sort(() => rng() - 0.5)) if (r < cap[k]) queue.push({ set: k, slot: pieceOrder[k][r] });
+  const setBudget = queue.length;
+
+  // 4. hand set pieces to scenes in proportion to their slots (early scenes get the first pieces)
+  let qi = 0, slotsSeen = 0;
+  const removed = Object.keys(state.loot).filter(k => state.loot[k].plan);
+  for (const k of removed) delete state.loot[k];
+  const summary = [];
+  scenes.forEach((sc, si) => {
+    slotsSeen += sceneSlots[si];
+    let upto = si === scenes.length - 1 ? setBudget : Math.round(setBudget * slotsSeen / totalSlots);
+    if (si === 0) upto = Math.max(upto, Math.min(featured.length, Math.floor(sceneSlots[0] * 0.6)));
+    upto = Math.min(setBudget, Math.max(upto, qi));
+    const pieces = queue.slice(qi, upto); qi = upto;
+    const progress = scenes.length > 1 ? si / (scenes.length - 1) : 0;
+    const level = 1 + 0.25 * si;
+    const slots = [];
+    sceneCaches[si].forEach((c, ci) => { for (let j = 0; j < c.slots; j++) slots.push({ ci, j }); });
+    // spread set pieces: shuffle slots, then bosses/elites slightly favoured
+    slots.sort(() => rng() - 0.5);
+    slots.sort((x, y) => (sceneCaches[si][y.ci].kind !== 'chest') - (sceneCaches[si][x.ci].kind !== 'chest') || 0);
+    const holders = sceneCaches[si].map(() => []);
+    const used = new Set();
+    // never more than ceil(slots/2) set pieces in one cache
+    let pi = 0;
+    for (const sl of slots) {
+      if (pi >= pieces.length) break;
+      const c = sceneCaches[si][sl.ci];
+      if (holders[sl.ci].filter(it => it.set).length >= Math.ceil(c.slots / 2)) continue;
+      holders[sl.ci].push(makeItem('set', rng, pieces[pi].slot, level, pieces[pi].set));
+      used.add(`${sl.ci}:${sl.j}`); pi++;
+    }
+    for (; pi < pieces.length; pi++) { // overflow: drop into any cache with room
+      const ci = holders.findIndex((h, i) => h.length < sceneCaches[si][i].slots);
+      if (ci < 0) break;
+      holders[ci].push(makeItem('set', rng, pieces[pi].slot, level, pieces[pi].set));
+    }
+    const weights = { legendary: 0.03 + 0.12 * progress, rare: 0.14 + 0.2 * progress, magic: 0.36 };
+    const rollRarity = () => { const x = rng(); return x < weights.legendary ? 'legendary' : x < weights.legendary + weights.rare ? 'rare' : x < weights.legendary + weights.rare + weights.magic ? 'magic' : 'common'; };
+    sceneCaches[si].forEach((c, ci) => {
+      while (holders[ci].length < c.slots) {
+        let r = rollRarity();
+        if (c.kind === 'boss' && !holders[ci].some(i => ['rare', 'legendary', 'set'].includes(i.rarity))) r = rng() < 0.4 ? 'legendary' : 'rare';
+        holders[ci].push(makeItem(r, rng, undefined, level));
+      }
+      holders[ci].sort(() => rng() - 0.5);
+      const card = newCardCode(state, rng);
+      state.loot[card] = { card, kind: c.kind, label: c.label, scene: c.scene, sceneIdx: si, plan: true, items: holders[ci] };
+    });
+    summary.push({ scene: sc.name, caches: sceneCaches[si].length, items: sceneSlots[si], setPieces: pieces.map(p => SETS[p.set].pieces[p.slot]) });
+  });
+  state.campaign = { scenes, per, classes, featured, generated: Date.now() };
+  log(state, `The campaign is planned: ${scenes.length} scene${scenes.length > 1 ? 's' : ''}, ${totalSlots} treasures await.`, 'loot');
+  return { featured, summary, totalSlots, setPieces: setBudget };
 }

@@ -61,7 +61,7 @@
   .gstats div { display: flex; justify-content: space-between; border-bottom: 1px solid #2a2519; padding: 4px 0; }
   .gstats b { font-family: var(--display); font-weight: 800; font-size: 16px; }
   .gstats .up { color: var(--ok); }
-  .ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; align-items: start; }
   .ggrid .empty-slot { border: 1px dashed var(--line); padding: 12px; color: var(--ink-faint); font-family: var(--display); letter-spacing: .14em; text-transform: uppercase; font-size: 12px; display: flex; align-items: center; justify-content: center; min-height: 70px; }
   .iacts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   @media (max-width: 640px) { .gstats { grid-template-columns: 1fr 1fr; } }
@@ -71,7 +71,7 @@
 <div id="root"></div>
 <script type="module">
 import { CLASSES, ENEMY_TYPES, SLOTS, SLOT_LABEL, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES } from './engine.js';
-import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML } from './ui.js';
+import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML, setsHTML } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
 if (!room) location.href = './';
@@ -96,6 +96,8 @@ function start() {
       const n = S.characters[e.charId]?.name;
       if (e.type === 'loot' && n) toast(`${n} ← ${e.item.name}`);
       if (e.type === 'ability' && n) toast(`${n}: ${e.name}`);
+      if (e.type === 'cache' && n) toast(`${n} opened ${e.label}`);
+      if (e.type === 'unlock' && n) toast(`${n}: ${e.kind === 'synergy' ? 'synergy ' : ''}${e.name}!`);
     }),
     onStatus: on => { online = on; $('.conn')?.classList.toggle('on', on); },
     onFatal: msg => { localStorage.removeItem('dl.pin'); gate(msg); },
@@ -137,7 +139,7 @@ function shell() {
       <button class="btn danger" data-a="enemyPhase" title="Every hero with foes on them rolls defense">Enemy phase ⚔</button>
       <button class="btn solid" data-a="endRound">End round ⟳</button>
       <button class="btn sm" data-a="undo">↶ Undo</button>
-      <a class="btn sm" href="cards.html?room=${room}" target="_blank" style="text-decoration:none">Loot cards</a>
+      <a class="btn sm" href="cards.html?room=${room}" target="_blank" style="text-decoration:none">Loot &amp; campaign</a>
       <button class="btn sm danger" data-a="reset">Reset</button>
     </div>
     <div class="layout" id="main">
@@ -318,6 +320,8 @@ function gearBody(id) {
     </div>
     <div class="rule"><span class="gem"></span>Equipped<span class="gem"></span></div>
     <div class="ggrid">${SLOTS.map(sl => ch.gear[sl] ? `<div>${itemHTML(ch.gear[sl], acts(ch.gear[sl], true))}</div>` : `<div class="empty-slot">${SLOT_LABEL[sl]} · empty</div>`).join('')}</div>
+    <div class="rule"><span class="gem"></span>Sets &amp; synergies<span class="gem"></span></div>
+    ${setsHTML(ch, { gm: true })}
     <div class="rule"><span class="gem"></span>Satchel · ${ch.bag.length}<span class="gem"></span></div>
     ${ch.bag.length ? `<div class="ggrid">${ch.bag.map(it => `<div>${itemHTML(it, acts(it, false))}</div>`).join('')}</div>` : '<p class="faint center">Empty.</p>'}`;
 }

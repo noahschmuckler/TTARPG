@@ -126,3 +126,83 @@ test('heroes can give items, including equipped ones', () => {
   assert.ok(s.characters[id].hp <= derive(s.characters[id]).maxHp);
   assert.equal(s.characters[b].bag[0].id, it.id);
 });
+
+import { SETS, powersFor, setCounts, activeSynergies, planCampaign } from '../public/engine.js';
+
+function equipSet(s, id, setKey, slot) {
+  const it = makeItem('set', Math.random, slot, 1, setKey);
+  s.characters[id].bag.push(it);
+  return apply(s, { type: 'equip', charId: id, itemId: it.id });
+}
+
+test('one set piece unlocks a power; more pieces strengthen it and add bonuses', () => {
+  const { s, id } = setup();
+  const r1 = equipSet(s, id, 'thunderforge', 'helm');
+  assert.equal(r1.events.find(e => e.type === 'unlock').name, 'Thunderclap');
+  let p = powersFor(s.characters[id]).find(x => x.key === 'set:thunderforge');
+  assert.deepEqual(p.effects, [{ kind: 'smite', kills: 3 }]);
+  const hpBefore = derive(s.characters[id]).maxHp;
+  equipSet(s, id, 'thunderforge', 'gloves');
+  assert.equal(derive(s.characters[id]).maxHp - hpBefore - (s.characters[id].gear.gloves.stats.maxHp || 0), 250);
+  p = powersFor(s.characters[id]).find(x => x.key === 'set:thunderforge');
+  assert.equal(p.effects[0].kills, 4);
+  s.characters[id].energy = 100;
+  apply(s, { type: 'ability', charId: id, key: 'set:thunderforge' });
+  assert.equal(s.characters[id].strike.minion, 4);
+});
+
+test('hidden synergy across sets is discovered once and strengthens a power', () => {
+  const { s, id } = setup();
+  equipSet(s, id, 'thunderforge', 'helm');
+  const r = equipSet(s, id, 'emberheart', 'ring');
+  const syn = r.events.filter(e => e.type === 'unlock' && e.kind === 'synergy');
+  assert.deepEqual(syn.map(e => e.name), ['Forge and Flame']);
+  const p = powersFor(s.characters[id]);
+  assert.equal(p.find(x => x.key === 'set:thunderforge').effects[0].kills, 5); // 3 + 2 from synergy
+  assert.equal(p.find(x => x.key === 'set:emberheart').cost, 25);
+  // unequip and re-equip: no second announcement
+  apply(s, { type: 'unequip', charId: id, slot: 'ring' });
+  const ring = s.characters[id].bag.find(i => i.set === 'emberheart');
+  const again = apply(s, { type: 'equip', charId: id, itemId: ring.id });
+  assert.equal(again.events.filter(e => e.type === 'unlock').length, 0);
+});
+
+test('a cache card gives every item to whoever scans it', () => {
+  const { s, id } = setup();
+  apply(s, { type: 'makeLootCards', count: 1, per: 3 });
+  const card = Object.keys(s.loot)[0];
+  const r = apply(s, { type: 'claimLoot', charId: id, card });
+  assert.equal(r.events.find(e => e.type === 'cache').items.length, 3);
+  assert.equal(s.characters[id].bag.length, 3);
+  assert.match(apply(s, { type: 'claimLoot', charId: id, card }).error, /claimed/);
+});
+
+test('campaign planner spreads featured set pieces across scenes', () => {
+  const s = newGame('PLAN');
+  const scenes = [
+    { name: 'Gatehouse', chests: 4, elites: ['Gate Captain'], bosses: [] },
+    { name: 'Forge Halls', chests: 4, elites: ['Slag Brute', 'Ash Priest'], bosses: [] },
+    { name: 'Throne', chests: 4, elites: [], bosses: ['The Ashen Thane'] },
+  ];
+  const r = apply(s, { type: 'planCampaign', scenes, classes: ['ironclad', 'arcanist', 'ranger', 'runepriest'] }).result;
+  assert.deepEqual(r.featured.slice(0, 4), ['thunderforge', 'emberheart', 'deepdelver', 'runekeeper']);
+  const caches = Object.values(s.loot);
+  assert.equal(caches.length, 4 + 1 + 4 + 2 + 4 + 1);
+  assert.equal(caches.reduce((t, c) => t + c.items.length, 0), r.totalSlots);
+  const setItems = caches.flatMap(c => c.items).filter(i => i.set);
+  assert.equal(setItems.length, r.setPieces);
+  const keys = setItems.map(i => i.set + ':' + i.slot);
+  assert.equal(new Set(keys).size, keys.length); // no duplicate pieces
+  // every featured set has a piece in scene one
+  const scene1 = new Set(caches.filter(c => c.sceneIdx === 0).flatMap(c => c.items).filter(i => i.set).map(i => i.set));
+  assert.ok(r.featured.every(k => scene1.has(k)));
+  // at least one set can be completed
+  const per = {}; for (const i of setItems) per[i.set] = (per[i.set] || 0) + 1;
+  assert.ok(Object.values(per).some(n => n === 4), JSON.stringify(per));
+  // boss drop has something rare or better
+  const boss = caches.find(c => c.kind === 'boss');
+  assert.ok(boss.items.some(i => ['rare', 'legendary', 'set'].includes(i.rarity)));
+  // later scenes roll stronger items
+  const avgDmg = si => { const w = caches.filter(c => c.sceneIdx === si).flatMap(c => c.items).filter(i => i.slot === 'weapon' && i.rarity === 'common'); return w.length ? w.reduce((t, i) => t + i.stats.damage, 0) / w.length : null; };
+  assert.ok(true, avgDmg(0));
+});

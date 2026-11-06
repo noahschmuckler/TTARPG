@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Delvers' Ledger · Loot Cards</title>
+<title>Delvers' Ledger · Loot &amp; Campaign</title>
 <link rel="stylesheet" href="app.css">
 <style>
-  .tools { max-width: 900px; margin: 0 auto; padding: 16px; }
-  .sheetgrid { display: grid; grid-template-columns: repeat(auto-fill, 2.5in); gap: .15in; justify-content: center; padding: 16px; }
+  .tools { max-width: 980px; margin: 0 auto; padding: 16px; }
+  .sheetgrid { display: grid; grid-template-columns: repeat(auto-fill, 2.5in); gap: .15in; justify-content: center; padding: 8px 16px 24px; }
+  .scenehdr { max-width: 980px; margin: 18px auto 0; padding: 0 16px; }
   .cardwrap { width: 2.5in; height: 3.5in; perspective: 1200px; cursor: pointer; break-inside: avoid; }
   .flip { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.3,.7,.2,1); }
   .cardwrap.flipped .flip { transform: rotateY(180deg); }
@@ -20,12 +21,13 @@
   .card::before { content: ''; position: absolute; inset: 3px; z-index: -1; clip-path: inherit;
     background: repeating-conic-gradient(from 0deg at 50% 46%, color-mix(in srgb, var(--rc) 22%, #14110b) 0 7deg, #14110b 7deg 15deg); }
   .card .t { font-family: var(--display); font-weight: 900; letter-spacing: .3em; text-transform: uppercase; color: var(--rc); font-size: 20px; }
-  .card .q { background: #f3ead2; padding: 8px; width: 1.55in; }
+  .card .lb { font-family: var(--carved); font-weight: 800; font-size: 13px; color: var(--ink); text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .card .q { background: #f3ead2; padding: 8px; width: 1.45in; }
   .card .q svg { display: block; width: 100%; height: auto; }
   .card .c { font-family: var(--display); font-weight: 900; letter-spacing: .25em; font-size: 22px; color: var(--ink); }
-  .card .r { font-family: var(--carved); font-size: 12px; color: var(--ink-dim); letter-spacing: .2em; text-transform: uppercase; }
-  .card .chev { width: 70%; height: 10px; background: repeating-linear-gradient(90deg, var(--rc) 0 2px, transparent 2px 8px); opacity: .7; }
-  .back .card { justify-content: flex-start; gap: 6px; text-align: center; }
+  .card .r { font-family: var(--carved); font-size: 11px; color: var(--ink-dim); letter-spacing: .18em; text-transform: uppercase; }
+  .card .chev { width: 70%; height: 8px; background: repeating-linear-gradient(90deg, var(--rc) 0 2px, transparent 2px 8px); opacity: .7; }
+  .back .card { justify-content: flex-start; gap: 5px; text-align: center; }
   .back .card::before { background: radial-gradient(ellipse at 50% 0, color-mix(in srgb, var(--rc) 30%, #14110b), #14110b 70%); }
   .back .nm { font-family: var(--carved); font-weight: 800; font-size: 19px; line-height: 1.1; color: var(--rc); margin-top: 6px; }
   .back .mt { font-family: var(--display); letter-spacing: .16em; text-transform: uppercase; font-size: 11px; color: var(--ink-dim); }
@@ -33,53 +35,217 @@
   .back .st { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 2px; border-bottom: 1px solid #2a2519; text-align: left; }
   .back .st b { font-family: var(--display); font-weight: 800; font-size: 15px; }
   .back .st.legend b { color: var(--r-legendary); }
+  .back .li { width: 100%; text-align: left; padding: 4px 2px; border-bottom: 1px solid #2a2519; }
+  .back .li .n { font-family: var(--carved); font-weight: 800; font-size: 13px; line-height: 1.15; color: var(--ic); }
+  .back .li .m { font-family: var(--display); letter-spacing: .12em; text-transform: uppercase; font-size: 10px; color: var(--ink-faint); }
   .back .foot { margin-top: auto; font-family: var(--display); font-weight: 800; letter-spacing: .25em; font-size: 13px; color: var(--ink-faint); }
-  @media print { .cardwrap .flip { transform: none !important; transition: none !important; } .face.back { display: none; } .tools { display: none; } body { background: #fff; } .sheetgrid { padding: 0; } }
+
+  .planner { padding: 16px; }
+  .party { display: flex; flex-wrap: wrap; gap: 8px; }
+  .step { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border: 1px solid var(--line); background: var(--obsidian); }
+  .step .nm { font-family: var(--display); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 13px; }
+  .step button { width: 30px; height: 30px; border: 1px solid var(--line); background: var(--basalt); font-weight: 800; }
+  .step b { font-family: var(--display); font-weight: 900; font-size: 18px; min-width: 18px; text-align: center; }
+  .step.on { border-color: var(--brass); }
+  .scenes { display: grid; gap: 10px; }
+  .scene { display: grid; grid-template-columns: 1.2fr 110px 1.5fr 1.2fr 40px; gap: 8px; align-items: end; padding: 10px; background: var(--obsidian); border: 1px solid var(--line); }
+  .scene .idx { font-family: var(--display); font-weight: 900; color: var(--brass); }
+  @media (max-width: 760px) { .scene { grid-template-columns: 1fr 1fr; } .scene .wide { grid-column: span 2; } }
+  .summary { margin-top: 14px; }
+  .featured { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
+  .fset { padding: 4px 10px; border: 1px solid var(--rc); color: var(--rc); font-family: var(--carved); font-weight: 800; }
+  .sumrow { font-size: 14px; padding: 6px 0; border-bottom: 1px solid #2a2519; }
+  @media print {
+    .cardwrap .flip { transform: none !important; transition: none !important; } .face.back { display: none; }
+    .tools, .noprint { display: none !important; } body { background: #fff; } .sheetgrid { padding: 0; }
+    .scenehdr { color: #000; } .scenehdr .rule { color: #000; }
+    .scenegrp + .scenegrp { break-before: page; }
+  }
 </style>
 </head>
 <body>
 <div class="tools">
-  <div class="rule"><span class="gem"></span>Treasure cards<span class="gem"></span></div>
-  <p class="dim">Each card is a hidden item. Players scan it with their phone camera (or type the code) and the item appears in their satchel. Each card can be claimed once. Print on card stock and hide them in chests, under minis, or behind doors.</p>
-  <div class="row" style="flex-wrap:wrap">
-    <input class="field" id="n" inputmode="numeric" value="9" style="width:90px">
-    <select class="field" id="r" style="width:200px"><option value="random">Random rarity</option><option value="common">Common</option><option value="magic">Magic</option><option value="rare">Rare</option><option value="legendary">Legendary</option></select>
-    <button class="btn solid" id="make">Forge cards</button>
-    <button class="btn" onclick="print()">Print</button>
-    <label class="dim"><input type="checkbox" id="show" checked> Show rarity on card</label>
-    <button class="btn sm danger" id="clear">Void unclaimed</button>
+  <div class="rule"><span class="gem"></span>Campaign planner<span class="gem"></span></div>
+  <div class="plate planner">
+    <p class="dim" style="margin-top:0">Lay out the delve scene by scene. The planner fills every chest, elite and boss with loot: each hero's favoured item sets appear early so new powers unlock in the first scene, sets fill in as the party goes deeper, and rarity and item power climb from scene to scene.</p>
+    <label class="lbl">Party callings <span class="faint" id="partyhint"></span></label>
+    <div class="party" id="party"></div>
+    <label class="lbl" style="margin-top:14px">Items per cache</label>
+    <div class="party">
+      <span class="step"><span class="nm">Chest</span><input class="field sm" data-per="chest" inputmode="numeric" style="width:54px;min-height:32px"></span>
+      <span class="step"><span class="nm">Elite</span><input class="field sm" data-per="elite" inputmode="numeric" style="width:54px;min-height:32px"></span>
+      <span class="step"><span class="nm">Boss</span><input class="field sm" data-per="boss" inputmode="numeric" style="width:54px;min-height:32px"></span>
+    </div>
+    <label class="lbl" style="margin-top:14px">Scenes</label>
+    <div class="scenes" id="scenes"></div>
+    <div class="row" style="margin-top:10px;flex-wrap:wrap">
+      <button class="btn sm" id="addScene">+ Add scene</button>
+      <span class="grow"></span>
+      <span class="faint" id="totals" style="font-size:14px"></span>
+      <button class="btn solid" id="plan">Generate campaign loot</button>
+    </div>
+    <div class="summary" id="summary"></div>
   </div>
-  <p class="faint" id="count"></p>
-  <div class="row"><button class="btn sm" id="flipAll">Flip all</button><span class="faint" style="font-size:14px">Tap any card to see the treasure inside. Printing always uses the QR side.</span></div>
+
+  <div class="rule"><span class="gem"></span>Loose treasure cards<span class="gem"></span></div>
+  <div class="row" style="flex-wrap:wrap">
+    <input class="field" id="n" inputmode="numeric" value="4" style="width:70px" title="How many cards">
+    <span class="dim">cards ×</span>
+    <input class="field" id="per" inputmode="numeric" value="1" style="width:70px" title="Items per card">
+    <span class="dim">items</span>
+    <select class="field" id="r" style="width:180px"><option value="random">Random rarity</option><option value="common">Common</option><option value="magic">Magic</option><option value="rare">Rare</option><option value="legendary">Legendary</option><option value="set">Set pieces</option></select>
+    <button class="btn" id="make">Forge cards</button>
+  </div>
+
+  <div class="rule"><span class="gem"></span>Cards to print<span class="gem"></span></div>
+  <div class="row" style="flex-wrap:wrap">
+    <select class="field" id="filter" style="width:240px"></select>
+    <button class="btn solid" onclick="print()">Print</button>
+    <button class="btn sm" id="flipAll">Flip all</button>
+    <button class="btn sm danger" id="clear">Void these cards</button>
+    <span class="faint" id="count" style="font-size:14px"></span>
+  </div>
+  <p class="faint" style="font-size:14px;margin:8px 0 0">Tap any card to flip it and see what's inside. Printing always uses the QR side, and each scene starts on a new page.</p>
 </div>
-<div class="sheetgrid" id="grid"></div>
+<div id="cards"></div>
 <script type="module">
-import { RARITIES, SLOT_LABEL, STAT_INFO } from './engine.js';
-import { $, params, connect, qrSVG, esc } from './ui.js';
+import { RARITIES, SLOT_LABEL, STAT_INFO, CLASSES, SETS, CLASS_SETS, CACHE_DEFAULTS } from './engine.js';
+import { $, params, connect, qrSVG, esc, toast } from './ui.js';
 const flipped = new Set();
 const room = (params.get('room') || '').toUpperCase();
 const pin = localStorage.getItem('dl.pin') || '';
-let S;
-const net = connect({ room, role: 'gm', pin, onState: st => { S = st; draw(); }, onFatal: m => alert(m + ' — open Headquarters first.') });
-function draw() {
-  const cards = Object.values(S.loot);
-  $('#count').textContent = `${cards.length} unclaimed card${cards.length === 1 ? '' : 's'} in game ${room}.`;
-  const show = $('#show').checked;
-  $('#grid').innerHTML = cards.map(it => `<div class="cardwrap ${flipped.has(it.card) ? 'flipped' : ''}" data-card="${it.card}"><div class="flip">
-    <div class="face front"><div class="card r-${show ? it.rarity : 'rare'}">
-      <div class="t">Treasure</div><div class="chev"></div>
-      <div class="q">${qrSVG(`${location.origin}/play.html?room=${room}&claim=${it.card}`, 4)}</div>
-      <div class="c">${esc(it.card)}</div><div class="r">${show ? RARITIES[it.rarity].label : 'Unknown'} · ${room}</div></div></div>
-    <div class="face back"><div class="card r-${it.rarity}">
-      <div class="t">${RARITIES[it.rarity].label}</div><div class="chev"></div>
-      <div class="nm">${esc(it.name)}</div>
-      <div class="mt">${SLOT_LABEL[it.slot]}${it.name.includes(it.base) ? '' : ' · ' + esc(it.base)}</div>
-      <div class="sts">${Object.entries(it.stats).map(([k, v]) => `<div class="st ${k === 'dice' || k === 'cleave' ? 'legend' : ''}"><span>${esc(STAT_INFO[k].label)}</span><b>${esc(STAT_INFO[k].fmt(v))}</b></div>`).join('')}</div>
-      <div class="foot">${esc(it.card)}</div></div></div>
-  </div></div>`).join('');
+const DRAFT = `dl.plan.${room}`;
+let S, plan = null, lastSummary = null;
+const net = connect({ room, role: 'gm', pin, onState: st => { S = st; if (!plan) initPlan(); drawCards(); }, onFatal: m => alert(m + ' — open Headquarters first.') });
+
+// ------------------------------------------------------------ planner state
+function initPlan() {
+  try { plan = JSON.parse(localStorage.getItem(DRAFT)); } catch { plan = null; }
+  if (!plan && S.campaign) plan = { classes: countClasses(S.campaign.classes), per: S.campaign.per, scenes: S.campaign.scenes.map(sc => ({ ...sc, elites: sc.elites.join(', '), bosses: sc.bosses.join(', ') })) };
+  if (!plan) {
+    const heroes = S.order.map(id => S.characters[id].cls);
+    const classes = countClasses(heroes.length ? heroes : ['ironclad', 'arcanist', 'ranger', 'runepriest']);
+    const n = Object.values(classes).reduce((a, b) => a + b, 0);
+    plan = { classes, per: { ...CACHE_DEFAULTS }, scenes: [
+      { name: 'The Gatehouse', chests: n, elites: 'Gate Captain', bosses: '' },
+      { name: 'The Forge Halls', chests: n, elites: 'Slag Brute, Ash Priest', bosses: '' },
+      { name: 'The Throne of Ash', chests: n, elites: '', bosses: 'The Ashen Thane' },
+    ] };
+  }
+  drawPlanner();
 }
-$('#show').onchange = () => S && draw();
-$('#grid').onclick = e => {
+function countClasses(list) { const c = {}; for (const k of list) c[k] = (c[k] || 0) + 1; return c; }
+const save = () => { try { localStorage.setItem(DRAFT, JSON.stringify(plan)); } catch {} };
+const names = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
+
+function drawPlanner() {
+  const heroes = S.order.map(id => S.characters[id]);
+  $('#partyhint').textContent = heroes.length ? `· ${heroes.length} hero${heroes.length > 1 ? 'es' : ''} in the game: ${heroes.map(h => h.name).join(', ')}` : '· no heroes yet; set the expected party';
+  $('#party').innerHTML = Object.entries(CLASSES).map(([k, C]) => `<span class="step ${plan.classes[k] ? 'on' : ''}"><span class="nm">${C.glyph} ${C.name}</span><button data-cls="${k}" data-d="-1">−</button><b>${plan.classes[k] || 0}</b><button data-cls="${k}" data-d="1">+</button></span>`).join('')
+    + (heroes.length ? `<button class="btn sm" id="useHeroes">Use current heroes</button>` : '');
+  document.querySelectorAll('[data-per]').forEach(i => i.value = plan.per[i.dataset.per]);
+  $('#scenes').innerHTML = plan.scenes.map((sc, i) => `<div class="scene" data-i="${i}">
+    <div class="wide"><label class="lbl"><span class="idx">${i + 1}</span> · Scene name</label><input class="field sm" data-f="name" value="${esc(sc.name)}"></div>
+    <div><label class="lbl">Chests</label><input class="field sm" data-f="chests" inputmode="numeric" value="${sc.chests}"></div>
+    <div class="wide"><label class="lbl">Named elites (comma separated)</label><input class="field sm" data-f="elites" value="${esc(sc.elites)}" placeholder="e.g. Gate Captain, Slag Brute"></div>
+    <div><label class="lbl">Bosses</label><input class="field sm" data-f="bosses" value="${esc(sc.bosses)}" placeholder="e.g. The Ashen Thane"></div>
+    <div><button class="mini" data-rm="${i}" title="Remove scene" style="height:36px">✕</button></div>
+  </div>`).join('');
+  drawTotals();
+  drawSummary();
+}
+function drawTotals() {
+  let caches = 0, items = 0;
+  for (const sc of plan.scenes) {
+    const e = names(sc.elites).length, b = names(sc.bosses).length, c = Number(sc.chests) || 0;
+    caches += c + e + b; items += c * plan.per.chest + e * plan.per.elite + b * plan.per.boss;
+  }
+  const heroes = Object.values(plan.classes).reduce((a, b) => a + b, 0) || 1;
+  $('#totals').textContent = `${caches} cards · ${items} items · about ${Math.round(items / heroes)} per hero`;
+}
+function drawSummary() {
+  const r = lastSummary;
+  if (!r) { $('#summary').innerHTML = S.campaign ? `<p class="faint" style="margin:0">A campaign was generated ${new Date(S.campaign.generated).toLocaleString()}. Generating again replaces its unclaimed cards.</p>` : ''; return; }
+  $('#summary').innerHTML = `<div class="rule"><span class="gem"></span>Generated<span class="gem"></span></div>
+    <div class="dim">Featured sets (${r.setPieces} set pieces among ${r.totalSlots} items):</div>
+    <div class="featured">${r.featured.map(k => `<span class="fset" style="--rc:${SETS[k].color}">✦ ${esc(SETS[k].name)} <span class="faint" style="font-size:12px">${esc(SETS[k].power.name)}${Object.entries(CLASS_SETS).filter(([c, l]) => l[0] === k && plan.classes[c]).map(([c]) => ' · for ' + CLASSES[c].name).join('')}</span></span>`).join('')}</div>
+    ${r.summary.map(x => `<div class="sumrow"><b>${esc(x.scene)}</b> <span class="faint">· ${x.caches} cards · ${x.items} items</span><br><span class="dim">Set pieces: ${x.setPieces.length ? x.setPieces.map(esc).join(', ') : 'none'}</span></div>`).join('')}`;
+}
+
+document.querySelector('.planner').addEventListener('click', e => {
+  const c = e.target.closest('[data-cls]');
+  if (c) { const k = c.dataset.cls; plan.classes[k] = Math.max(0, (plan.classes[k] || 0) + Number(c.dataset.d)); if (!plan.classes[k]) delete plan.classes[k]; save(); return drawPlanner(); }
+  if (e.target.closest('#useHeroes')) { plan.classes = countClasses(S.order.map(id => S.characters[id].cls)); save(); return drawPlanner(); }
+  const rm = e.target.closest('[data-rm]');
+  if (rm) { plan.scenes.splice(Number(rm.dataset.rm), 1); save(); return drawPlanner(); }
+  if (e.target.closest('#addScene')) { const n = Object.values(plan.classes).reduce((a, b) => a + b, 0) || 4; plan.scenes.push({ name: `Scene ${plan.scenes.length + 1}`, chests: n, elites: '', bosses: '' }); save(); return drawPlanner(); }
+  if (e.target.closest('#plan')) return generate();
+});
+document.querySelector('.planner').addEventListener('input', e => {
+  const f = e.target.dataset.f, per = e.target.dataset.per;
+  if (f) { const i = Number(e.target.closest('.scene').dataset.i); plan.scenes[i][f] = f === 'chests' ? Number(e.target.value.replace(/[^\d]/g, '')) || 0 : e.target.value; }
+  if (per) plan.per[per] = Number(e.target.value.replace(/[^\d]/g, '')) || CACHE_DEFAULTS[per];
+  save(); drawTotals();
+});
+
+async function generate() {
+  const classes = Object.entries(plan.classes).flatMap(([k, n]) => Array(n).fill(k));
+  if (!classes.length) return toast('Add at least one hero to the party', 'err');
+  if (Object.values(S.loot).some(c => c.plan) && !confirm('Replace the unclaimed cards from the previous campaign plan?')) return;
+  const scenes = plan.scenes.map(sc => ({ name: sc.name, chests: Number(sc.chests) || 0, elites: names(sc.elites), bosses: names(sc.bosses) }));
+  try {
+    lastSummary = await net.act({ type: 'planCampaign', scenes, per: plan.per, classes });
+    drawSummary();
+    $('#filter').value = 'all';
+    toast(`${lastSummary.totalSlots} treasures forged across ${scenes.length} scenes`);
+  } catch {}
+}
+
+// ------------------------------------------------------------ cards
+const KIND = { chest: ['Chest', 'var(--brass)'], elite: ['Elite drop', '#e98f53'], boss: ['Boss hoard', 'var(--r-legendary)'], single: ['Treasure', null] };
+function cacheOf(c) { return c.items ? c : { card: c.card, kind: 'single', label: 'Treasure', items: [c] }; } // older single-item cards
+function itemColor(it) { return it.set ? SETS[it.set].color : `var(--r-${it.rarity})`; }
+
+function drawCards() {
+  const all = Object.values(S.loot).map(cacheOf);
+  const groups = new Map();
+  for (const c of all) { const k = c.sceneIdx != null ? 's' + c.sceneIdx : 'loose'; if (!groups.has(k)) groups.set(k, { title: c.scene || 'Loose cards', idx: c.sceneIdx ?? 99, cards: [] }); groups.get(k).cards.push(c); }
+  const ordered = [...groups.entries()].sort((a, b) => a[1].idx - b[1].idx);
+  const f = $('#filter'), cur = f.value || 'all';
+  f.innerHTML = `<option value="all">All cards (${all.length})</option>` + ordered.map(([k, g]) => `<option value="${k}">${esc(g.title)} (${g.cards.length})</option>`).join('');
+  f.value = [...f.options].some(o => o.value === cur) ? cur : 'all';
+  const show = ordered.filter(([k]) => f.value === 'all' || f.value === k);
+  $('#count').textContent = `${show.reduce((t, [, g]) => t + g.cards.length, 0)} unclaimed`;
+  $('#cards').innerHTML = show.map(([k, g]) => `<div class="scenegrp"><div class="scenehdr"><div class="rule"><span class="gem"></span>${esc(g.title)}<span class="gem"></span></div></div>
+    <div class="sheetgrid">${g.cards.map(cardHTML).join('')}</div></div>`).join('') || `<p class="faint center">No unclaimed cards. Generate a campaign or forge some loose cards above.</p>`;
+}
+
+function cardHTML(c) {
+  const [kindLabel, kindColor] = KIND[c.kind] || KIND.chest;
+  const single = c.items.length === 1 ? c.items[0] : null;
+  const rc = kindColor || (single ? itemColor(single) : 'var(--brass)');
+  const url = `${location.origin}/play.html?room=${room}&claim=${c.card}`;
+  const front = `<div class="card" style="--rc:${rc}">
+      <div class="t">${esc(kindLabel)}</div>
+      <div class="lb">${esc(c.kind === 'chest' ? (c.scene || 'Treasure') : c.label)}</div>
+      <div class="q">${qrSVG(url, 4)}</div>
+      <div class="c">${esc(c.card)}</div>
+      <div class="r">${c.items.length} treasure${c.items.length > 1 ? 's' : ''} · ${room}</div></div>`;
+  const back = single ? `<div class="card" style="--rc:${itemColor(single)}">
+      <div class="t">${single.set ? 'Set piece' : RARITIES[single.rarity].label}</div><div class="chev"></div>
+      <div class="nm">${esc(single.name)}</div>
+      <div class="mt">${single.set ? esc(SETS[single.set].name) + ' set · ' : ''}${SLOT_LABEL[single.slot]}</div>
+      <div class="sts">${Object.entries(single.stats).map(([k, v]) => `<div class="st ${k === 'dice' || k === 'cleave' ? 'legend' : ''}"><span>${esc(STAT_INFO[k].label)}</span><b>${esc(STAT_INFO[k].fmt(v))}</b></div>`).join('')}</div>
+      <div class="foot">${esc(c.card)}</div></div>`
+    : `<div class="card" style="--rc:${rc}">
+      <div class="t">${esc(kindLabel)}</div><div class="lb">${esc(c.label)}</div><div class="chev"></div>
+      ${c.items.map(it => `<div class="li" style="--ic:${itemColor(it)}"><div class="n">${it.set ? '✦ ' : ''}${esc(it.name)}</div><div class="m">${it.set ? esc(SETS[it.set].name) + ' set' : RARITIES[it.rarity].label} · ${SLOT_LABEL[it.slot]}</div></div>`).join('')}
+      <div class="foot">${esc(c.card)}</div></div>`;
+  return `<div class="cardwrap ${flipped.has(c.card) ? 'flipped' : ''}" data-card="${c.card}"><div class="flip"><div class="face front">${front}</div><div class="face back">${back}</div></div></div>`;
+}
+
+$('#filter').onchange = () => S && drawCards();
+$('#cards').onclick = e => {
   const w = e.target.closest('.cardwrap');
   if (!w) return;
   const c = w.dataset.card;
@@ -87,14 +253,20 @@ $('#grid').onclick = e => {
   w.classList.toggle('flipped');
 };
 $('#flipAll').onclick = () => {
-  const all = Object.keys(S.loot);
-  const anyFront = all.some(c => !flipped.has(c));
-  flipped.clear();
-  if (anyFront) all.forEach(c => flipped.add(c));
-  draw();
+  const vis = [...document.querySelectorAll('.cardwrap')].map(w => w.dataset.card);
+  const anyFront = vis.some(c => !flipped.has(c));
+  vis.forEach(c => anyFront ? flipped.add(c) : flipped.delete(c));
+  drawCards();
 };
-$('#make').onclick = () => net.act({ type: 'makeLootCards', count: Number($('#n').value) || 1, rarity: $('#r').value });
-$('#clear').onclick = () => confirm('Void all unclaimed cards?') && net.act({ type: 'clearLootCards' });
+$('#make').onclick = () => net.act({ type: 'makeLootCards', count: Number($('#n').value) || 1, per: Number($('#per').value) || 1, rarity: $('#r').value });
+$('#clear').onclick = () => {
+  const v = $('#filter').value;
+  const what = v === 'all' ? 'ALL unclaimed cards' : `the cards in "${$('#filter').selectedOptions[0].text}"`;
+  if (!confirm(`Void ${what}?`)) return;
+  if (v === 'all') net.act({ type: 'clearLootCards' });
+  else if (v === 'loose') Object.values(S.loot).filter(c => c.sceneIdx == null).forEach(c => net.act({ type: 'voidCard', card: c.card }));
+  else net.act({ type: 'clearLootCards', scene: v.slice(1) });
+};
 </script>
 </body>
 </html>
