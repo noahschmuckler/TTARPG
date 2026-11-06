@@ -73,7 +73,7 @@ export const STAT_INFO = {
   energyPerKill: { label: 'Energy per Kill', fmt: v => `+${v}` },
   energyPerRound: { label: 'Energy per Round', fmt: v => `+${v}` },
   maxEnergy: { label: 'Max Energy', fmt: v => `+${v}` },
-  critMult: { label: 'Critical Multiplier', fmt: v => `+×${v}` },
+  critMult: { label: 'Critical Multiplier', fmt: v => `+${v}×` },
   cleave: { label: 'Cleave (extra minion per 6)', fmt: v => `+${v}` },
   dice: { label: 'Attack Dice', fmt: v => `+${v} die` },
 };

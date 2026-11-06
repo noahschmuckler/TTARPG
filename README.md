@@ -49,7 +49,7 @@ npm run cf:deploy    # prints https://delvers-ledger.<you>.workers.dev
 2. Click **Join QR** and show it to the table. Each player forges a hero.
 3. Each round: summon or move foes onto heroes, let players attack and use powers, tap **Enemy phase** (everyone rolls defense at once), then **End round**.
 4. Print **Loot cards** ahead of time and hide them in the terrain. Tap a card on screen to flip it and see the item inside; printing always uses the QR side.
-5. Mistakes? **Undo** walks back the last 40 actions. A player without a phone? Click ↗ on their card to open their sheet.
+5. Click any hero's **Gear** line to inspect their stats and items (and equip, give or destroy them). Mistakes? **Undo** walks back the last 40 actions. A player without a phone? Click ↗ on their card to open their sheet.
 
 ## Layout
 

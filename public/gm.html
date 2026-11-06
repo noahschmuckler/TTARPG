@@ -52,13 +52,26 @@
   .qrbox { background: #f3ead2; padding: 14px; width: min(320px, 80vw); margin: 10px auto; }
   .qrbox svg { display: block; width: 100%; height: auto; }
   .gate { max-width: 420px; margin: 18vh auto; padding: 20px; }
+  .gearline { display: flex; gap: 8px; align-items: baseline; width: 100%; margin-top: 10px; padding: 8px 10px; border: 1px solid var(--line); background: var(--obsidian); text-align: left; font-size: 13px; line-height: 1.4;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+  .gearline:hover { border-color: var(--brass); }
+  .gearline .k { font-family: var(--display); font-weight: 600; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; color: var(--ink-faint); }
+  .scrim .sheet.wide { max-width: 860px; }
+  .gstats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px 16px; font-size: 14px; margin: 10px 0 4px; }
+  .gstats div { display: flex; justify-content: space-between; border-bottom: 1px solid #2a2519; padding: 4px 0; }
+  .gstats b { font-family: var(--display); font-weight: 800; font-size: 16px; }
+  .gstats .up { color: var(--ok); }
+  .ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .ggrid .empty-slot { border: 1px dashed var(--line); padding: 12px; color: var(--ink-faint); font-family: var(--display); letter-spacing: .14em; text-transform: uppercase; font-size: 12px; display: flex; align-items: center; justify-content: center; min-height: 70px; }
+  .iacts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  @media (max-width: 640px) { .gstats { grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="module">
-import { CLASSES, ENEMY_TYPES, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES } from './engine.js';
-import { $, h, esc, params, connect, toast, sheet, qrSVG } from './ui.js';
+import { CLASSES, ENEMY_TYPES, SLOTS, SLOT_LABEL, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES } from './engine.js';
+import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
 if (!room) location.href = './';
@@ -107,6 +120,7 @@ function render() {
       `<div class="plate dim empty"><div class="carved" style="font-size:22px;color:var(--brass-hi)">No heroes yet</div><p class="dim">Show the join code to your players. Each forges a hero on their phone.</p><button class="btn solid" data-a="qr">Show join code</button></div>`;
     $('#spawn').innerHTML = spawnPanel();
     $('#roam').innerHTML = roamPanel();
+    if (gearOpen) gearOpen.el.querySelector('#gearbody').innerHTML = gearBody(gearOpen.id);
     $('#log').innerHTML = S.log.slice(0, 60).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join('');
   });
 }
@@ -175,7 +189,7 @@ function heroCard(ch) {
       ${bigs.map(b => `<span class="fchip">${esc(b.name)} ${fmt(b.hp)}<button data-a="rmFoe" data-e="${b.id}">✕</button></span>`).join('')}
     </div>` : ''}
     <div class="ctl"><span class="k">Loot</span><div class="btns">${RARITY_ORDER.map(r => `<button class="mini r r-${r}" data-a="loot" data-id="${id}" data-r="${r}">${RARITIES[r].label}</button>`).join('')}<button class="mini" data-a="loot" data-id="${id}" data-r="random" title="Random rarity">?</button></div></div>
-    ${ch.bag.length || Object.keys(ch.gear).length ? `<div class="faint" style="font-size:12px;margin-top:8px">Gear: ${Object.values(ch.gear).map(i => `<span class="rname r-${i.rarity}">${esc(i.name)}</span>`).join(' · ') || '—'}${ch.bag.length ? ` · ${ch.bag.length} in satchel` : ''}</div>` : ''}
+    <button class="gearline" data-a="gear" data-id="${id}" title="Inspect gear and stats"><span class="k">Gear</span><span class="grow">${Object.values(ch.gear).map(i => `<span class="rname r-${i.rarity}">${esc(i.name)}</span>`).join(' · ') || '<span class="faint">nothing equipped</span>'}${ch.bag.length ? ` <span class="faint">· ${ch.bag.length} in satchel</span>` : ''}</span><span class="faint">Inspect ›</span></button>
   </div>`;
 }
 
@@ -253,6 +267,7 @@ function onClick(e) {
       return act({ type: 'spawn', etype: spawnCfg.etype, count: Number(spawnCfg.count) || 1, target: spawnCfg.target || null, name: spawnCfg.name || undefined, hp: num(spawnCfg.hp), armor: spawnCfg.armor === '' ? undefined : num(spawnCfg.armor) ?? 0, attacks: num(spawnCfg.attacks), damage: num(spawnCfg.damage), ability: spawnCfg.ability || undefined });
     }
     case 'edit': return editSheet(id);
+    case 'gear': return gearSheet(id);
   }
 }
 
@@ -281,6 +296,49 @@ function qrSheet() {
   const url = `${location.origin}/play.html?room=${room}`;
   sheet(`<h2 class="center">Join the delve</h2><div class="qrbox">${qrSVG(url, 6)}</div>
     <p class="center"><span class="roomcode" style="font-size:40px">${room}</span></p><p class="center faint" style="word-break:break-all">${esc(url)}</p>`);
+}
+
+// ---------------------------------------------------------- gear inspector
+let gearOpen = null;
+function gearBody(id) {
+  const ch = S.characters[id];
+  if (!ch) return '<p class="dim">This hero is gone.</p>';
+  const C = CLASSES[ch.cls], s = derive(ch), b = C.base;
+  const stat = (label, val, base, f = v => v) => `<div><span class="dim">${label}</span><b class="${val > base ? 'up' : ''}">${f(val)}</b></div>`;
+  const others = S.order.filter(o => o !== id);
+  const acts = (it, equipped) => `<div class="iacts">
+      ${equipped ? `<button class="mini" data-ga="unequip" data-slot="${it.slot}">To satchel</button>` : `<button class="mini" data-ga="equip" data-item="${it.id}">Equip</button>`}
+      ${others.map(o => `<button class="mini" data-ga="give" data-item="${it.id}" data-to="${o}">→ ${esc(S.characters[o].name)}</button>`).join('')}
+      <button class="mini hurt" data-ga="discard" data-item="${it.id}" data-eq="${equipped ? it.slot : ''}">Destroy</button></div>`;
+  return `<h2>${C.glyph} ${esc(ch.name)}</h2>
+    <div class="faint" style="font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;font-size:12px">${C.name} · ${ch.kills} slain · green = boosted by gear</div>
+    <div class="gstats">
+      ${stat('Health', s.maxHp, b.maxHp, fmt)}${stat('Armor', s.armor, b.armor, v => v + '%')}${stat('Dice', s.dice, b.dice)}${stat('Dmg / hit', s.damage, b.damage, fmt)}
+      ${stat('Crit', s.critMult, b.critMult, v => '×' + v)}${stat('Cleave', s.cleave, b.cleave)}${stat('Energy / kill', s.energyPerKill, b.energyPerKill)}${stat('Energy / rnd', s.energyPerRound, b.energyPerRound)}
+    </div>
+    <div class="rule"><span class="gem"></span>Equipped<span class="gem"></span></div>
+    <div class="ggrid">${SLOTS.map(sl => ch.gear[sl] ? `<div>${itemHTML(ch.gear[sl], acts(ch.gear[sl], true))}</div>` : `<div class="empty-slot">${SLOT_LABEL[sl]} · empty</div>`).join('')}</div>
+    <div class="rule"><span class="gem"></span>Satchel · ${ch.bag.length}<span class="gem"></span></div>
+    ${ch.bag.length ? `<div class="ggrid">${ch.bag.map(it => `<div>${itemHTML(it, acts(it, false))}</div>`).join('')}</div>` : '<p class="faint center">Empty.</p>'}`;
+}
+function gearSheet(id) {
+  const { el, close } = sheet(`<div id="gearbody">${gearBody(id)}</div>`, { onClose: () => { gearOpen = null; } });
+  el.classList.add('wide');
+  gearOpen = { id, el };
+  el.addEventListener('click', e => {
+    const b = e.target.closest('[data-ga]');
+    if (!b) return;
+    const ch = S.characters[id];
+    const { ga, item, slot, to, eq } = b.dataset;
+    const name = (eq ? ch.gear[eq] : ch.bag.find(x => x.id === item))?.name || 'this item';
+    if (ga === 'equip') act({ type: 'equip', charId: id, itemId: item });
+    else if (ga === 'unequip') act({ type: 'unequip', charId: id, slot });
+    else if (ga === 'give') act({ type: 'giveItem', charId: id, itemId: item, to });
+    else if (ga === 'discard' && confirm(`Destroy ${name}? (Undo can bring it back.)`)) {
+      if (eq) act({ type: 'unequip', charId: id, slot: eq }).then(() => act({ type: 'discard', charId: id, itemId: item }));
+      else act({ type: 'discard', charId: id, itemId: item });
+    }
+  });
 }
 
 function editSheet(id) {
