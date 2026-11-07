@@ -175,7 +175,9 @@ const room = (params.get('room') || '').toUpperCase();
 if (!room) location.href = './';
 localStorage.setItem('dl.lastRoom', room);
 const KEY = `dl.char.${room}`;
-let me = params.get('as') || localStorage.getItem(KEY);
+// ?new=1 (the join link / QR) always opens hero creation, even on a phone that already has a hero here.
+if (params.has('new')) { localStorage.removeItem(KEY); history.replaceState(null, '', `play.html?room=${room}`); }
+let me = params.get('as') || (params.has('new') ? null : localStorage.getItem(KEY));
 let S = null, online = false, lastLog = 0;
 let pendingClaim = params.get('claim');
 let built = false;

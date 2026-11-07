@@ -340,7 +340,7 @@ function moveSheet(from) {
 }
 
 function qrSheet() {
-  const url = `${location.origin}/play.html?room=${room}`;
+  const url = `${location.origin}/play.html?room=${room}&new=1`;
   sheet(`<h2 class="center">Join the delve</h2><div class="qrbox">${qrSVG(url, 6)}</div>
     <p class="center"><span class="roomcode" style="font-size:40px">${room}</span></p><p class="center faint" style="word-break:break-all">${esc(url)}</p>`);
 }
