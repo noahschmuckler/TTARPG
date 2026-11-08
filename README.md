@@ -26,7 +26,7 @@ Phone-first hero sheets and a GM headquarters for a tabletop dungeon crawl playe
 | Item sets | Six four-piece sets (Thunderforge, Emberheart, Stonewarden, Deepdelver, Runekeeper, Vaultbreaker), each in its own colour. **One equipped piece unlocks the set's power**; every extra piece strengthens it, and 2/3/4 pieces add stat bonuses. Defined in `public/sets.js`. |
 | Hidden synergies | Eight secret combinations of pieces from two different sets (e.g. Thunderforge + Emberheart = "Forge and Flame"). They add stats and strengthen set powers, and are announced on the phone the first time a hero equips the combination. |
 | Treasure caches | One QR card can hold several items: chests (2), elite drops (2), boss hoards (4, always something rare or better). Whoever scans it gets everything, then the party compares and trades. |
-| Items | Common → Magic → Rare → Legendary → Set. Tap any item (satchel or equipped) to give it to another hero. Legendaries can add an extra attack die or Cleave (each 6 also grants a free minion-only hit). Minion-slaying powers likewise add minion-only hits to your pool. |
+| Items | Common → Magic → Rare → Legendary → Set. Tap any item (satchel or equipped) to give it to another hero. Legendaries and some synergies add an extra attack die or Cleave (each point of cleave turns every 6 rolled into one extra minion-only hit). Minion-slaying powers likewise add minion-only hits to your pool. |
 
 Five callings: Ironclad (tank), Runepriest (support), Ranger (many dice), Arcanist (big hits, fragile), Shadowblade (crits, energy on kills). All numbers live in `public/engine.js`, so tune away.
 
