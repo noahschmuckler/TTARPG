@@ -333,6 +333,8 @@ function skeleton() {
     const t = e.target;
     if (t.closest('#atk')) return attackSheet();
     if (t.closest('#defend')) return defenseSheet();
+    const mt = t.closest('[data-mate]');
+    if (mt) return mateSheet(mt.dataset.mate);
     const tgt = t.closest('[data-spend]');
     if (tgt) {
       const ch = S.characters[me];
@@ -424,7 +426,7 @@ function render() {
   const mates = S.order.filter(id => id !== me).map(id => S.characters[id]).filter(Boolean);
   $('#party').innerHTML = mates.length ? `<div class="rule"><span class="gem"></span>Party<span class="gem"></span></div>` + mates.map(c => {
     const m = derive(c).maxHp;
-    return `<div class="mate${c.hp <= 0 ? ' down' : ''}"><div class="row" style="gap:8px"><span class="mn grow">${CLASSES[c.cls]?.glyph || ''} ${esc(c.name)}</span>${c.ward ? `<span class="mw">⛨ ${fmt(c.ward)}</span>` : ''}<span class="faint" style="font-size:12px">⚡${fmt(c.energy)}</span></div><div class="bar hp"><i style="width:${Math.max(0, Math.min(100, c.hp / m * 100))}%"></i><span>${c.hp <= 0 ? 'DOWN' : `${fmt(c.hp)} / ${fmt(m)}`}</span></div></div>`;
+    return `<div class="mate${c.hp <= 0 ? ' down' : ''}" data-mate="${c.id}" role="button"><div class="row" style="gap:8px"><span class="mn grow">${CLASSES[c.cls]?.glyph || ''} ${esc(c.name)}</span>${c.ward ? `<span class="mw">⛨ ${fmt(c.ward)}</span>` : ''}<span class="faint" style="font-size:12px">⚡${fmt(c.energy)}</span><span class="mgear">Gear ›</span></div><div class="bar hp"><i style="width:${Math.max(0, Math.min(100, c.hp / m * 100))}%"></i><span>${c.hp <= 0 ? 'DOWN' : `${fmt(c.hp)} / ${fmt(m)}`}</span></div></div>`;
   }).join('') : '';
   const open = $('#boardbox details')?.open;
   $('#boardbox').innerHTML = S.board?.tokens?.length ? `<details class="plate" style="margin-top:14px;padding:10px 12px" ${open ? 'open' : ''}><summary class="display" style="cursor:pointer;letter-spacing:.2em;font-size:14px;color:var(--brass)">🗺 Board map <span class="faint" style="font-size:12px;letter-spacing:.06em">· snapped ${new Date(S.board.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></summary><div style="margin-top:8px">${boardMapSVG(S, { highlight: me })}</div></details>` : '';
@@ -441,6 +443,28 @@ function render() {
 }
 
 // ---------------------------------------------------------- defense flow
+// A party member's gear, read-only: what they wear, what's in their satchel, and their sets.
+function mateBody(id) {
+  const ch = S.characters[id];
+  if (!ch) return '<p class="dim">This hero is gone.</p>';
+  const C = CLASSES[ch.cls], s = derive(ch), b = C.base;
+  const stat = (label, val, base, f = v => v) => `<div><span class="dim">${label}</span><b class="${val > base ? 'up' : ''}">${f(val)}</b></div>`;
+  return `<h2>${C.glyph} ${esc(ch.name)}</h2>
+    <div class="faint" style="font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;font-size:12px">${C.name} · ${ch.kills} slain · green = boosted by gear</div>
+    <div class="gstats">
+      ${stat('Health', s.maxHp, b.maxHp, fmt)}${stat('Armor', s.armor, b.armor, v => v + '%')}${stat('Dice', s.dice, b.dice)}${stat('Dmg / hit', s.damage, b.damage, fmt)}
+      ${stat('Crit', s.critMult, b.critMult, v => '×' + v)}${stat('Cleave', s.cleave, b.cleave)}${stat('Energy / kill', s.energyPerKill, b.energyPerKill)}${stat('Energy / rnd', s.energyPerRound, b.energyPerRound)}
+    </div>
+    <div class="rule"><span class="gem"></span>Equipped<span class="gem"></span></div>
+    ${SLOTS.some(sl => ch.gear[sl]) ? `<div class="ggrid">${SLOTS.filter(sl => ch.gear[sl]).map(sl => `<div>${itemHTML(ch.gear[sl])}</div>`).join('')}</div>` : ''}
+    ${SLOTS.some(sl => !ch.gear[sl]) ? `<p class="faint" style="font-size:13px;margin:8px 0 0">Empty: ${SLOTS.filter(sl => !ch.gear[sl]).map(sl => SLOT_LABEL[sl]).join(', ')}</p>` : ''}
+    <div class="rule"><span class="gem"></span>Sets<span class="gem"></span></div>
+    ${setsHTML(ch)}
+    <div class="rule"><span class="gem"></span>Satchel · ${ch.bag.length}<span class="gem"></span></div>
+    ${ch.bag.length ? `<div class="ggrid">${ch.bag.map(it => `<div>${itemHTML(it)}</div>`).join('')}</div>` : '<p class="faint center">Empty.</p>'}`;
+}
+function mateSheet(id) { sheet(`<div>${mateBody(id)}</div>`); }
+
 function defenseSheet() {
   const D = S.defense?.[me];
   if (!D || defenseOpen) return;
