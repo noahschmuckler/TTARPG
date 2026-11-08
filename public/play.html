@@ -154,6 +154,14 @@
   .foealert .fa-big { font-family: var(--display); font-weight: 900; font-size: 30px; letter-spacing: .1em; text-transform: uppercase; color: #ffd2b0; text-shadow: 0 0 16px rgba(255,138,61,.7); }
   .foealert .fa-small { margin-top: 6px; font-size: 16px; color: #ffe9da; }
   .reveal.unlock { z-index: 95; }
+  .reveal.syn .hdr { font-size: 20px; letter-spacing: .22em; text-align: center; animation: synglow 1.6s ease-in-out infinite; }
+  .reveal.syn .card .plate { box-shadow: 0 0 0 2px #e7d9ff, 0 0 40px rgba(200,170,255,.55); animation: synpulse 1.6s ease-in-out infinite; }
+  .reveal.syn .synsub { font-family: var(--display); letter-spacing: .3em; text-transform: uppercase; font-size: 12px; color: #c9b8ff; margin-bottom: 6px; }
+  .reveal .btn[disabled] { opacity: .45; }
+  @keyframes synglow { 50% { text-shadow: 0 0 32px #c9a8ff, 0 0 8px #fff; } }
+  @keyframes synpulse { 50% { box-shadow: 0 0 0 2px #fff, 0 0 70px rgba(200,170,255,.85); } }
+  .synline { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0 2px; }
+  .synline span { font-family: var(--display); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; color: #e7d9ff; border: 1px solid #8f7bc9; padding: 3px 9px; background: rgba(120,90,200,.18); }
   .reveal.cache { justify-content: flex-start; overflow-y: auto; padding-top: 40px; }
   .reveal.cache .hdr { font-size: 17px; letter-spacing: .18em; text-align: center; }
   .reveal.cache .sunburst { position: fixed; }
@@ -167,7 +175,7 @@
 <body>
 <div class="wrap" id="app"><p class="center dim" style="margin-top:40vh">Opening the ledger…</p></div>
 <script type="module">
-import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, FOE_ABILITIES, SETS, HIDDEN_DICE, derive, engagedWith, strikeLeft, powersFor, reachText, fmt } from './engine.js';
+import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, FOE_ABILITIES, SETS, HIDDEN_DICE, derive, engagedWith, strikeLeft, powersFor, reachText, fmt, activeSynergies } from './engine.js';
 let seenDefense = null, defenseOpen = false;
 import { $, h, esc, params, connect, toast, burst, sheet, itemHTML, setsHTML, boardMapSVG } from './ui.js';
 
@@ -240,7 +248,7 @@ function onEvent(e) {
   else if (e.type === 'cache' && mine) revealCache(e.items, e.label, e.kind);
   else if (e.type === 'foeAbility') queueAlert(`${FOE_ABILITIES[e.key].icon} ${e.name}`, `${e.enemyName} · ${e.text}`);
   else if (e.type === 'unlock' && mine) revealUnlock(e);
-  else if (e.type === 'unlock' && e.kind === 'synergy') toast(`${who} discovered a hidden synergy: ${e.name}!`);
+  else if (e.type === 'unlock' && e.kind === 'synergy') { burst(`⟡ ${e.name}`, `${who} discovered a hidden synergy!`, 'energy'); toast(`${who} discovered a hidden synergy: ${e.name}!`); }
   else if (e.type === 'cache' && !mine) toast(`${who} opened ${e.label || 'a cache'} (${e.items.length} items)`);
   else if (e.type === 'ability' && !mine) toast(`${who} unleashes ${e.name}`);
   else if (e.type === 'ability' && mine) burst(e.name, 'unleashed', 'energy');
@@ -307,6 +315,7 @@ function skeleton() {
       <div class="orbwrap en"><div class="bezel"><div class="orb"><div class="liquid" id="enl"></div><div class="glass"></div><div class="val"><b id="env"></b><small id="enm"></small></div></div></div><div class="lab">Energy</div></div>
     </div>
     <div class="moveline" id="moveline"></div>
+    <div id="synline"></div>
     <div id="buff"></div>
     <div id="defbox"></div>
     <button class="btn solid attack" id="atk"></button>
@@ -368,6 +377,8 @@ function render() {
   $('#nm').textContent = ch.name;
   $('#cls').textContent = `${C.name} · ${fmt(ch.kills)} slain`;
   $('#moveline').innerHTML = `<span>👣 Move <b>${s.move}″</b></span><span>${s.reach ? '➶' : '⚔'} Reach <b>${reachText(s.reach)}</b></span>${ch.hidden ? `<span class="hiddenbadge">◐ Hidden · +${HIDDEN_DICE} dice</span>` : ''}`;
+  const syns = activeSynergies(ch);
+  $('#synline').innerHTML = syns.length ? `<div class="synline">${syns.map(sy => `<span>⟡ ${esc(sy.name)}</span>`).join('')}</div>` : '';
   $('#rnd').textContent = S.round;
   $('#hpl').style.height = `${(ch.hp / s.maxHp) * 100}%`;
   $('#hpv').textContent = fmt(ch.hp);
@@ -681,15 +692,30 @@ function revealCache(items, label, kind) {
   });
 }
 
+// Unlocks can arrive together (a set power and a synergy from one piece): show them one at a time,
+// synergies last, and hold the button briefly so a quick double-tap can't skip one.
+const unlockQueue = [];
+let unlockShowing = false;
 function revealUnlock(e) {
-  const color = e.kind === 'synergy' ? '#e7d9ff' : SETS[e.set]?.color || 'var(--brass)';
-  const hdr = e.kind === 'synergy' ? 'Hidden synergy discovered!' : e.kind === 'power' ? 'New power unlocked!' : 'Set grows stronger!';
-  const r = h(`<div class="reveal unlock" style="--rc:${color}"><div class="sunburst"></div><div class="hdr">${hdr}</div>
-    <div class="card"><div class="plate" style="padding:18px;text-align:center"><div class="carved" style="font-size:28px;color:${color}">${e.kind === 'synergy' ? '⟡' : '✦'} ${esc(e.name)}</div><p style="font-size:17px;margin:10px 0 0">${esc(e.text)}</p></div></div>
-    <div class="acts"><button class="btn solid grow" id="ok">Excellent</button></div></div>`);
+  unlockQueue.push(e);
+  unlockQueue.sort((a, b) => (a.kind === 'synergy') - (b.kind === 'synergy'));
+  if (!unlockShowing) { unlockShowing = true; setTimeout(nextUnlock, 60); }
+}
+function nextUnlock() {
+  const e = unlockQueue.shift();
+  if (!e) { unlockShowing = false; return; }
+  unlockShowing = true;
+  const syn = e.kind === 'synergy';
+  const color = syn ? '#e7d9ff' : SETS[e.set]?.color || 'var(--brass)';
+  const hdr = syn ? '⟡ Hidden synergy discovered ⟡' : e.kind === 'power' ? 'New power unlocked!' : 'Set grows stronger!';
+  const r = h(`<div class="reveal unlock ${syn ? 'syn' : ''}" style="--rc:${color}"><div class="sunburst"></div><div class="hdr">${hdr}</div>
+    <div class="card"><div class="plate" style="padding:18px;text-align:center">${syn ? '<div class="synsub">Your sets resonate</div>' : ''}<div class="carved" style="font-size:${syn ? 34 : 28}px;color:${color}">${syn ? '⟡' : '✦'} ${esc(e.name)}</div><p style="font-size:17px;margin:10px 0 0">${esc(e.text)}</p></div></div>
+    <div class="acts"><button class="btn solid grow" id="ok" disabled>${syn ? 'Behold' : 'Excellent'}</button></div></div>`);
   document.body.appendChild(r);
-  if (navigator.vibrate) navigator.vibrate([60, 40, 60, 40, 200]);
-  r.querySelector('#ok').onclick = () => r.remove();
+  if (navigator.vibrate) navigator.vibrate(syn ? [80, 50, 80, 50, 80, 50, 400] : [60, 40, 60, 40, 200]);
+  const ok = r.querySelector('#ok');
+  setTimeout(() => { ok.disabled = false; }, syn ? 1400 : 700);
+  ok.onclick = () => { r.remove(); setTimeout(nextUnlock, 250); };
 }
 </script>
 </body>
