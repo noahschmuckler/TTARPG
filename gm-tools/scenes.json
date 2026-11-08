@@ -1,0 +1,280 @@
+{
+ "meadow": [
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 8,
+   "name": "Twig Blight"
+  }
+ ],
+ "ruins": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Dire Troll",
+   "scale": 2,
+   "abilities": [
+    "regen",
+    "enrage"
+   ],
+   "ability": "Regenerates among the ruins"
+  },
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 5,
+   "name": "Needle Blight"
+  }
+ ],
+ "grove": [
+  {
+   "type": "createCharacter",
+   "name": "Old Barkhide",
+   "cls": "ironclad"
+  },
+  {
+   "type": "editCharacter",
+   "charId": "$Old Barkhide",
+   "hp": 900,
+   "energy": 0
+  },
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 8,
+   "name": "Vine Blight",
+   "target": "$Old Barkhide"
+  }
+ ],
+ "grove wave": [
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 4,
+   "name": "Vine Blight",
+   "target": "$Old Barkhide"
+  }
+ ],
+ "ent joins": [
+  {
+   "type": "heal",
+   "charId": "$Old Barkhide",
+   "full": true
+  },
+  {
+   "type": "editCharacter",
+   "charId": "$Old Barkhide",
+   "energy": 100
+  }
+ ],
+ "bodytaker": [
+  {
+   "type": "spawn",
+   "etype": "boss",
+   "count": 1,
+   "name": "The Bodytaker",
+   "scale": 4,
+   "abilities": [
+    "summoner",
+    "horde",
+    "stoneskin"
+   ],
+   "ability": "Kill it and the thorn wall withers"
+  }
+ ],
+ "ent leaves": [
+  {
+   "type": "removeCharacter",
+   "charId": "$Old Barkhide"
+  }
+ ],
+ "tunnel wave": [
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 5,
+   "name": "Giant Rat"
+  }
+ ],
+ "gap": [
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 5,
+   "name": "Skeleton"
+  }
+ ],
+ "warren": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Archmage",
+   "scale": 2,
+   "abilities": [
+    "summoner"
+   ],
+   "ability": "Raises the dead every round. Kill him first."
+  },
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 6,
+   "name": "Zombie"
+  }
+ ],
+ "release the beast": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Loup Garou",
+   "scale": 2,
+   "abilities": [
+    "enrage",
+    "thickhide"
+   ]
+  }
+ ],
+ "gnawhole": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Rakshasa",
+   "scale": 2,
+   "abilities": [
+    "leech",
+    "thickhide"
+   ]
+  },
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 4,
+   "name": "Spider"
+  }
+ ],
+ "clot": [
+  {
+   "type": "spawn",
+   "etype": "boss",
+   "count": 1,
+   "name": "Zombie Clot",
+   "scale": 4,
+   "abilities": [
+    "regen",
+    "horde",
+    "throes"
+   ],
+   "ability": "The spore mushrooms feed it. Pop all three to stop its healing."
+  },
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 6,
+   "name": "Zombie"
+  }
+ ],
+ "spores gone": [
+  {
+   "type": "editEnemy",
+   "enemyId": "$foe:Zombie Clot",
+   "abilities": [
+    "horde",
+    "throes"
+   ]
+  }
+ ],
+ "seals": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Green Slaad",
+   "scale": 2,
+   "abilities": [
+    "sweep"
+   ],
+   "ability": "Holds Seal I"
+  },
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Skelespider",
+   "scale": 2,
+   "abilities": [
+    "leech"
+   ],
+   "ability": "Holds Seal II"
+  },
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Relentless Killer",
+   "scale": 2,
+   "abilities": [
+    "enrage",
+    "stoneskin"
+   ],
+   "ability": "Holds Seal III"
+  }
+ ],
+ "leak": [
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 4,
+   "name": "Frozen Dead"
+  }
+ ],
+ "tentacles": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 4,
+   "name": "Tentacle",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 250,
+   "abilities": [
+    "leech"
+   ],
+   "ability": "Lay it down on a hero in reach: grabbed."
+  }
+ ],
+ "kraken rises": [
+  {
+   "type": "spawn",
+   "etype": "boss",
+   "count": 1,
+   "name": "The Kraken",
+   "scale": 5,
+   "abilities": [
+    "sweep",
+    "enrage",
+    "horde",
+    "throes"
+   ],
+   "ability": "On a 5-6 at End round it dives and rises in another circle."
+  }
+ ],
+ "regrow": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 2,
+   "name": "Tentacle",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 250,
+   "abilities": [
+    "leech"
+   ],
+   "ability": "Lay it down on a hero in reach: grabbed."
+  }
+ ]
+}

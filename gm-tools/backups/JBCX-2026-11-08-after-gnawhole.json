@@ -1,0 +1,1150 @@
+{
+ "savedAt": "2026-11-08T23:30:53.528Z",
+ "room": "JBCX",
+ "state": {
+  "code": "JBCX",
+  "round": 19,
+  "characters": {
+   "1yeyw4ueqj0": {
+    "id": "1yeyw4ueqj0",
+    "name": "Saile Regnirbmrots",
+    "cls": "arcanist",
+    "hp": 1240,
+    "energy": 84,
+    "ward": 1600,
+    "kills": 17,
+    "gear": {
+     "weapon": {
+      "id": "eu6cp0zbm4",
+      "name": "Emberheart Rod",
+      "base": "Emberheart Rod",
+      "slot": "weapon",
+      "rarity": "set",
+      "stats": {
+       "damage": 70,
+       "maxEnergy": 23
+      },
+      "set": "emberheart"
+     },
+     "armor": {
+      "id": "23yke8zbm4",
+      "name": "Iron Plate Cuirass",
+      "base": "Plate Cuirass",
+      "slot": "armor",
+      "rarity": "common",
+      "stats": {
+       "armor": 3
+      }
+     },
+     "boots": {
+      "id": "kazbuzbm4",
+      "name": "Stompers of the Mountain King",
+      "base": "Stompers",
+      "slot": "boots",
+      "rarity": "magic",
+      "stats": {
+       "energyPerRound": 4,
+       "maxHp": 240
+      }
+     },
+     "ring": {
+      "id": "2cxrqizbm4",
+      "name": "Emberheart Signet",
+      "base": "Emberheart Signet",
+      "slot": "ring",
+      "rarity": "set",
+      "stats": {
+       "energyPerKill": 5,
+       "maxEnergy": 23
+      },
+      "set": "emberheart"
+     },
+     "amulet": {
+      "id": "li4l23zbm4",
+      "name": "Emberheart Locket",
+      "base": "Emberheart Locket",
+      "slot": "amulet",
+      "rarity": "set",
+      "stats": {
+       "maxEnergy": 38,
+       "armor": 18
+      },
+      "set": "emberheart"
+     }
+    },
+    "bag": [],
+    "buffs": {},
+    "marker": 5,
+    "found": [
+     "set:deepdelver:1",
+     "set:emberheart:1",
+     "set:emberheart:2",
+     "set:emberheart:3"
+    ]
+   },
+   "7udwye5sbl": {
+    "id": "7udwye5sbl",
+    "name": "Lyle Greenbottle",
+    "cls": "ranger",
+    "hp": 1740,
+    "energy": 99,
+    "ward": 550,
+    "kills": 19,
+    "gear": {
+     "weapon": {
+      "id": "131phykzbm4",
+      "name": "Deepdelver Arbalest",
+      "base": "Deepdelver Arbalest",
+      "slot": "weapon",
+      "rarity": "set",
+      "stats": {
+       "damage": 310,
+       "maxEnergy": 35
+      },
+      "set": "deepdelver"
+     },
+     "armor": {
+      "id": "1o93h97zbm4",
+      "name": "Bronzebound Plate Cuirass",
+      "base": "Plate Cuirass",
+      "slot": "armor",
+      "rarity": "magic",
+      "stats": {
+       "armor": 10,
+       "maxEnergy": 34
+      }
+     },
+     "helm": {
+      "id": "1sgbcr1zbm4",
+      "name": "Deepdelver Lamp-Helm",
+      "base": "Deepdelver Lamp-Helm",
+      "slot": "helm",
+      "rarity": "set",
+      "stats": {
+       "maxHp": 270,
+       "energyPerRound": 18
+      },
+      "set": "deepdelver"
+     },
+     "ring": {
+      "id": "18zhhhpzbm4",
+      "name": "Vaultbreaker Key-Ring",
+      "base": "Vaultbreaker Key-Ring",
+      "slot": "ring",
+      "rarity": "set",
+      "stats": {
+       "energyPerKill": 9,
+       "critMult": 2.25
+      },
+      "set": "vaultbreaker"
+     },
+     "amulet": {
+      "id": "cb0x5dzbm4",
+      "name": "Bronzebound Medallion of the Last Vault",
+      "base": "Medallion",
+      "slot": "amulet",
+      "rarity": "rare",
+      "stats": {
+       "maxEnergy": 23,
+       "maxHp": 270,
+       "critMult": 1.25
+      }
+     }
+    },
+    "bag": [
+     {
+      "id": "zj9vnxzbm4",
+      "name": "Iron Medallion",
+      "base": "Medallion",
+      "slot": "amulet",
+      "rarity": "common",
+      "stats": {
+       "maxEnergy": 23
+      }
+     },
+     {
+      "id": "1jw12r1zbm4",
+      "name": "Obsidian Torc of Deep Halls",
+      "base": "Torc",
+      "slot": "amulet",
+      "rarity": "rare",
+      "stats": {
+       "maxEnergy": 27,
+       "critMult": 0.75,
+       "energyPerRound": 6
+      }
+     }
+    ],
+    "buffs": {},
+    "marker": 4,
+    "found": [
+     "set:vaultbreaker:1",
+     "set:deepdelver:1",
+     "set:deepdelver:2",
+     "syn:deepshadow"
+    ]
+   },
+   "vyef696ypm": {
+    "id": "vyef696ypm",
+    "name": "Steve Rockbeard",
+    "cls": "runepriest",
+    "hp": 2540,
+    "energy": 50,
+    "ward": 600,
+    "kills": 15,
+    "gear": {
+     "gloves": {
+      "id": "97o1drzbm4",
+      "name": "Runekeeper Inkhands",
+      "base": "Runekeeper Inkhands",
+      "slot": "gloves",
+      "rarity": "set",
+      "stats": {
+       "damage": 80,
+       "energyPerKill": 4
+      },
+      "set": "runekeeper"
+     },
+     "weapon": {
+      "id": "17d4vdpzbm4",
+      "name": "Arbalest of Brass Thunder",
+      "base": "Arbalest",
+      "slot": "weapon",
+      "rarity": "magic",
+      "stats": {
+       "damage": 460,
+       "critMult": 1
+      }
+     },
+     "armor": {
+      "id": "192zimhzbm4",
+      "name": "Runekeeper Vestments",
+      "base": "Runekeeper Vestments",
+      "slot": "armor",
+      "rarity": "set",
+      "stats": {
+       "armor": 4,
+       "damage": 230
+      },
+      "set": "runekeeper"
+     },
+     "boots": {
+      "id": "z5wxf4vq77",
+      "name": "Hammer of Kazrun",
+      "base": "Greaves",
+      "slot": "boots",
+      "rarity": "legendary",
+      "stats": {
+       "energyPerRound": 22,
+       "critMult": 2,
+       "maxHp": 570,
+       "dice": 1
+      }
+     },
+     "amulet": {
+      "id": "1idl5spzbm4",
+      "name": "Runekeeper Chain",
+      "base": "Runekeeper Chain",
+      "slot": "amulet",
+      "rarity": "set",
+      "stats": {
+       "maxEnergy": 30,
+       "armor": 10
+      },
+      "set": "runekeeper"
+     },
+     "helm": {
+      "id": "ntkn73zbm4",
+      "name": "Thunderforge Crown",
+      "base": "Thunderforge Crown",
+      "slot": "helm",
+      "rarity": "set",
+      "stats": {
+       "maxHp": 570,
+       "energyPerKill": 7
+      },
+      "set": "thunderforge"
+     }
+    },
+    "bag": [
+     {
+      "id": "5qe31qzbm4",
+      "name": "Iron Pick-Axe",
+      "base": "Pick-Axe",
+      "slot": "weapon",
+      "rarity": "common",
+      "stats": {
+       "damage": 160
+      }
+     },
+     {
+      "id": "1vd9224zbm4",
+      "name": "Iron Warhammer",
+      "base": "Warhammer",
+      "slot": "weapon",
+      "rarity": "common",
+      "stats": {
+       "damage": 260
+      }
+     },
+     {
+      "id": "15189sjzbm4",
+      "name": "Hearthfire Medallion",
+      "base": "Medallion",
+      "slot": "amulet",
+      "rarity": "magic",
+      "stats": {
+       "maxEnergy": 39,
+       "energyPerKill": 3
+      }
+     }
+    ],
+    "buffs": {},
+    "marker": 6,
+    "found": [
+     "set:runekeeper:1",
+     "set:runekeeper:2",
+     "set:thunderforge:1",
+     "syn:stormrune",
+     "set:vaultbreaker:1",
+     "set:runekeeper:3"
+    ]
+   },
+   "6v4h4bgkgx": {
+    "id": "6v4h4bgkgx",
+    "name": "Gonk Strongeye",
+    "cls": "ironclad",
+    "hp": 2340,
+    "energy": 98,
+    "ward": 1750,
+    "kills": 18,
+    "gear": {
+     "armor": {
+      "id": "16zh2jdzbm4",
+      "name": "Thunderforge Plate",
+      "base": "Thunderforge Plate",
+      "slot": "armor",
+      "rarity": "set",
+      "stats": {
+       "armor": 4,
+       "energyPerRound": 11
+      },
+      "set": "thunderforge"
+     },
+     "gloves": {
+      "id": "epdutbzbm4",
+      "name": "Obsidian Bracers of the Eighth Gate",
+      "base": "Bracers",
+      "slot": "gloves",
+      "rarity": "rare",
+      "stats": {
+       "damage": 70,
+       "critMult": 1,
+       "maxEnergy": 25
+      }
+     },
+     "weapon": {
+      "id": "txf7c5zbm4",
+      "name": "Iron Warhammer",
+      "base": "Warhammer",
+      "slot": "weapon",
+      "rarity": "common",
+      "stats": {
+       "damage": 300
+      }
+     },
+     "boots": {
+      "id": "12chhl0zbm4",
+      "name": "Bronzebound Tunnel Boots of Ash and Iron",
+      "base": "Tunnel Boots",
+      "slot": "boots",
+      "rarity": "rare",
+      "stats": {
+       "energyPerRound": 18,
+       "maxEnergy": 56,
+       "damage": 490
+      }
+     },
+     "helm": {
+      "id": "1mtruvfvq77",
+      "name": "Lockjaw",
+      "base": "Mask of Iron",
+      "slot": "helm",
+      "rarity": "legendary",
+      "stats": {
+       "maxHp": 540,
+       "critMult": 0.75,
+       "armor": 14,
+       "dice": 1
+      }
+     },
+     "ring": {
+      "id": "13bvhpyzbm4",
+      "name": "Kingsfall",
+      "base": "Band",
+      "slot": "ring",
+      "rarity": "legendary",
+      "stats": {
+       "energyPerKill": 10,
+       "maxEnergy": 98,
+       "energyPerRound": 7,
+       "cleave": 1
+      }
+     }
+    },
+    "bag": [
+     {
+      "id": "1nlxsdczbm4",
+      "name": "Vaultbreaker Dirks",
+      "base": "Vaultbreaker Dirks",
+      "slot": "weapon",
+      "rarity": "set",
+      "stats": {
+       "damage": 110,
+       "armor": 9
+      },
+      "set": "vaultbreaker"
+     }
+    ],
+    "buffs": {},
+    "marker": 7,
+    "found": [
+     "set:vaultbreaker:1",
+     "set:thunderforge:1",
+     "set:thunderforge:2"
+    ]
+   }
+  },
+  "order": [
+   "1yeyw4ueqj0",
+   "7udwye5sbl",
+   "vyef696ypm",
+   "6v4h4bgkgx"
+  ],
+  "enemies": {},
+  "loot": {
+   "AYPDTA": {
+    "card": "AYPDTA",
+    "kind": "boss",
+    "label": "Zombie Clot",
+    "scene": "Zombie Clot",
+    "sceneIdx": 7,
+    "plan": true,
+    "items": [
+     {
+      "id": "4pdrvrzbm4",
+      "name": "Thunderforge Maul",
+      "base": "Thunderforge Maul",
+      "slot": "weapon",
+      "rarity": "set",
+      "stats": {
+       "damage": 620,
+       "maxHp": 1150
+      },
+      "set": "thunderforge"
+     },
+     {
+      "id": "cfgx5bzbm4",
+      "name": "Deepdelver Band",
+      "base": "Deepdelver Band",
+      "slot": "ring",
+      "rarity": "set",
+      "stats": {
+       "energyPerKill": 8,
+       "maxEnergy": 58
+      },
+      "set": "deepdelver"
+     },
+     {
+      "id": "1a4zc1ezbm4",
+      "name": "Iron Chain of Office",
+      "base": "Chain of Office",
+      "slot": "amulet",
+      "rarity": "common",
+      "stats": {
+       "maxEnergy": 17
+      }
+     },
+     {
+      "id": "1tktjnmzbm4",
+      "name": "Arbalest of the Last Vault",
+      "base": "Arbalest",
+      "slot": "weapon",
+      "rarity": "magic",
+      "stats": {
+       "damage": 610,
+       "armor": 12
+      }
+     }
+    ]
+   },
+   "EMY6G6": {
+    "card": "EMY6G6",
+    "kind": "elite",
+    "label": "Green Slaad",
+    "scene": "Seals",
+    "sceneIdx": 8,
+    "plan": true,
+    "items": [
+     {
+      "id": "1i561rmzbm4",
+      "name": "Runekeeper Seal",
+      "base": "Runekeeper Seal",
+      "slot": "ring",
+      "rarity": "set",
+      "stats": {
+       "energyPerKill": 3,
+       "maxHp": 1120
+      },
+      "set": "runekeeper"
+     },
+     {
+      "id": "1n94zsxzbm4",
+      "name": "Dawn Under Mountain",
+      "base": "Tunnel Boots",
+      "slot": "boots",
+      "rarity": "legendary",
+      "stats": {
+       "energyPerRound": 20,
+       "maxEnergy": 61,
+       "damage": 290,
+       "dice": 1
+      }
+     }
+    ]
+   },
+   "TMRMFU": {
+    "card": "TMRMFU",
+    "kind": "elite",
+    "label": "Skelespider",
+    "scene": "Seals",
+    "sceneIdx": 8,
+    "plan": true,
+    "items": [
+     {
+      "id": "n1lukizbm4",
+      "name": "Twin Dirks of Deep Halls",
+      "base": "Twin Dirks",
+      "slot": "weapon",
+      "rarity": "magic",
+      "stats": {
+       "damage": 440,
+       "critMult": 2.5
+      }
+     },
+     {
+      "id": "1ia3ipqzbm4",
+      "name": "Thunderforge Gauntlets",
+      "base": "Thunderforge Gauntlets",
+      "slot": "gloves",
+      "rarity": "set",
+      "stats": {
+       "damage": 550,
+       "armor": 15
+      },
+      "set": "thunderforge"
+     }
+    ]
+   },
+   "WFPC7T": {
+    "card": "WFPC7T",
+    "kind": "elite",
+    "label": "Relentless Killer",
+    "scene": "Seals",
+    "sceneIdx": 8,
+    "plan": true,
+    "items": [
+     {
+      "id": "1vms14azbm4",
+      "name": "Iron Bearded Axe",
+      "base": "Bearded Axe",
+      "slot": "weapon",
+      "rarity": "common",
+      "stats": {
+       "damage": 120
+      }
+     },
+     {
+      "id": "bswqvizbm4",
+      "name": "Gilded Grips of the Eighth Gate",
+      "base": "Grips",
+      "slot": "gloves",
+      "rarity": "rare",
+      "stats": {
+       "damage": 710,
+       "maxHp": 1200,
+       "maxEnergy": 36
+      }
+     }
+    ]
+   },
+   "TXTYQH": {
+    "card": "TXTYQH",
+    "kind": "boss",
+    "label": "The Kraken",
+    "scene": "Kraken",
+    "sceneIdx": 9,
+    "plan": true,
+    "items": [
+     {
+      "id": "1wm1r1ezbm4",
+      "name": "Kingsfall",
+      "base": "Coif",
+      "slot": "helm",
+      "rarity": "legendary",
+      "stats": {
+       "maxHp": 1130,
+       "damage": 610,
+       "energyPerKill": 9,
+       "dice": 1
+      }
+     },
+     {
+      "id": "1okwdn8zbm4",
+      "name": "Emberheart Wraps",
+      "base": "Emberheart Wraps",
+      "slot": "gloves",
+      "rarity": "set",
+      "stats": {
+       "damage": 480,
+       "maxHp": 620
+      },
+      "set": "emberheart"
+     },
+     {
+      "id": "n44tk5zbm4",
+      "name": "Deepdelver Treads",
+      "base": "Deepdelver Treads",
+      "slot": "boots",
+      "rarity": "set",
+      "stats": {
+       "energyPerRound": 23,
+       "damage": 500
+      },
+      "set": "deepdelver"
+     },
+     {
+      "id": "19ciixnzbm4",
+      "name": "Dawn Under Mountain",
+      "base": "Forge Mitts",
+      "slot": "gloves",
+      "rarity": "legendary",
+      "stats": {
+       "damage": 1090,
+       "maxHp": 1490,
+       "energyPerRound": 22,
+       "cleave": 1
+      }
+     }
+    ]
+   }
+  },
+  "log": [
+   {
+    "t": 1794179538312,
+    "text": "Lyle Greenbottle equips Bronzebound Medallion of the Last Vault.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179536252,
+    "text": "Saile Regnirbmrots gives Bronzebound Medallion of the Last Vault to Lyle Greenbottle.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179520720,
+    "text": "Saile Regnirbmrots gives Iron Medallion to Lyle Greenbottle.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179469289,
+    "text": "Saile Regnirbmrots equips Emberheart Locket.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179462897,
+    "text": "Saile Regnirbmrots equips Iron Medallion.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179402235,
+    "text": "Lyle Greenbottle gives Iron Medallion to Saile Regnirbmrots.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179396681,
+    "text": "Gonk Strongeye equips Kingsfall.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179391902,
+    "text": "Lyle Greenbottle gives Kingsfall to Gonk Strongeye.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179388349,
+    "text": "Steve Rockbeard equips Runekeeper Chain.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179386560,
+    "text": "Steve Rockbeard equips Hearthfire Medallion.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179335574,
+    "text": "Saile Regnirbmrots equips Bronzebound Medallion of the Last Vault.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179328218,
+    "text": "Steve Rockbeard equips Runekeeper Chain.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179306777,
+    "text": "Steve Rockbeard equips Hearthfire Medallion.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179295946,
+    "text": "Steve Rockbeard equips Runekeeper Chain.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179288574,
+    "text": "Steve Rockbeard equips Hearthfire Medallion.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179249630,
+    "text": "Gonk Strongeye equips Lockjaw.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179240076,
+    "text": "Steve Rockbeard equips Thunderforge Crown.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179236186,
+    "text": "Steve Rockbeard gives Lockjaw to Gonk Strongeye.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179228912,
+    "text": "Saile Regnirbmrots gives Iron Medallion to Lyle Greenbottle.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179223537,
+    "text": "Steve Rockbeard equips Runekeeper Chain.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179210198,
+    "text": "✦ Steve Rockbeard's Runekeeper ×3 set grows stronger.",
+    "kind": "ability"
+   },
+   {
+    "t": 1794179210198,
+    "text": "Steve Rockbeard equips Runekeeper Chain.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179202798,
+    "text": "Saile Regnirbmrots gives Runekeeper Chain to Steve Rockbeard.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179162249,
+    "text": "✦ Saile Regnirbmrots's Emberheart ×3 set grows stronger.",
+    "kind": "ability"
+   },
+   {
+    "t": 1794179162249,
+    "text": "Saile Regnirbmrots equips Emberheart Locket.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179150500,
+    "text": "Steve Rockbeard equips Lockjaw.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179149846,
+    "text": "Steve Rockbeard equips Hammer of Kazrun.",
+    "kind": "info"
+   },
+   {
+    "t": 1794179146288,
+    "text": "Lyle Greenbottle gives Emberheart Locket to Saile Regnirbmrots.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179130888,
+    "text": "Saile Regnirbmrots opens Gnawhole · Chest 1: Runekeeper Chain, Iron Medallion.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179130580,
+    "text": "Lyle Greenbottle opens Rakshasa: Emberheart Locket, Kingsfall.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179130287,
+    "text": "Steve Rockbeard opens Treasure chest: Hammer of Kazrun, Lockjaw.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794179048214,
+    "text": "Pleasure Doing Business: \"Pleasure doing business.\"\n\nThe Rakshasa bows low, one hand over its heart. It drops a small silver-bound bundle at your feet, and nudges the crate toward you with one boot.\n\n\"Keep your heads down up that mountain, eh? Something up there doesn't pay its debts.\"\n\nIt snaps its fingers. Blue smoke rolls up from the rug, and when it clears there is nothing left but the lamp, still burning, and the faint smell of cardamom.",
+    "kind": "narrate"
+   },
+   {
+    "t": 1794178957200,
+    "text": "The Smuggler's Offer: The Rakshasa lowers its hands. All at once it is smiling again, wide and warm and entirely false.\n\n\"Whoa, whoa, whoa. Easy. Let's not do anything we'll both regret, eh? Look at you lot. Professionals. I respect that. And professionals talk business.\"\n\nIt sweeps its cloak aside. Behind the rug, under a tarp, is a long crate stamped with a dozen different royal seals, none of them its own.\n\n\"Here's the deal. You walk away, I walk away. And you take the crate. Proper merchandise, this. Two pieces, legendary, the kind kings go to war over. You still get the chest. You still get what I'm carrying. I just get to keep breathing. Everybody wins.\"\n\nIt spreads its claws, palms up.\n\n\"Or. You say no. And I show you what else is in the crate.\"\n\nDECIDE: accept the deal, or refuse it?",
+    "kind": "narrate"
+   },
+   {
+    "t": 1794178780639,
+    "text": "Lyle Greenbottle hits Rakshasa for 536.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178780135,
+    "text": "Lyle Greenbottle crits Rakshasa for 536.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178779701,
+    "text": "Lyle Greenbottle crits Rakshasa for 536.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178776802,
+    "text": "Lyle Greenbottle rolls 3 hits (2 crits).",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178757431,
+    "text": "Lyle Greenbottle unleashes Lantern Volley.",
+    "kind": "ability"
+   },
+   {
+    "t": 1794178734244,
+    "text": "Steve Rockbeard unleashes Hammer of the Deep — 1 caught.",
+    "kind": "ability"
+   },
+   {
+    "t": 1794178734244,
+    "text": "Hammer of the Deep hits Rakshasa for 1,712.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178724437,
+    "text": "Gonk Strongeye hits Rakshasa for 1,024.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178721402,
+    "text": "Gonk Strongeye rolls 1 hit.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178681114,
+    "text": "Gonk Strongeye unleashes Leaping Strike.",
+    "kind": "ability"
+   },
+   {
+    "t": 1794178549594,
+    "text": "Lyle Greenbottle turns aside every blow!",
+    "kind": "heal"
+   },
+   {
+    "t": 1794178530399,
+    "text": "The Rakshasa: The Rakshasa rises from its rug, unhurried, and looks Lyle up and down like a man inspecting a very small fish.\n\n\"Oh, crikey. Look at you, mate, with your little pointy stick. Bless.\" It glances at Lyle's blade and snorts. \"That's not a knoife.\"\n\nIt raises one clawed hand, and the air above it splits with blue light. A sabre longer than a man and pale as a ghost unfolds from nowhere, humming.\n\n\"THIS is a knoife!\"\n\nIt hurls the spectral blade end over end, straight at Lyle. \"Have a go, ya mug! Fair dinkum, I've seen wombats put up a better fight!\"",
+    "kind": "narrate"
+   },
+   {
+    "t": 1794178530351,
+    "text": "⚔ The foes attack! Lyle Greenbottle must defend.",
+    "kind": "hurt"
+   },
+   {
+    "t": 1794178530351,
+    "text": "ϟ Rakshasa: Energy Leech! Lyle Greenbottle loses 10 energy.",
+    "kind": "hurt"
+   },
+   {
+    "t": 1794178254098,
+    "text": "Saile Regnirbmrots slays a Spider. (+12 energy)",
+    "kind": "kill"
+   },
+   {
+    "t": 1794178253119,
+    "text": "Saile Regnirbmrots hits Rakshasa for 696.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178249658,
+    "text": "Saile Regnirbmrots rolls 2 hits.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178210486,
+    "text": "Saile Regnirbmrots slays a minion. (+12 energy)",
+    "kind": "kill"
+   },
+   {
+    "t": 1794178209077,
+    "text": "Saile Regnirbmrots slays a minion. (+12 energy)",
+    "kind": "kill"
+   },
+   {
+    "t": 1794178202028,
+    "text": "Saile Regnirbmrots rolls 2 hits.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178156291,
+    "text": "Lyle Greenbottle hits Rakshasa for 536.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178155845,
+    "text": "Lyle Greenbottle hits Rakshasa for 536.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178155516,
+    "text": "Lyle Greenbottle hits Rakshasa for 536.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178153185,
+    "text": "Lyle Greenbottle rolls 3 hits.",
+    "kind": "hit"
+   },
+   {
+    "t": 1794178128264,
+    "text": "Lyle Greenbottle unleashes Lantern Volley.",
+    "kind": "ability"
+   },
+   {
+    "t": 1794178102089,
+    "text": "Steve Rockbeard slays a Spider. (+20 energy)",
+    "kind": "kill"
+   },
+   {
+    "t": 1794178101550,
+    "text": "Steve Rockbeard slays a Spider. (+20 energy)",
+    "kind": "kill"
+   },
+   {
+    "t": 1794178101071,
+    "text": "Steve Rockbeard slays a Spider. (+20 energy)",
+    "kind": "kill"
+   },
+   {
+    "t": 1794178096923,
+    "text": "Steve Rockbeard unleashes Thunderclap — 3 minion-slaying hits.",
+    "kind": "ability"
+   },
+   {
+    "t": 1794178052556,
+    "text": "Gonk Strongeye unleashes Iron Bulwark — 4 foes turn to face Gonk Strongeye.",
+    "kind": "ability"
+   },
+   {
+    "t": 1794177963568,
+    "text": "4 Spiders emerge!",
+    "kind": "spawn"
+   },
+   {
+    "t": 1794177963275,
+    "text": "1 Rakshasa emerges! (18,500 health, scaled to the party)",
+    "kind": "spawn"
+   },
+   {
+    "t": 1794177962978,
+    "text": "The Gnawhole: The side passage is narrow and wet, gnawed rather than dug. Webs hang across it in grey curtains, heavy with old husks.\n\nHalfway along, someone has set out a rug. On it, beside a small brass lamp and a chest bound in silver, sits a tall figure in a fine blue cloak, reading by the lamplight. It turns a page with one clawed hand. Its face is a tiger's, and its smile is far too polite.\n\n\"Travellers,\" it purrs, closing the book. \"How rare. I was so hoping someone would come the long way round.\"\n\nIn the webs above, something with too many legs begins to move.",
+    "kind": "narrate"
+   },
+   {
+    "t": 1794177855951,
+    "text": "Saile Regnirbmrots equips Bronzebound Medallion of the Last Vault.",
+    "kind": "info"
+   },
+   {
+    "t": 1794177855800,
+    "text": "Lyle Greenbottle equips Obsidian Torc of Deep Halls.",
+    "kind": "info"
+   },
+   {
+    "t": 1794177854870,
+    "text": "Steve Rockbeard equips Hearthfire Medallion.",
+    "kind": "info"
+   },
+   {
+    "t": 1794177853241,
+    "text": "Lyle Greenbottle gives Bronzebound Medallion of the Last Vault to Saile Regnirbmrots.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794177826309,
+    "text": "Lyle Greenbottle equips Bronzebound Medallion of the Last Vault.",
+    "kind": "info"
+   },
+   {
+    "t": 1794177817306,
+    "text": "Saile Regnirbmrots gives Bronzebound Medallion of the Last Vault to Lyle Greenbottle.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794177779461,
+    "text": "Gonk Strongeye equips Iron Warhammer.",
+    "kind": "info"
+   },
+   {
+    "t": 1794177774095,
+    "text": "Lyle Greenbottle gives Iron Warhammer to Gonk Strongeye.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794177699637,
+    "text": "✦ Saile Regnirbmrots's Emberheart ×2 set grows stronger.",
+    "kind": "ability"
+   },
+   {
+    "t": 1794177699637,
+    "text": "Saile Regnirbmrots equips Emberheart Signet.",
+    "kind": "info"
+   },
+   {
+    "t": 1794177688738,
+    "text": "Lyle Greenbottle gives Emberheart Signet to Saile Regnirbmrots.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794177664692,
+    "text": "Lyle Greenbottle opens Loup Garou: Emberheart Signet, Iron Warhammer.",
+    "kind": "loot"
+   },
+   {
+    "t": 1794177647384,
+    "text": "Lyle Greenbottle hits for 536 and fells Loup Garou! (+84 energy)",
+    "kind": "kill"
+   },
+   {
+    "t": 1794177646311,
+    "text": "Lyle Greenbottle hits Loup Garou for 536.",
+    "kind": "hit"
+   }
+  ],
+  "rev": 536,
+  "created": 1793982067686,
+  "defense": {},
+  "campaign": {
+   "scenes": [
+    {
+     "name": "Meadow",
+     "chests": 1,
+     "elites": [],
+     "bosses": []
+    },
+    {
+     "name": "Ruins",
+     "chests": 1,
+     "elites": [
+      "Dire Troll"
+     ],
+     "bosses": []
+    },
+    {
+     "name": "Grove",
+     "chests": 1,
+     "elites": [],
+     "bosses": []
+    },
+    {
+     "name": "Bodytaker",
+     "chests": 1,
+     "elites": [],
+     "bosses": [
+      "The Bodytaker"
+     ]
+    },
+    {
+     "name": "Tunnel",
+     "chests": 1,
+     "elites": [],
+     "bosses": []
+    },
+    {
+     "name": "Warren",
+     "chests": 1,
+     "elites": [
+      "Archmage",
+      "Loup Garou"
+     ],
+     "bosses": []
+    },
+    {
+     "name": "Gnawhole",
+     "chests": 1,
+     "elites": [
+      "Rakshasa"
+     ],
+     "bosses": []
+    },
+    {
+     "name": "Zombie Clot",
+     "chests": 0,
+     "elites": [],
+     "bosses": [
+      "Zombie Clot"
+     ]
+    },
+    {
+     "name": "Seals",
+     "chests": 0,
+     "elites": [
+      "Green Slaad",
+      "Skelespider",
+      "Relentless Killer"
+     ],
+     "bosses": []
+    },
+    {
+     "name": "Kraken",
+     "chests": 0,
+     "elites": [],
+     "bosses": [
+      "The Kraken"
+     ]
+    }
+   ],
+   "per": {
+    "chest": 2,
+    "elite": 2,
+    "boss": 4
+   },
+   "classes": [
+    "arcanist",
+    "ranger",
+    "runepriest",
+    "ironclad"
+   ],
+   "featured": [
+    "emberheart",
+    "deepdelver",
+    "runekeeper",
+    "thunderforge",
+    "vaultbreaker"
+   ],
+   "featuredCount": null,
+   "pinned": [],
+   "generated": 1794164099980
+  }
+ }
+}
