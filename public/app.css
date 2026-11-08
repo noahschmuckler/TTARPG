@@ -246,3 +246,5 @@ label.lbl { display: block; font-family: var(--display); font-weight: 600; lette
 .mate .mw { font-size: 12px; color: #e7e2d6; }
 .mate .bar { height: 16px; margin-top: 3px; }
 .mate.down .mn { color: #ff8a8a; text-decoration: line-through; }
+.narr { font-size: 18px; line-height: 1.55; font-style: italic; color: #efe6d2; margin: 8px 4px 4px; }
+.log .narrate { font-style: italic; color: #efe6d2; }

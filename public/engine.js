@@ -544,7 +544,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
+const GM_ONLY = new Set(['narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -784,6 +784,14 @@ export function apply(state, a, rng = Math.random) {
         const who = a.target && state.characters[a.target] ? ` upon ${state.characters[a.target].name}` : '';
         log(state, `${n} ${a.name || T.label}${n > 1 ? 's' : ''} emerge${n > 1 ? '' : 's'}${who}!${scale ? ` (${fmt(hp)} health, scaled to the party)` : ''}`, 'spawn');
         ev.push({ type: 'spawn', target: a.target, count: n });
+        break;
+      }
+      case 'narrate': { // GM story text: shown on every phone and kept in the chronicle
+        const text = String(a.text || '').trim().slice(0, 1500);
+        if (!text) throw new Error('Nothing to narrate');
+        const title = String(a.title || '').trim().slice(0, 60);
+        log(state, title ? `${title}: ${text}` : text, 'narrate');
+        ev.push({ type: 'narrate', title, text });
         break;
       }
       case 'removeEnemy': delete state.enemies[a.enemyId]; break;

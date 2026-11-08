@@ -236,6 +236,7 @@ function onEvent(e) {
   else if (e.type === 'defended' && mine) burst('Unscathed', 'every blow turned aside', 'energy');
   else if (e.type === 'heal' && mine) burst(`+${fmt(e.amount)}`, 'health restored', 'energy');
   else if (e.type === 'loot' && mine) reveal(e.item, e.from);
+  else if (e.type === 'narrate') sheet(`${e.title ? `<h2 class="center">${esc(e.title)}</h2>` : ''}<p class="narr">${esc(e.text).replace(/\n/g, '<br>')}</p>`);
   else if (e.type === 'cache' && mine) revealCache(e.items, e.label, e.kind);
   else if (e.type === 'foeAbility') queueAlert(`${FOE_ABILITIES[e.key].icon} ${e.name}`, `${e.enemyName} · ${e.text}`);
   else if (e.type === 'unlock' && mine) revealUnlock(e);

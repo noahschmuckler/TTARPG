@@ -366,3 +366,14 @@ test('board snapshots: markers, adjacency and minion sync', () => {
   assert.equal(s.characters[c].marker, 4);
   assert.equal(MARKER_RANGES.minions[1], 89);
 });
+
+test('narrate: GM text goes to the chronicle and out as an event', async () => {
+  const { apply, newGame, isGmOnly } = await import('../public/engine.js');
+  const s = newGame('NARR');
+  const r = apply(s, { type: 'narrate', title: 'It falls', text: 'The pod splits.' });
+  assert.equal(r.error, undefined);
+  assert.equal(s.log[0].kind, 'narrate');
+  assert.ok(r.events.some(e => e.type === 'narrate' && e.text === 'The pod splits.'));
+  assert.ok(isGmOnly('narrate'));
+  assert.ok(apply(s, { type: 'narrate', text: '  ' }).error);
+});
