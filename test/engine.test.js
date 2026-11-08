@@ -377,3 +377,63 @@ test('narrate: GM text goes to the chronicle and out as an event', async () => {
   assert.ok(isGmOnly('narrate'));
   assert.ok(apply(s, { type: 'narrate', text: '  ' }).error);
 });
+
+test('attack powers: pure charge-ups read "Make an attack with…", positional powers do not', async () => {
+  const E = await import('../public/engine.js');
+  const s = E.newGame('ATK');
+  E.apply(s, { type: 'createCharacter', name: 'Nyx', cls: 'shadowblade' });
+  const ch = s.characters[s.order[0]];
+  const ps = Object.fromEntries(E.powersFor(ch).map(p => [p.key, p]));
+  assert.equal(ps.cuts.attack, true);
+  assert.match(ps.cuts.text, /^Make an attack with/);
+  assert.equal(ps.step.attack, false); // teleport + triple damage stays a full action
+  const it = E.makeItem('set', Math.random, 'weapon', 1, 'emberheart');
+  ch.bag.push(it); E.apply(s, { type: 'equip', charId: ch.id, itemId: it.id });
+  const ember = E.powersFor(ch).find(p => p.key === 'set:emberheart');
+  assert.equal(ember.attack, true);
+  assert.match(ember.text, /^Make an attack with ×1\.5 damage/);
+});
+
+test('kill tally: minions, elites and bosses are credited to the killing blow', async () => {
+  const E = await import('../public/engine.js');
+  const s = E.newGame('TAL');
+  E.apply(s, { type: 'createCharacter', name: 'Gonk', cls: 'ironclad' });
+  const id = s.order[0], ch = s.characters[id];
+  E.apply(s, { type: 'spawn', etype: 'minion', count: 2, target: id });
+  E.apply(s, { type: 'spawn', etype: 'elite', hp: 1, armor: 0, name: 'Weakling' });
+  E.apply(s, { type: 'spawn', etype: 'boss', hp: 1, armor: 0, name: 'Glass Jaw' });
+  E.apply(s, { type: 'attack', charId: id, hits: 3, sixes: 0 });
+  for (const e of Object.values(s.enemies).filter(e => e.type !== 'minion').concat(Object.values(s.enemies).filter(e => e.type === 'minion').slice(0, 1)))
+    E.apply(s, { type: 'spend', charId: id, enemyId: e.id });
+  assert.deepEqual(E.tallyOf(ch), { minion: 1, elite: 1, boss: 1 });
+  assert.equal(ch.kills, 3);
+  // older heroes without a tally: earlier kills count as minions
+  const old = { kills: 7 };
+  E.credit(old, 'elite');
+  assert.deepEqual(old.tally, { minion: 7, elite: 1, boss: 0 });
+  // the GM can correct it
+  E.apply(s, { type: 'editCharacter', charId: id, tally: { minion: 10, elite: 2, boss: 1 } });
+  assert.equal(ch.kills, 13);
+});
+
+test('restore: the GM loads a backup into the room, keeping the room code; players cannot', () => {
+  const core = RoomCore.create('ROOM', '1234');
+  const gm = {}, pl = {};
+  core.handle({ t: 'hello', role: 'gm', pin: '1234' }, gm);
+  core.handle({ t: 'hello', role: 'player' }, pl);
+  core.handle({ t: 'act', action: { type: 'createCharacter', name: 'Saile', cls: 'arcanist' }, rid: 1 }, pl);
+  const backup = { savedAt: 'x', room: 'JBCX', state: JSON.parse(JSON.stringify(core.state)) };
+  backup.state.code = 'JBCX';
+  core.handle({ t: 'act', action: { type: 'resetGame' }, rid: 2 }, gm);
+  assert.equal(core.state.order.length, 0);
+  const denied = core.handle({ t: 'act', action: { type: 'restore', state: backup }, rid: 3 }, pl);
+  assert.equal(denied.reply.t, 'error');
+  const bad = core.handle({ t: 'act', action: { type: 'restore', state: { nope: 1 } }, rid: 4 }, gm);
+  assert.equal(bad.reply.t, 'error');
+  const ok = core.handle({ t: 'act', action: { type: 'restore', state: backup }, rid: 5 }, gm);
+  assert.equal(ok.reply.t, 'ok');
+  assert.equal(core.state.order.length, 1);
+  assert.equal(core.state.code, 'ROOM');
+  core.handle({ t: 'act', action: { type: 'undo' }, rid: 6 }, gm);
+  assert.equal(core.state.order.length, 0);
+});

@@ -184,7 +184,7 @@
 <body>
 <div class="wrap" id="app"><p class="center dim" style="margin-top:40vh">Opening the ledger…</p></div>
 <script type="module">
-import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, FOE_ABILITIES, SETS, HIDDEN_DICE, derive, engagedWith, strikeLeft, powersFor, reachText, fmt, activeSynergies } from './engine.js';
+import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, FOE_ABILITIES, SETS, HIDDEN_DICE, derive, engagedWith, strikeLeft, powersFor, reachText, fmt, activeSynergies, tallyOf } from './engine.js';
 let seenDefense = null, defenseOpen = false;
 import { $, h, esc, params, connect, toast, burst, sheet, itemHTML, setsHTML, boardMapSVG } from './ui.js';
 
@@ -384,7 +384,7 @@ function render() {
   document.title = `${ch.name} · Delvers' Ledger`;
   $('#crest').textContent = C.glyph;
   $('#nm').textContent = ch.name;
-  $('#cls').textContent = `${C.name} · ${fmt(ch.kills)} slain`;
+  $('#cls').textContent = `${C.name} · ${tallyLine(ch)}`;
   $('#moveline').innerHTML = `<span>👣 Move <b>${s.move}″</b></span><span>${s.reach ? '➶' : '⚔'} Reach <b>${reachText(s.reach)}</b></span>${ch.hidden ? `<span class="hiddenbadge">◐ Hidden · +${HIDDEN_DICE} dice</span>` : ''}`;
   const syns = activeSynergies(ch);
   $('#synline').innerHTML = syns.length ? `<div class="synline">${syns.map(sy => `<span>⟡ ${esc(sy.name)}</span>`).join('')}</div>` : '';
@@ -446,7 +446,7 @@ function render() {
   const mates = S.order.filter(id => id !== me).map(id => S.characters[id]).filter(Boolean);
   $('#party').innerHTML = mates.length ? `<div class="rule"><span class="gem"></span>Party<span class="gem"></span></div>` + mates.map(c => {
     const m = derive(c).maxHp;
-    return `<div class="mate${c.hp <= 0 ? ' down' : ''}" data-mate="${c.id}" role="button"><div class="row" style="gap:8px"><span class="mn grow">${CLASSES[c.cls]?.glyph || ''} ${esc(c.name)}</span>${c.ward ? `<span class="mw">⛨ ${fmt(c.ward)}</span>` : ''}<span class="faint" style="font-size:12px">⚡${fmt(c.energy)}</span><span class="mgear">Gear ›</span></div><div class="bar hp"><i style="width:${Math.max(0, Math.min(100, c.hp / m * 100))}%"></i><span>${c.hp <= 0 ? 'DOWN' : `${fmt(c.hp)} / ${fmt(m)}`}</span></div></div>`;
+    return `<div class="mate${c.hp <= 0 ? ' down' : ''}" data-mate="${c.id}" role="button"><div class="row" style="gap:8px"><span class="mn grow">${CLASSES[c.cls]?.glyph || ''} ${esc(c.name)}</span>${c.ward ? `<span class="mw">⛨ ${fmt(c.ward)}</span>` : ''}<span class="faint" style="font-size:12px">${(t => `${t.boss ? `♛${t.boss} ` : ""}${t.elite ? `⚔${t.elite} ` : ""}☠${t.minion}`)(tallyOf(c))} · ⚡${fmt(c.energy)}</span><span class="mgear">Gear ›</span></div><div class="bar hp"><i style="width:${Math.max(0, Math.min(100, c.hp / m * 100))}%"></i><span>${c.hp <= 0 ? 'DOWN' : `${fmt(c.hp)} / ${fmt(m)}`}</span></div></div>`;
   }).join('') : '';
   const open = $('#boardbox details')?.open;
   $('#boardbox').innerHTML = S.board?.tokens?.length ? `<details class="plate" style="margin-top:14px;padding:10px 12px" ${open ? 'open' : ''}><summary class="display" style="cursor:pointer;letter-spacing:.2em;font-size:14px;color:var(--brass)">🗺 Board map <span class="faint" style="font-size:12px;letter-spacing:.06em">· snapped ${new Date(S.board.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></summary><div style="margin-top:8px">${boardMapSVG(S, { highlight: me })}</div></details>` : '';
@@ -463,6 +463,7 @@ function render() {
 }
 
 // ---------------------------------------------------------- defense flow
+const tallyLine = ch => { const t = tallyOf(ch); return [t.boss && `♛ ${t.boss} boss${t.boss > 1 ? 'es' : ''}`, t.elite && `⚔ ${t.elite} elite${t.elite > 1 ? 's' : ''}`, `☠ ${fmt(t.minion)} minion${t.minion === 1 ? '' : 's'}`].filter(Boolean).join(' · '); };
 // A party member's gear, read-only: what they wear, what's in their satchel, and their sets.
 function mateBody(id) {
   const ch = S.characters[id];
@@ -470,7 +471,7 @@ function mateBody(id) {
   const C = CLASSES[ch.cls], s = derive(ch), b = C.base;
   const stat = (label, val, base, f = v => v) => `<div><span class="dim">${label}</span><b class="${val > base ? 'up' : ''}">${f(val)}</b></div>`;
   return `<h2>${C.glyph} ${esc(ch.name)}</h2>
-    <div class="faint" style="font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;font-size:12px">${C.name} · ${ch.kills} slain · green = boosted by gear</div>
+    <div class="faint" style="font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;font-size:12px">${C.name} · ${tallyLine(ch)} · green = boosted by gear</div>
     <div class="gstats">
       ${stat('Health', s.maxHp, b.maxHp, fmt)}${stat('Armor', s.armor, b.armor, v => v + '%')}${stat('Dice', s.dice, b.dice)}${stat('Dmg / hit', s.damage, b.damage, fmt)}
       ${stat('Crit', s.critMult, b.critMult, v => '×' + v)}${stat('Cleave', s.cleave, b.cleave)}${stat('Energy / kill', s.energyPerKill, b.energyPerKill)}${stat('Energy / rnd', s.energyPerRound, b.energyPerRound)}
@@ -589,7 +590,8 @@ function powerSheet(key) {
       ${T?.allies ? `<div class="instr" style="font-size:16px">Choose ${T.exactly === 1 ? 'the ally' : 'allies'} ${esc(T.allies)}:</div>
         <div class="row" style="flex-wrap:wrap;gap:8px">${S.order.filter(id => id !== me).map(id => `<button class="tog ${allies.has(id) ? 'on' : ''}" data-ally="${id}">${esc(S.characters[id].name)}</button>`).join('') || '<span class="faint">No allies in the game.</span>'}</div>` : ''}
       <p class="num" style="font-size:20px;margin:14px 0 8px;color:${ok ? 'var(--aether)' : 'var(--ink-faint)'}">Costs ${a.cost} energy · you have ${ch.energy}</p>
-      <button class="btn aether block attack" id="use" ${ok && allyOk ? '' : 'disabled'}>${!ok ? 'Not enough energy' : !allyOk ? 'Choose an ally' : T?.foes && !nFoes && !T.optional ? 'Unleash (no foes caught)' : 'Unleash'}</button>`;
+      <button class="btn aether block attack" id="use" ${ok && allyOk ? '' : 'disabled'}>${!ok ? 'Not enough energy' : !allyOk ? 'Choose an ally' : T?.foes && !nFoes && !T.optional ? 'Unleash (no foes caught)' : a.attack ? 'Unleash & attack' : 'Unleash'}</button>
+      ${a.attack ? '<p class="faint center" style="font-size:13px;margin:6px 0 0">An attack power: the attack roll opens next, all as one action.</p>' : ''}`;
     el.dataset.max = max;
   };
   draw();
@@ -607,7 +609,8 @@ function powerSheet(key) {
     if (al) { const id = al.dataset.ally; if (allies.has(id)) allies.delete(id); else { if (T.exactly === 1) allies.clear(); allies.add(id); } return draw(); }
     if (e.target.closest('#use')) {
       close();
-      act({ type: 'ability', charId: me, key, targets: [...picked.keys()], slammed: [...picked].filter(([, v]) => v === 'slam').map(([k]) => k), allies: [...allies], tableKills: table }).catch(() => {});
+      act({ type: 'ability', charId: me, key, targets: [...picked.keys()], slammed: [...picked].filter(([, v]) => v === 'slam').map(([k]) => k), allies: [...allies], tableKills: table })
+        .then(() => { if (a.attack && !strikeLeft(S.characters[me])) setTimeout(attackSheet, 350); }).catch(() => {});
     }
   });
 }

@@ -64,6 +64,10 @@
   .gearline:hover { border-color: var(--brass); }
   .gearline .k { font-family: var(--display); font-weight: 600; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; color: var(--ink-faint); }
   .scrim .sheet.wide { max-width: 860px; }
+  .tally { width: 100%; border-collapse: collapse; font-size: 15px; }
+  .tally th { font-size: 16px; color: var(--brass); text-align: center; padding: 2px 6px; }
+  .tally td { padding: 4px 6px; border-bottom: 1px solid #2a2519; text-align: center; font-family: var(--display); font-weight: 800; }
+  .tally td:first-child { text-align: left; font-family: inherit; font-weight: 600; }
   .gstats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px 16px; font-size: 14px; margin: 10px 0 4px; }
   .gstats div { display: flex; justify-content: space-between; border-bottom: 1px solid #2a2519; padding: 4px 0; }
   .gstats b { font-family: var(--display); font-weight: 800; font-size: 16px; }
@@ -77,7 +81,7 @@
 <body>
 <div id="root"></div>
 <script type="module">
-import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES } from './engine.js';
+import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES, tallyOf } from './engine.js';
 import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML, setsHTML } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
@@ -134,6 +138,7 @@ function render() {
     $('#roam').innerHTML = roamPanel();
     document.querySelectorAll('.foeabs').forEach(d => { if (openAbs.has(d.dataset.e)) d.open = true; });
     if (gearOpen) gearOpen.el.querySelector('#gearbody').innerHTML = gearBody(gearOpen.id);
+    $('#tally').innerHTML = tallyPanel();
     $('#log').innerHTML = S.log.slice(0, 60).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join('');
   });
 }
@@ -153,6 +158,9 @@ function shell() {
       <a class="btn sm" href="cards.html?room=${room}" target="_blank" style="text-decoration:none">Loot &amp; campaign</a>
       <a class="btn sm" href="board.html?room=${room}" target="_blank" style="text-decoration:none">📷 Board</a>
       <a class="btn sm" href="rules.html" target="_blank" style="text-decoration:none">Rules</a>
+      <button class="btn sm" data-a="save" title="Download the whole game as a backup file">💾 Save</button>
+      <button class="btn sm" data-a="restore" title="Load a backup file into this room">⟲ Restore</button>
+      <input type="file" id="restoreFile" accept=".json,application/json" style="display:none">
       <button class="btn sm danger" data-a="reset">Reset</button>
     </div>
     <div class="layout" id="main">
@@ -160,6 +168,7 @@ function shell() {
       <div class="side">
         <div class="plate"><h3>Summon foes</h3><div id="spawn"></div></div>
         <div class="plate dim"><h3>Foes on the board</h3><div id="roam"></div></div>
+        <div class="plate dim"><h3>Killing blows</h3><div id="tally"></div></div>
         <div class="plate dim"><h3>Chronicle</h3><div class="log" id="log"></div></div>
       </div>
     </div>`;
@@ -168,6 +177,32 @@ function shell() {
   document.body.addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.target.dataset.keep?.startsWith('dmg-')) { const id = e.target.dataset.keep.slice(4); hitCustom(id); }
   });
+}
+
+// Leaderboard: killing blows by foe type (bosses first, then elites, then minions).
+const tallyText = ch => { const t = tallyOf(ch); return `${t.boss ? `♛${t.boss} ` : ''}${t.elite ? `⚔${t.elite} ` : ''}☠${t.minion} slain`; };
+function tallyPanel() {
+  const rows = S.order.map(id => S.characters[id]).map(c => ({ c, t: tallyOf(c) }))
+    .sort((x, y) => y.t.boss - x.t.boss || y.t.elite - x.t.elite || y.t.minion - x.t.minion);
+  if (!rows.length) return '<p class="faint">No heroes yet.</p>';
+  return `<table class="tally"><tr><th></th><th title="Bosses">♛</th><th title="Elites">⚔</th><th title="Minions">☠</th></tr>${rows.map(({ c, t }, i) => `<tr><td>${i === 0 && (t.boss || t.elite || t.minion) ? '🏆 ' : ''}${esc(c.name)}</td><td>${t.boss}</td><td>${t.elite}</td><td>${t.minion}</td></tr>`).join('')}</table>`;
+}
+function saveBackup() {
+  const blob = new Blob([JSON.stringify({ savedAt: new Date().toISOString(), room, state: S }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `delvers-ledger-${room}-round${S.round}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('Backup saved to your downloads');
+}
+async function restoreBackup(file) {
+  let data;
+  try { data = JSON.parse(await file.text()); } catch { return toast("That file isn't a backup", 'err'); }
+  const st = data.state || data;
+  const who = (st.order || []).map(id => st.characters?.[id]?.name).filter(Boolean).join(', ');
+  if (!confirm(`Load this backup into room ${room}?\n\nSaved ${data.savedAt ? new Date(data.savedAt).toLocaleString() : '(unknown time)'} · round ${st.round ?? '?'}\nHeroes: ${who || 'none'}\n\nEveryone's sheet will jump to it. (Undo can reverse it.)`)) return;
+  act({ type: 'restore', state: st }).then(() => toast('Backup restored')).catch(() => {});
 }
 
 function bar(cls, v, max, label) {
@@ -182,7 +217,7 @@ function heroCard(ch) {
   const id = ch.id;
   return `<div class="plate hc ${ch.hp <= 0 ? 'down' : ''}">
     <div class="row">
-      <div class="grow"><div class="nm">${C.glyph} ${esc(ch.name)}</div><div class="sub">${ch.marker != null ? `◰${ch.marker} · ` : ''}${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · ${s.armor}% armor · ${ch.kills} slain</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}</div>
+      <div class="grow"><div class="nm">${C.glyph} ${esc(ch.name)}</div><div class="sub">${ch.marker != null ? `◰${ch.marker} · ` : ''}${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · ${s.armor}% armor · ${tallyText(ch)}</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}</div>
       <a class="icon" href="play.html?room=${room}&as=${id}" target="_blank" title="Open this hero's phone view">↗</a>
       <button class="icon" data-a="edit" data-id="${id}" title="Edit">✎</button>
     </div>
@@ -265,6 +300,7 @@ function scalePreview() {
 document.addEventListener('input', e => { if (e.target.dataset.keep === 'cfg-rounds' || e.target.dataset.keep === 'cfg-armor') scalePreview(); });
 
 function onChange(e) {
+  if (e.target.id === 'restoreFile') { const f = e.target.files?.[0]; e.target.value = ''; if (f) restoreBackup(f); return; }
   if (e.target.dataset.cfgc === 'scale') { document.querySelectorAll('[data-cfg]').forEach(i => spawnCfg[i.dataset.cfg] = i.value); spawnCfg.scale = e.target.checked; return render(); }
   const c = e.target.dataset.cfg;
   if (c) { spawnCfg[c] = e.target.value; if (c === 'etype') { spawnCfg.hp = spawnCfg.armor = spawnCfg.attacks = spawnCfg.damage = spawnCfg.name = spawnCfg.ability = spawnCfg.rounds = ''; render(); } return; }
@@ -282,6 +318,8 @@ function onClick(e) {
     case 'cancelDef': return act({ type: 'cancelDefense', charId: id });
     case 'moveM': return moveSheet(id || null);
     case 'undo': return act({ type: 'undo' });
+    case 'save': return saveBackup();
+    case 'restore': return $('#restoreFile').click();
     case 'reset': if (confirm('Wipe this game? Heroes, foes and loot will be cleared. (Undo can restore it.)')) act({ type: 'resetGame' }); return;
     case 'qr': return qrSheet();
     case 'hurt': return act({ type: 'hurt', charId: id, amount: Number(n) });
@@ -358,7 +396,7 @@ function gearBody(id) {
       ${others.map(o => `<button class="mini" data-ga="give" data-item="${it.id}" data-to="${o}">→ ${esc(S.characters[o].name)}</button>`).join('')}
       <button class="mini hurt" data-ga="discard" data-item="${it.id}" data-eq="${equipped ? it.slot : ''}">Destroy</button></div>`;
   return `<h2>${C.glyph} ${esc(ch.name)}</h2>
-    <div class="faint" style="font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;font-size:12px">${C.name} · ${ch.kills} slain · green = boosted by gear</div>
+    <div class="faint" style="font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;font-size:12px">${C.name} · ${tallyText(ch)} · green = boosted by gear</div>
     <div class="gstats">
       ${stat('Health', s.maxHp, b.maxHp, fmt)}${stat('Armor', s.armor, b.armor, v => v + '%')}${stat('Dice', s.dice, b.dice)}${stat('Dmg / hit', s.damage, b.damage, fmt)}
       ${stat('Crit', s.critMult, b.critMult, v => '×' + v)}${stat('Cleave', s.cleave, b.cleave)}${stat('Energy / kill', s.energyPerKill, b.energyPerKill)}${stat('Energy / rnd', s.energyPerRound, b.energyPerRound)}

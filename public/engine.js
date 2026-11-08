@@ -65,7 +65,7 @@ export const CLASSES = {
     abilities: [
       { key: 'step', name: 'Shadowstep', cost: 35, tags: ['move', 'teleport'], text: 'Teleport behind a foe within 6″, ignoring free blows. Your next attack deals triple damage.', effects: [{ kind: 'buff', damageMult: 3 }] },
       { key: 'smoke', name: 'Smoke Bomb', cost: 30, tags: ['stealth'], text: 'Become Hidden. Foes next to you lose you: tap them and they stop fighting you. Your next attack from hiding gets +3 dice.', target: { foes: 'next to you', optional: true }, effects: [{ kind: 'hide' }, { kind: 'shake' }] },
-      { key: 'cuts', name: 'Thousand Cuts', cost: 70, tags: [], text: 'Roll +4 dice on your next attack.', effects: [{ kind: 'buff', bonusDice: 4 }] },
+      { key: 'cuts', name: 'Thousand Cuts', cost: 70, tags: [], text: 'Make an attack with +4 dice.', effects: [{ kind: 'buff', bonusDice: 4 }] },
     ],
   },
 };
@@ -203,11 +203,23 @@ function mergeEffects(base, add) {
   return out;
 }
 
+// "Attack powers" only charge up an attack (plus, maybe, a ward or heal on the side): using one
+// and then attacking is a single action. Powers that move, pin, push or hit stay a full action.
+const ACTION_TAGS = new Set(['move', 'teleport', 'stealth', 'pin', 'push', 'pull', 'area', 'zone', 'height', 'ally']);
+const ACTION_KINDS = new Set(['areaHit', 'push', 'pull', 'pin', 'swap', 'allyWard', 'smite', 'taunt', 'hide', 'move']);
+export function isAttackPower(a) {
+  const effects = a.effects || [a.effect];
+  return effects.some(e => e?.kind === 'buff') && !effects.some(e => ACTION_KINDS.has(e?.kind)) && !(a.tags || []).some(t => ACTION_TAGS.has(t));
+}
 const whoText = { self: '', party: 'every hero ', others: 'every other hero ' };
-export function describeEffects(effects) {
+export function describeEffects(effects, { attack = false } = {}) {
+  if (attack) effects = [...effects.filter(e => e.kind === 'buff'), ...effects.filter(e => e.kind !== 'buff')];
   return effects.map(e => {
     if (e.kind === 'smite') return `gain ${e.kills} minion-slaying hits`;
-    if (e.kind === 'buff') return [e.bonusDice && `+${e.bonusDice} dice`, e.damageMult > 1 && `×${+e.damageMult.toFixed(2)} damage`].filter(Boolean).join(' and ') + ' on your next attack';
+    if (e.kind === 'buff') {
+      const what = [e.bonusDice && `+${e.bonusDice} dice`, e.damageMult > 1 && `×${+e.damageMult.toFixed(2)} damage`].filter(Boolean).join(' and ');
+      return attack ? `make an attack with ${what}` : `${what} on your next attack`;
+    }
     if (e.kind === 'ward') return e.who === 'party' ? `every hero gains a ${fmt(e.amount)} ward` : `gain a ${fmt(e.amount)} ward`;
     if (e.kind === 'heal') return `heal ${e.who === 'party' ? 'every hero' : 'yourself'} for ${e.pct}% of max health`;
     if (e.kind === 'energize') return `${whoText[e.who] || ''}gains ${e.amount} energy`;
@@ -218,7 +230,7 @@ export function describeEffects(effects) {
 // Class powers plus any set powers unlocked by equipped pieces (strengthened by synergies).
 export function powersFor(ch) {
   const C = CLASSES[ch.cls] || CLASSES.ironclad;
-  const out = C.abilities.map(a => ({ ...a, effects: a.effects || [a.effect] }));
+  const out = C.abilities.map(a => { const x = { ...a, effects: a.effects || [a.effect] }; x.attack = isAttackPower(x); return x; });
   const counts = setCounts(ch);
   const syn = activeSynergies(ch, counts);
   for (const [k, n] of Object.entries(counts)) {
@@ -232,7 +244,8 @@ export function powersFor(ch) {
       if (m.cost) cost += m.cost;
       boosted.push(sy.name);
     }
-    out.push({ key: P.key, name: P.name, cost: Math.max(5, cost), text: describeEffects(effects), effects, set: k, pieces: n, boosted });
+    const attack = isAttackPower({ effects });
+    out.push({ key: P.key, name: P.name, cost: Math.max(5, cost), text: describeEffects(effects, { attack }), effects, attack, set: k, pieces: n, boosted });
   }
   return out;
 }
@@ -305,6 +318,14 @@ export const FOE_ABILITIES = {
   throes: { name: 'Death Throes', icon: '✹', when: 'death', text: 'On death: explodes for 300 damage to every hero (armor applies).' },
 };
 export const foeHas = (e, k) => (e.abilities || []).includes(k);
+// Killing blows by foe type, for the table's bragging rights.
+export function credit(ch, type, n = 1) {
+  const t = ch.tally ||= { minion: ch.kills || 0, elite: 0, boss: 0 }; // older heroes: earlier kills count as minions
+  ch.kills = (ch.kills || 0) + n;
+  const k = type in t ? type : 'minion';
+  t[k] = (t[k] || 0) + n;
+}
+export const tallyOf = ch => ch.tally || { minion: ch.kills || 0, elite: 0, boss: 0 };
 
 function foeAnnounce(state, e, key, ev, detail) {
   const A = FOE_ABILITIES[key];
@@ -537,7 +558,7 @@ export function newGame(code) {
 
 export function newCharacter(name, cls, rng = Math.random) {
   cls = CLASSES[cls] ? cls : 'ironclad';
-  const ch = { id: uid(rng), name: String(name || 'Hero').slice(0, 24), cls, hp: 0, energy: 0, ward: 0, kills: 0, gear: {}, bag: [], buffs: {} };
+  const ch = { id: uid(rng), name: String(name || 'Hero').slice(0, 24), cls, hp: 0, energy: 0, ward: 0, kills: 0, tally: { minion: 0, elite: 0, boss: 0 }, gear: {}, bag: [], buffs: {} };
   const s = derive(ch);
   ch.hp = s.maxHp;
   ch.energy = 20;
@@ -589,6 +610,11 @@ export function apply(state, a, rng = Math.random) {
         if (a.hp != null) ch.hp = Number(a.hp) || 0;
         if (a.energy != null) ch.energy = Number(a.energy) || 0;
         if (a.ward != null) ch.ward = Math.max(0, Number(a.ward) || 0);
+        if (a.tally && typeof a.tally === 'object') {
+          const t = { minion: 0, elite: 0, boss: 0 };
+          for (const k of Object.keys(t)) t[k] = Math.max(0, Math.round(Number(a.tally[k]) || 0));
+          ch.tally = t; ch.kills = t.minion + t.elite + t.boss;
+        }
         clampChar(ch);
         break;
       }
@@ -629,7 +655,7 @@ export function apply(state, a, rng = Math.random) {
         if (!e || e.type === 'minion') {
           if (st.minion) st.minion--; else if (st.hits) st.hits--; else st.crits--;
           if (e) delete state.enemies[e.id];
-          ch.kills += 1;
+          credit(ch, 'minion');
           const energy = gainEnergy(ch, s.energyPerKill);
           ev.push({ type: 'kills', charId: ch.id, kills: 1, energy, left: strikeLeft(ch) });
           log(state, `${ch.name} slays ${e ? 'a ' + e.name : 'a minion'}. (+${energy} energy)`, 'kill');
@@ -643,7 +669,7 @@ export function apply(state, a, rng = Math.random) {
           let energy = 0;
           if (e.hp <= 0) {
             delete state.enemies[e.id];
-            ch.kills += 1;
+            credit(ch, e.type);
             energy = gainEnergy(ch, s.energyPerKill * (ENEMY_TYPES[e.type]?.energyMult || 1));
             log(state, `${ch.name} ${crit ? 'crits' : 'hits'} for ${fmt(dmg)} and fells ${e.name}! (+${energy} energy)`, 'kill');
           } else log(state, `${ch.name} ${crit ? 'crits' : 'hits'} ${e.name} for ${fmt(dmg)}.`, 'hit');
@@ -694,19 +720,19 @@ export function apply(state, a, rng = Math.random) {
           for (const e of foes) {
             if (!state.enemies[e.id]) continue;
             const hits = f.hits + (slammed.has(e.id) ? 1 : 0);
-            if (e.type === 'minion') { delete state.enemies[e.id]; slain++; ch.kills++; gainEnergy(ch, s.energyPerKill); continue; }
+            if (e.type === 'minion') { delete state.enemies[e.id]; slain++; credit(ch, 'minion'); gainEnergy(ch, s.energyPerKill); continue; }
             const dmg = Math.round(hits * s.damage * (1 - (e.armor || 0) / 100));
             e.hp = Math.max(0, e.hp - dmg);
             ev.push({ type: 'strike', charId: ch.id, enemyId: e.id, enemyName: e.name, damage: dmg, crit: false, slain: e.hp <= 0, energy: 0, left: strikeLeft(ch) });
             if (e.hp <= 0) {
-              delete state.enemies[e.id]; ch.kills++; slain++;
+              delete state.enemies[e.id]; credit(ch, e.type); slain++;
               gainEnergy(ch, s.energyPerKill * (ENEMY_TYPES[e.type]?.energyMult || 1));
               log(state, `${ch.name}'s ${ab.name} fells ${e.name}!`, 'kill');
               foeDied(state, e, ev);
             } else { log(state, `${ab.name} hits ${e.name} for ${fmt(dmg)}${slammed.has(e.id) ? ' (slammed!)' : ''}.`, 'hit'); foeDamaged(state, e, ev, rng); }
           }
           const table = Math.max(0, Math.min(Number(a.tableKills) || 0, 20)); // untracked minions caught on the table
-          if (table) { slain += table; ch.kills += table; gainEnergy(ch, table * s.energyPerKill); }
+          if (table) { slain += table; credit(ch, 'minion', table); gainEnergy(ch, table * s.energyPerKill); }
           if (slain) ev.push({ type: 'kills', charId: ch.id, kills: slain, energy: 0 });
           detail = ` — ${foes.length + table} caught${slain ? `, ${slain} slain` : ''}`;
         } else if (f.kind === 'pin') {

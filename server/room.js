@@ -43,6 +43,20 @@ export class RoomCore {
       this.state.log.unshift({ t: Date.now(), text: '↶ The GM turned back time.', kind: 'info' });
       return { changed: true, broadcast: [{ t: 'state', state: this.state }] };
     }
+    if (a.type === 'restore') { // GM loads a saved snapshot (Headquarters → Restore backup)
+      if (sess.role !== 'gm') return { reply: { t: 'error', msg: 'GM only', rid: msg.rid } };
+      const st = a.state?.state || a.state; // accept either a bare state or a {savedAt, room, state} backup file
+      if (!st || typeof st !== 'object' || !st.characters || !Array.isArray(st.order) || !st.enemies || !Array.isArray(st.log))
+        return { reply: { t: 'error', msg: "That doesn't look like a Delvers' Ledger backup", rid: msg.rid } };
+      this.history.unshift(JSON.stringify(this.state));
+      if (this.history.length > UNDO_DEPTH) this.history.length = UNDO_DEPTH;
+      const rev = this.state.rev, code = this.state.code;
+      this.state = JSON.parse(JSON.stringify(st));
+      this.state.code = code; // a backup can be loaded into any room
+      this.state.rev = rev + 1;
+      this.state.log.unshift({ t: Date.now(), text: '⟲ The GM restored a saved game.', kind: 'info' });
+      return { changed: true, broadcast: [{ t: 'state', state: this.state }], reply: { t: 'ok', rid: msg.rid, result: null } };
+    }
     if (a.type === 'resetGame') {
       if (sess.role !== 'gm') return { reply: { t: 'error', msg: 'GM only' } };
       this.history.unshift(JSON.stringify(this.state));

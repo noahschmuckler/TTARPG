@@ -10,7 +10,7 @@ Phone-first hero sheets and a GM headquarters for a tabletop dungeon crawl playe
 
 | Thing | How it works |
 |---|---|
-| Turn | A move + one action (Attack, Power or Sprint), in any order; the move can be split around the action. Move: Ironclad/Runepriest/Arcanist 5, Ranger 6, Shadowblade 7. Reach: Ironclad and Shadowblade adjacent; Runepriest 6″, Arcanist 8″, Ranger 12″. |
+| Turn | A move + one action (Attack, Power or Sprint), in any order; the move can be split around the action. **Attack powers** ("Make an attack with…": Thousand Cuts, Lantern Volley, Emberburst) open the attack roll and count as that same action. **Difficult terrain** costs 2 squares per square; leaps, teleports and swaps ignore it. Move: Ironclad/Runepriest/Arcanist 5, Ranger 6, Shadowblade 7. Reach: Ironclad and Shadowblade adjacent; Runepriest 6″, Arcanist 8″, Ranger 12″. |
 | Position | **High ground** and **Flanking** each add +1 die (toggles on the attack sheet). Attacking **from hiding** adds +3. Walking away from adjacent foes gives each a **free blow** (*Break away* on the phone); movement powers avoid it. **Surrounded** (3+ foes) or attacked **from higher ground**: +1 defense die. |
 | Positional powers | Every class power moves the hero or moves foes (leap, teleport, grapple, vanish, push, pull, taunt, pin, swap). Do it on the table, then tap who it caught; tap twice for **slammed** (into a wall, a foe or off a ledge) = +1 hit. Full text on the in-app **Rules** page. |
 | Attack | Roll your **dice pool** of d6s. Every die showing **4+** is a hit, against every foe. Enter how many hits and how many 6s; that banks a **pool of hits**. |
@@ -58,7 +58,8 @@ npm run cf:deploy    # prints https://delvers-ledger.<you>.workers.dev
 2. Click **Join QR** and show it to the table. Each player forges a hero.
 3. Each round: summon or move foes onto heroes, let players attack and use powers, tap **Enemy phase** (everyone rolls defense at once), then **End round**.
 4. Open **Loot & campaign**, set the party's callings and your scenes (chests, named elites, bosses), and optionally choose how many **featured sets** to include and pin any you want (the preview shows how many sets will complete and how many hidden synergies become possible), then press **Generate campaign loot**. For a party of 3, 4 scenes × 3 chests with 1/1/2/1 elites, a mid-boss in scene 2 and a final boss (42 items) completes 4 sets; 5 featured sets gives 4 complete sets and 5–6 synergies, 6 gives 3 complete and all 8. Print each scene's cards (each starts on a new page) and tape them into chests and under elite/boss minis. Or print **Loot cards** ahead of time and hide them in the terrain. Tap a card on screen to flip it and see the item inside; printing always uses the QR side.
-5. Click any hero's **Gear** line to inspect their stats and items (and equip, give or destroy them). Mistakes? **Undo** walks back the last 40 actions. A player without a phone? Click ↗ on their card to open their sheet.
+5. **💾 Save** downloads the whole game (heroes, gear, foes, loot, chronicle) as a backup file; **⟲ Restore** loads one into the room (Undo reverses it). **Killing blows** in the side panel ranks heroes by bosses, elites and minions slain.
+6. Click any hero's **Gear** line to inspect their stats and items (and equip, give or destroy them). Mistakes? **Undo** walks back the last 40 actions. A player without a phone? Click ↗ on their card to open their sheet.
 
 ## Layout
 

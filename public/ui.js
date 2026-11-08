@@ -1,5 +1,5 @@
 // Shared browser helpers: connection, DOM, item cards, toasts, QR.
-import { STAT_INFO, SLOT_LABEL, RARITIES, SETS, SYNERGIES, fmt, setCounts, activeSynergies, powersFor, statsText, synergyText, describeEffects } from './engine.js';
+import { STAT_INFO, SLOT_LABEL, RARITIES, SETS, SYNERGIES, fmt, setCounts, activeSynergies, powersFor, statsText, synergyText, describeEffects, isAttackPower } from './engine.js';
 import qrcode from './vendor/qrcode.mjs';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -105,7 +105,8 @@ export function setsHTML(ch, { gm = false } = {}) {
       const eq = ch.gear?.[slot]?.set === k, has = owned[k].has(slot);
       return `<span class="pip ${eq ? 'on' : has ? 'bag' : ''}" title="${esc(name)}${eq ? ' (equipped)' : has ? ' (in satchel)' : ''}">${SLOT_LABEL[slot]}</span>`;
     }).join('');
-    const preview = describeEffects(S.power.effects(Math.max(1, n)));
+    const pe = S.power.effects(Math.max(1, n));
+    const preview = describeEffects(pe, { attack: isAttackPower({ effects: pe }) });
     const tiers = [`<div class="tier ${n >= 1 ? 'on' : ''}"><b>1</b><span>${esc(S.power.name)}: ${esc(n ? pw.text : preview)}${pw?.boosted?.length ? ` <i>(boosted by ${esc(pw.boosted.join(', '))})</i>` : ''}</span></div>`,
       ...S.bonuses.map(b => `<div class="tier ${n >= b.n ? 'on' : ''}"><b>${b.n}</b><span>${esc(statsText(b.stats))}</span></div>`)].join('');
     return `<div class="setcard" style="--rc:${S.color}"><div class="row"><span class="sn grow">✦ ${esc(S.name)}</span><span class="num">${n}/4</span></div>

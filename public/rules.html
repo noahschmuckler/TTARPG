@@ -51,12 +51,14 @@
     <li><b>End round.</b> Everyone gains energy, Pins wear off, and foes with round abilities (Summoner, Regenerate) act.</li>
   </ol>
   <p><b>Actions:</b> <i>Attack</i>, use a <i>Power</i>, or <i>Sprint</i> (move again instead of acting).</p>
+  <p><b>Attack powers:</b> a power whose text starts <i>"Make an attack with…"</i> (Thousand Cuts, Lantern Volley, Emberburst) is part of your attack: unleash it, then roll, all as your one action. Every other power is your whole action; any "+dice on your next attack" it gives carries to a later turn.</p>
 
   <h2 id="move">Moving</h2>
   <ul>
     <li>The board is a 1″ grid. Each square is 1″. <b>Diagonal steps count as 1.</b></li>
     <li>Your <b>Move</b> is shown on your sheet (Ironclad 5, Runepriest 5, Arcanist 5, Ranger 6, Shadowblade 7).</li>
     <li>You can't move through foes. You can move through allies but can't end on them.</li>
+    <li><b>Difficult terrain</b> (brambles, rubble, deep snow, anything the GM calls rough): each square costs <b>2 squares</b> of movement. Foes are slowed the same way. Leaps, teleports and swaps ignore it.</li>
     <li><b>Reach:</b> melee callings attack <b>adjacent</b> foes only (including diagonals, and within 1″ of height). Ranged callings attack anything within their range that they can see.</li>
     <li>If you are next to a foe and want to walk away, see <a href="#breakaway">Breaking away</a>.</li>
   </ul>
@@ -152,7 +154,7 @@
   <div style="height:40px"></div>
 </div>
 <script type="module">
-import { CLASSES, FOE_ABILITIES, SETS, reachText, fmt, describeEffects, statsText } from './engine.js';
+import { CLASSES, FOE_ABILITIES, SETS, reachText, fmt, describeEffects, statsText, isAttackPower } from './engine.js';
 import { $, esc } from './ui.js';
 $('#back').onclick = () => (history.length > 1 ? history.back() : (location.href = './'));
 
@@ -164,7 +166,7 @@ $("#classlist").innerHTML = Object.values(CLASSES).map(C => `<div class="plate c
 
 $('#foeabs').innerHTML = `<table><tr><th>Ability</th><th>What it does</th></tr>${Object.values(FOE_ABILITIES).map(A => `<tr><td><b>${A.icon} ${esc(A.name)}</b></td><td>${esc(A.text)}</td></tr>`).join('')}</table>`;
 
-$('#sets').innerHTML = `<table><tr><th>Set</th><th>Power (1 piece; stronger with each piece)</th><th>Bonuses</th></tr>${Object.values(SETS).map(S => `<tr><td><b style="color:${S.color}">✦ ${esc(S.name)}</b></td><td><b>${esc(S.power.name)}</b>: ${esc(describeEffects(S.power.effects(1)))}</td><td>${S.bonuses.map(b => `${b.n} pieces: ${esc(statsText(b.stats))}`).join('<br>')}</td></tr>`).join('')}</table>`;
+$('#sets').innerHTML = `<table><tr><th>Set</th><th>Power (1 piece; stronger with each piece)</th><th>Bonuses</th></tr>${Object.values(SETS).map(S => `<tr><td><b style="color:${S.color}">✦ ${esc(S.name)}</b></td><td><b>${esc(S.power.name)}</b>: ${esc(describeEffects(S.power.effects(1), { attack: isAttackPower({ effects: S.power.effects(1) }) }))}</td><td>${S.bonuses.map(b => `${b.n} pieces: ${esc(statsText(b.stats))}`).join('<br>')}</td></tr>`).join('')}</table>`;
 </script>
 </body>
 </html>
