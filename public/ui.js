@@ -157,3 +157,8 @@ export function boardMapSVG(S, { highlight } = {}) {
   return `<svg class="boardmap" viewBox="-0.5 -0.9 ${w + 1} ${h + 1.4}" xmlns="http://www.w3.org/2000/svg">
     <rect class="felt" x="0" y="0" width="${w}" height="${h}"/><g class="grid">${grid.join('')}</g>${corners.join('')}${lines.join('')}${tok.join('')}</svg>`;
 }
+
+// A hero's portrait (a photo of their mini) or, without one, their calling's glyph.
+export function heroIcon(ch, glyph, size = 28) {
+  return ch.portrait ? `<img class="portrait" src="${esc(ch.portrait)}" alt="" style="width:${size}px;height:${size}px">` : glyph;
+}

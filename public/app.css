@@ -256,3 +256,5 @@ label.lbl { display: block; font-family: var(--display); font-weight: 600; lette
 .gstats .up { color: var(--ok); }
 .ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; align-items: start; }
 .ggrid .empty-slot { border: 1px dashed var(--line); padding: 12px; color: var(--ink-faint); font-family: var(--display); letter-spacing: .14em; text-transform: uppercase; font-size: 12px; display: flex; align-items: center; justify-content: center; min-height: 54px; }
+img.portrait { object-fit: cover; border-radius: 50%; border: 1px solid var(--brass); vertical-align: middle; box-shadow: 0 0 0 2px rgba(0,0,0,.5); }
+.crest img.portrait { border-radius: 0; border: 0; box-shadow: none; }

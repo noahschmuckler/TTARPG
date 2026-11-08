@@ -610,6 +610,7 @@ export function apply(state, a, rng = Math.random) {
         if (a.hp != null) ch.hp = Number(a.hp) || 0;
         if (a.energy != null) ch.energy = Number(a.energy) || 0;
         if (a.ward != null) ch.ward = Math.max(0, Number(a.ward) || 0);
+        if (a.portrait != null) { const u = String(a.portrait).trim().slice(0, 300); if (u) ch.portrait = u; else delete ch.portrait; }
         if (a.tally && typeof a.tally === 'object') {
           const t = { minion: 0, elite: 0, boss: 0 };
           for (const k of Object.keys(t)) t[k] = Math.max(0, Math.round(Number(a.tally[k]) || 0));

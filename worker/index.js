@@ -32,6 +32,7 @@ export default {
     const path = url.pathname.endsWith('/') ? url.pathname + 'index.html' : url.pathname;
     const a = ASSETS[path];
     if (!a) return new Response('Not found', { status: 404 });
+    if (a.b64) return new Response(Uint8Array.from(atob(a.b64), c => c.charCodeAt(0)), { headers: { 'content-type': a.type, 'cache-control': 'public, max-age=86400' } });
     return new Response(a.body, { headers: { 'content-type': a.type, 'cache-control': 'no-cache' } });
   },
 };

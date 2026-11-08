@@ -82,7 +82,7 @@
 <div id="root"></div>
 <script type="module">
 import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES, tallyOf } from './engine.js';
-import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML, setsHTML } from './ui.js';
+import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML, setsHTML, heroIcon } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
 if (!room) location.href = './';
@@ -217,7 +217,7 @@ function heroCard(ch) {
   const id = ch.id;
   return `<div class="plate hc ${ch.hp <= 0 ? 'down' : ''}">
     <div class="row">
-      <div class="grow"><div class="nm">${C.glyph} ${esc(ch.name)}</div><div class="sub">${ch.marker != null ? `◰${ch.marker} · ` : ''}${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · ${s.armor}% armor · ${tallyText(ch)}</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}</div>
+      <div class="grow"><div class="nm">${heroIcon(ch, C.glyph, 34)} ${esc(ch.name)}</div><div class="sub">${ch.marker != null ? `◰${ch.marker} · ` : ''}${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · ${s.armor}% armor · ${tallyText(ch)}</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}</div>
       <a class="icon" href="play.html?room=${room}&as=${id}" target="_blank" title="Open this hero's phone view">↗</a>
       <button class="icon" data-a="edit" data-id="${id}" title="Edit">✎</button>
     </div>
@@ -395,7 +395,7 @@ function gearBody(id) {
       ${equipped ? `<button class="mini" data-ga="unequip" data-slot="${it.slot}">To satchel</button>` : `<button class="mini" data-ga="equip" data-item="${it.id}">Equip</button>`}
       ${others.map(o => `<button class="mini" data-ga="give" data-item="${it.id}" data-to="${o}">→ ${esc(S.characters[o].name)}</button>`).join('')}
       <button class="mini hurt" data-ga="discard" data-item="${it.id}" data-eq="${equipped ? it.slot : ''}">Destroy</button></div>`;
-  return `<h2>${C.glyph} ${esc(ch.name)}</h2>
+  return `<h2>${heroIcon(ch, C.glyph, 56)} ${esc(ch.name)}</h2>
     <div class="faint" style="font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;font-size:12px">${C.name} · ${tallyText(ch)} · green = boosted by gear</div>
     <div class="gstats">
       ${stat('Health', s.maxHp, b.maxHp, fmt)}${stat('Armor', s.armor, b.armor, v => v + '%')}${stat('Dice', s.dice, b.dice)}${stat('Dmg / hit', s.damage, b.damage, fmt)}
