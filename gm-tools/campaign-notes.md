@@ -39,13 +39,12 @@ Threads it ties together: the app's name (Delvers' Ledger), the Runekeeper set (
   |---|---|
   | Entry hall: waiting benches, take-a-number, the Rakshasa's stall | 32–36 |
   | Front Counter: bell, contract, counter flap (safe zone) | 31 |
-  | Clerks' Floor: 16 desks, ghost clerks | 21–30 |
-  | Auditor's Office (west) / Collections Window (east) | 11–22 |
-  | Filing Stacks: shelf maze, the 5 sleeping book stacks | 11–19 |
-  | Archive of Bad Debts (NW, chest) / Strongroom (NE, 2 locked chests, key on the Collector) | 1–9 |
-  | The Final Account: raised dais, Old Surety, the Great Ledger before the exit | 2–9 |
+  | Clerks' Floor: 18 desks, ghost clerks; the way into the Stacks at row 22 | 22–30 |
+  | Auditor's Office (cols 1–4) / Collections Window (cols 20–24) | 7–21 |
+  | Filing Stacks: the rotating-tile maze (cols 5–19) | 7–21 |
+  | Archive of Bad Debts (cols 1–8) / dais (cols 9–16) / Strongroom (cols 17–24) | 1–6 |
 
-- **Minions:** ghost clerks, about 35–40. They wake when fighting happens within 2 of a desk. "Overdue": a clerk that dies comes back once, unless it's finished off before the next End round.
+- **Minions:** ghost clerks, about 35–40. They all rise once the party passes the counter flap. "Overdue": a clerk that dies comes back once, unless it's finished off before the next End round.
 - **Elites:** each carries one of the three folios that open the Final Door.
 
   | Elite | Presets | Notes |
@@ -56,8 +55,8 @@ Threads it ties together: the app's name (Delvers' Ledger), the Runekeeper set (
 
 - **The boss: Old Surety**, the guarantor of every unpaid debt (the user's sad grey gnome/troll mini, giant at game scale, 4×4 base).
 - **The book stacks as ioun stones:**
-  - The 5 coloured foam stacks sleep in the Filing Stacks. Smash what you can before the Audit Bell.
-  - The survivors fly to Old Surety and orbit him, each granting him its ability:
+  - The 5 coloured shelves block the hub's exits and become the doom shelves (see the Filing Stacks section below).
+  - Every colour not destroyed flies to Old Surety and orbits him, granting its ability:
 
   | Stack | Ability |
   |---|---|
