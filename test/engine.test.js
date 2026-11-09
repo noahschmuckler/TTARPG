@@ -437,3 +437,85 @@ test('restore: the GM loads a backup into the room, keeping the room code; playe
   core.handle({ t: 'act', action: { type: 'undo' }, rid: 6 }, gm);
   assert.equal(core.state.order.length, 0);
 });
+
+test('merchant: sell satchel items for Favour, buy boons (rising prices, once-only), buy and use consumables', async () => {
+  const E = await import('../public/engine.js');
+  const M = await import('../public/merchant.js');
+  const s = E.newGame('MER');
+  E.apply(s, { type: 'createCharacter', name: 'Lyle', cls: 'ranger' });
+  const id = s.order[0], ch = s.characters[id];
+  const legendary = E.makeItem('legendary', Math.random, 'ring', 1), common = E.makeItem('common', Math.random, 'boots', 1);
+  ch.bag.push(legendary, common);
+  assert.ok(E.apply(s, { type: 'sell', charId: id, itemId: common.id }).error, 'closed stall');
+  E.apply(s, { type: 'merchant', open: true });
+  assert.equal(s.merchant.open, true);
+  E.apply(s, { type: 'sell', charId: id, itemId: legendary.id });
+  E.apply(s, { type: 'sell', charId: id, itemId: common.id });
+  assert.equal(ch.favour, 7);
+  assert.equal(ch.bag.length, 0);
+  // equipped gear can't be sold
+  const worn = E.makeItem('rare', Math.random, 'helm', 1); ch.bag.push(worn); E.apply(s, { type: 'equip', charId: id, itemId: worn.id });
+  assert.ok(E.apply(s, { type: 'sell', charId: id, itemId: worn.id }).error);
+  const hpBefore = E.derive(ch).maxHp;
+  E.apply(s, { type: 'buyBoon', charId: id, key: 'health' }); // 2
+  assert.equal(E.derive(ch).maxHp, hpBefore + 150);
+  assert.equal(M.boonPrice(ch, 'health'), 3);
+  E.apply(s, { type: 'buyBoon', charId: id, key: 'health' }); // 3
+  assert.equal(ch.favour, 2);
+  assert.ok(E.apply(s, { type: 'buyBoon', charId: id, key: 'eye' }).error, 'too expensive');
+  ch.favour = 30;
+  E.apply(s, { type: 'buyBoon', charId: id, key: 'eye' });
+  assert.ok(E.apply(s, { type: 'buyBoon', charId: id, key: 'eye' }).error, 'once only');
+  assert.equal(E.derive(ch).dice, E.CLASSES.ranger.base.dice + 1);
+  E.apply(s, { type: 'buyConsumable', charId: id, key: 'lightning' });
+  E.apply(s, { type: 'grantConsumable', charId: id, key: 'mirror' });
+  assert.equal(ch.consumables.length, 2);
+  E.apply(s, { type: 'merchant', open: false });
+  const r1 = E.apply(s, { type: 'useConsumable', charId: id, id: ch.consumables[0].id });
+  assert.equal(r1.error, undefined);
+  assert.equal(ch.strike.minion, 3);
+  assert.match(E.apply(s, { type: 'useConsumable', charId: id, id: ch.consumables[0].id }).error, /One consumable per turn/);
+  E.apply(s, { type: 'endRound' });
+  E.apply(s, { type: 'useConsumable', charId: id, id: ch.consumables[0].id });
+  assert.equal(ch.ward, 500);
+  assert.ok(E.isGmOnly('merchant') && E.isGmOnly('grantConsumable') && E.isGmOnly('crownDeal'));
+  assert.ok(!E.isGmOnly('sell') && !E.isGmOnly('crownPlay'));
+});
+
+test('Three-Card Crown: hand ranks, jokers, ties to the house, wagers and prizes', async () => {
+  const E = await import('../public/engine.js');
+  const M = await import('../public/merchant.js');
+  const name = h => M.handName(M.scoreHand(h));
+  assert.equal(name(['swords:5', 'flames:5', 'crowns:5']), 'Three of a kind');
+  assert.equal(name(['swords:4', 'flames:5', 'crowns:6']), 'Run');
+  assert.equal(name(['skulls:1', 'skulls:5', 'skulls:9']), 'Flush');
+  assert.equal(name(['swords:7', 'flames:7', 'crowns:2']), 'Pair');
+  assert.equal(name(['swords:1', 'flames:5', 'crowns:9']), 'High card');
+  assert.equal(name(['swords:7', 'joker:0', 'crowns:2']), 'Pair');
+  assert.equal(name(['swords:7', 'joker:0', 'joker:1']), 'Three of a kind');
+  assert.ok(M.compareHands(M.scoreHand(['swords:4', 'flames:5', 'crowns:6']), M.scoreHand(['skulls:1', 'skulls:5', 'skulls:9'])) > 0, 'run beats flush');
+  assert.equal(M.compareHands(M.scoreHand(['swords:7', 'flames:7', 'crowns:2']), M.scoreHand(['skulls:7', 'crowns:7', 'swords:2'])), 0, 'equal hands tie');
+  // a full round
+  const s = E.newGame('CRN');
+  for (const [n, c] of [['A', 'ranger'], ['B', 'ironclad']]) E.apply(s, { type: 'createCharacter', name: n, cls: c });
+  const [a, b] = s.order;
+  s.characters[a].favour = 5; s.characters[b].favour = 0;
+  E.apply(s, { type: 'crownDeal' });
+  assert.equal(s.crown.phase, 'play');
+  assert.equal(s.crown.players[a].cards.length, 3);
+  E.apply(s, { type: 'crownPlay', charId: a, swap: [0, 1, 2], wager: 9 }); // swaps capped at 2, wager at 3
+  assert.equal(s.crown.players[a].swapped, 2);
+  assert.equal(s.crown.players[a].wager, 3);
+  assert.ok(E.apply(s, { type: 'crownPlay', charId: a, swap: [] }).error, 'already played');
+  E.apply(s, { type: 'crownPlay', charId: b, swap: [], wager: 2 }); // B has no Favour: wagers 0
+  assert.equal(s.crown.players[b].wager, 0);
+  assert.equal(s.crown.phase, 'done');
+  const pa = s.crown.players[a];
+  assert.equal(s.characters[a].favour, pa.win ? 8 : 2);
+  // prize game: the GM can force the reveal
+  E.apply(s, { type: 'crownDeal', players: [b], prize: 'spark' });
+  E.apply(s, { type: 'crownReveal' });
+  assert.equal((s.characters[b].consumables || []).length, s.crown.players[b].win ? 1 : 0);
+  E.apply(s, { type: 'crownEnd' });
+  assert.equal(s.crown, undefined);
+});

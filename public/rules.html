@@ -41,7 +41,7 @@
   <p class="updated">These rules match the app: the classes, powers, item sets and foe abilities below are drawn straight from the game itself.</p>
   <nav class="toc">
     <a href="#round">The round</a><a href="#move">Moving</a><a href="#height">Height</a><a href="#attack">Attacking</a><a href="#powers">Powers &amp; position</a>
-    <a href="#breakaway">Breaking away</a><a href="#defense">Defending</a><a href="#foes">Foes</a><a href="#board">Board</a><a href="#energy">Energy</a><a href="#loot">Loot &amp; sets</a><a href="#classes">Callings</a><a href="#abilities">Foe abilities</a>
+    <a href="#breakaway">Breaking away</a><a href="#defense">Defending</a><a href="#foes">Foes</a><a href="#board">Board</a><a href="#energy">Energy</a><a href="#loot">Loot &amp; sets</a><a href="#merchant">The Rakshasa</a><a href="#classes">Callings</a><a href="#abilities">Foe abilities</a>
   </nav>
 
   <h2 id="round">The round</h2>
@@ -145,6 +145,24 @@
   </ul>
   <div id="sets"></div>
 
+  <h2 id="merchant">The Rakshasa: merchant, boons &amp; cards</h2>
+  <ul>
+    <li>A tiger-headed merchant turns up at rest points (the GM decides when). While his stall is open, a <b>Visit the stall</b> button appears on every sheet.</li>
+    <li><b>Selling:</b> he buys items from your <b>satchel</b> (not what you're wearing) and pays in <b>Favour ⟡</b>. Sales are final. Favour you don't spend carries over to his next visit.</li>
+    <li><b>Boons</b> are permanent stat bonuses, like gear that never takes a slot. Each one costs ⟡1 more every time you buy it again.</li>
+    <li><b>Wares</b> are single-use consumables. They sit in the <b>Wares</b> row of your sheet; using one is free (not your action), <b>one per turn</b>. The Rakshasa also hands them out as rewards, so it pays to amuse him.</li>
+  </ul>
+  <div id="sellvals"></div>
+  <div id="boonlist"></div>
+  <div id="warelist"></div>
+  <h3>Three-Card Crown</h3>
+  <ul>
+    <li>The Rakshasa deals every challenged hero 3 cards and himself 3 face down. Suits: Swords, Flames, Crowns, Skulls, 1–9, plus two <b>Rakshasa cards</b> that count as any card.</li>
+    <li>On your phone, pick your wager (0–3 Favour) and tap up to <b>2 cards to swap, once</b>. Then everyone reveals together, and he redraws his worst cards.</li>
+    <li>Hands, best first: <b>Three of a kind</b> › <b>Run</b> (three in a row, like 4-5-6) › <b>Flush</b> (one suit) › <b>Pair</b> › <b>High card</b>. Beat his hand to win your wager; lose it otherwise. <b>Ties go to the house.</b></li>
+    <li>Sometimes he plays for a prize instead of Favour: beat him and the ware is yours.</li>
+  </ul>
+
   <h2 id="classes">Callings</h2>
   <div id="classlist"></div>
 
@@ -156,6 +174,8 @@
 <script type="module">
 import { CLASSES, FOE_ABILITIES, SETS, reachText, fmt, describeEffects, statsText, isAttackPower } from './engine.js';
 import { $, esc } from './ui.js';
+import { BOONS, CONSUMABLES, SELL_VALUE } from './merchant.js';
+import { consumableSVG } from './art.js';
 $('#back').onclick = () => (history.length > 1 ? history.back() : (location.href = './'));
 
 $("#classlist").innerHTML = Object.values(CLASSES).map(C => `<div class="plate cls">
@@ -166,6 +186,9 @@ $("#classlist").innerHTML = Object.values(CLASSES).map(C => `<div class="plate c
 
 $('#foeabs').innerHTML = `<table><tr><th>Ability</th><th>What it does</th></tr>${Object.values(FOE_ABILITIES).map(A => `<tr><td><b>${A.icon} ${esc(A.name)}</b></td><td>${esc(A.text)}</td></tr>`).join('')}</table>`;
 
+$('#sellvals').innerHTML = `<table><tr><th>He pays</th>${Object.keys(SELL_VALUE).map(r => `<th>${r[0].toUpperCase() + r.slice(1)}</th>`).join('')}</tr><tr><td>Favour</td>${Object.values(SELL_VALUE).map(v => `<td>⟡ ${v}</td>`).join('')}</tr></table>`;
+$('#boonlist').innerHTML = `<table><tr><th>Boon</th><th>Grants</th><th>First costs</th></tr>${Object.values(BOONS).map(B => `<tr><td><b>${esc(B.name)}</b></td><td>${esc(B.text)}${B.once ? ' (once only)' : ''}</td><td>⟡ ${B.cost}</td></tr>`).join('')}</table>`;
+$('#warelist').innerHTML = `<table><tr><th></th><th>Ware</th><th>Effect</th><th>Costs</th></tr>${Object.entries(CONSUMABLES).map(([k, K]) => `<tr><td>${consumableSVG(k, 34)}</td><td><b>${esc(K.name)}</b></td><td>${esc(K.text)}</td><td>⟡ ${K.cost}</td></tr>`).join('')}</table>`;
 $('#sets').innerHTML = `<table><tr><th>Set</th><th>Power (1 piece; stronger with each piece)</th><th>Bonuses</th></tr>${Object.values(SETS).map(S => `<tr><td><b style="color:${S.color}">✦ ${esc(S.name)}</b></td><td><b>${esc(S.power.name)}</b>: ${esc(describeEffects(S.power.effects(1), { attack: isAttackPower({ effects: S.power.effects(1) }) }))}</td><td>${S.bonuses.map(b => `${b.n} pieces: ${esc(statsText(b.stats))}`).join('<br>')}</td></tr>`).join('')}</table>`;
 </script>
 </body>

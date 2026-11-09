@@ -165,6 +165,33 @@
   .foealert .fa-big { font-family: var(--display); font-weight: 900; font-size: 30px; letter-spacing: .1em; text-transform: uppercase; color: #ffd2b0; text-shadow: 0 0 16px rgba(255,138,61,.7); }
   .foealert .fa-small { margin-top: 6px; font-size: 16px; color: #ffe9da; }
   .reveal.unlock { z-index: 95; }
+  .rak { display: flex; flex-direction: column; align-items: center; }
+  .rakpic { width: 92px; height: 92px; object-fit: cover; border-radius: 50%; border: 2px solid var(--brass); box-shadow: 0 0 24px rgba(255,170,70,.35); }
+  .rakpic.sm { width: 34px; height: 34px; border-width: 1px; box-shadow: none; vertical-align: middle; }
+  .stallbtn { margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .stallbtn .fav { font-family: var(--display); font-weight: 900; }
+  .favbig { font-family: var(--display); font-weight: 900; font-size: 34px; color: var(--brass-hi); margin: 4px 0 0; } .favbig small { font-size: 14px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-dim); }
+  .srow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #2a2519; } .srow .faint { font-size: 13px; }
+  .srow .btn[disabled] { opacity: .45; }
+  .wares { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .wares .wl { font-family: var(--display); letter-spacing: .14em; text-transform: uppercase; font-size: 12px; color: var(--ink-dim); margin-right: 4px; } .wares .wl b { color: var(--brass-hi); }
+  .ware { background: none; border: 0; padding: 0; cursor: pointer; } .ware:active { transform: scale(.9); }
+  .reveal.crown { z-index: 92; justify-content: flex-start; overflow-y: auto; padding: 18px 12px 30px; }
+  .reveal.crown .sunburst { position: fixed; opacity: .35; }
+  .crown .ct { position: relative; width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; }
+  .crown .hdr { --rc: var(--brass-hi); text-align: center; }
+  .rakline { font-style: italic; color: #efe6d2; text-align: center; margin: 0 0 10px; font-size: 16px; }
+  .lbl2 { font-family: var(--display); letter-spacing: .16em; text-transform: uppercase; font-size: 13px; color: var(--ink-dim); margin: 8px 0 6px; } .lbl2 b { color: var(--brass-hi); }
+  .hand { display: flex; gap: 8px; justify-content: center; }
+  .cslot { background: none; border: 0; padding: 0; position: relative; transition: transform .15s; cursor: pointer; }
+  .cslot.pick { transform: translateY(-12px); filter: drop-shadow(0 0 10px rgba(95,211,196,.9)); }
+  .swaptag { position: absolute; left: 50%; bottom: -4px; transform: translateX(-50%); font-family: var(--display); font-weight: 800; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; background: var(--aether); color: #04110f; padding: 1px 6px; }
+  .pcard.flip { animation: cflip .6s ease-out; } @keyframes cflip { from { transform: rotateY(90deg); } to { transform: rotateY(0); } }
+  .stake { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 12px; font-size: 15px; }
+  .wpick { display: inline-flex; gap: 4px; } .wpick button { min-width: 38px; min-height: 38px; border: 1px solid var(--brass); background: #1a150c; color: var(--brass-hi); font-family: var(--display); font-weight: 900; font-size: 18px; } .wpick button.on { background: var(--brass); color: #120e07; }
+  .verdict { margin: 14px 0 4px; font-family: var(--display); font-weight: 900; font-size: 24px; text-align: center; color: var(--ink); } .verdict.win { color: var(--aether); text-shadow: 0 0 16px rgba(95,211,196,.6); } .verdict.lose { color: #ff9ca4; }
+  .others2 { margin-top: 10px; width: 100%; } .orow { font-size: 14px; color: var(--ink-dim); text-align: center; padding: 2px 0; } .orow.win { color: var(--aether); } .orow.lose { color: #ff9ca4; }
+  .ranks { margin-top: 10px; font-size: 13px; color: var(--ink-dim); text-align: center; } .ranks summary { cursor: pointer; color: var(--brass); }
   .reveal.syn .hdr { font-size: 20px; letter-spacing: .22em; text-align: center; animation: synglow 1.6s ease-in-out infinite; }
   .reveal.syn .card .plate { box-shadow: 0 0 0 2px #e7d9ff, 0 0 40px rgba(200,170,255,.55); animation: synpulse 1.6s ease-in-out infinite; }
   .reveal.syn .synsub { font-family: var(--display); letter-spacing: .3em; text-transform: uppercase; font-size: 12px; color: #c9b8ff; margin-bottom: 6px; }
@@ -187,6 +214,8 @@
 <div class="wrap" id="app"><p class="center dim" style="margin-top:40vh">Opening the ledger…</p></div>
 <script type="module">
 import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, FOE_ABILITIES, SETS, HIDDEN_DICE, derive, engagedWith, strikeLeft, powersFor, reachText, fmt, activeSynergies, tallyOf } from './engine.js';
+import { BOONS, CONSUMABLES, SELL_VALUE, boonPrice, boonLocked, scoreHand, handName } from './merchant.js';
+import { cardSVG, cardBackSVG, consumableSVG } from './art.js';
 let seenDefense = null, defenseOpen = false;
 import { $, h, esc, params, connect, toast, burst, sheet, itemHTML, setsHTML, boardMapSVG, heroIcon } from './ui.js';
 
@@ -255,6 +284,11 @@ function onEvent(e) {
   else if (e.type === 'defended' && mine) burst('Unscathed', 'every blow turned aside', 'energy');
   else if (e.type === 'heal' && mine) burst(`+${fmt(e.amount)}`, 'health restored', 'energy');
   else if (e.type === 'loot' && mine) reveal(e.item, e.from);
+  else if (e.type === 'merchant') rakSay(e.open ? 'The Rakshasa is here!' : 'The Rakshasa packs up', e.line, e.open ? 'Tap “Visit the stall” on your sheet.' : '');
+  else if (e.type === 'sold' && mine) { floatText(`+${e.favour} ⟡`); toast(`“${e.line}”`); }
+  else if (e.type === 'boon' && mine) { burst(e.name, e.text, 'energy'); toast(`“${e.line}”`); }
+  else if (e.type === 'consumable' && mine) rakSay(e.granted ? `A gift: ${e.name}` : e.name, e.line, CONSUMABLES[e.key]?.text || '', consumableSVG(e.key, 88));
+  else if (e.type === 'used' && mine) burst(e.name, e.text, 'energy');
   else if (e.type === 'narrate') sheet(`${e.title ? `<h2 class="center">${esc(e.title)}</h2>` : ''}<p class="narr">${esc(e.text).replace(/\n/g, '<br>')}</p>`);
   else if (e.type === 'cache' && mine) revealCache(e.items, e.label, e.kind);
   else if (e.type === 'foeAbility') queueAlert(`${FOE_ABILITIES[e.key].icon} ${e.name}`, `${e.enemyName} · ${e.text}`);
@@ -327,7 +361,9 @@ function skeleton() {
     </div>
     <div class="moveline" id="moveline"></div>
     <div id="synline"></div>
+    <div id="stallbtn"></div>
     <div id="buff"></div>
+    <div id="wares"></div>
     <div id="defbox"></div>
     <button class="btn solid attack" id="atk"></button>
     <div id="foes"></div>
@@ -373,6 +409,9 @@ function skeleton() {
     const b = t.closest('[data-bag]');
     if (b) return bagSheet(b.dataset.bag);
     if (t.closest('#claimBtn')) { const v = $('#claimCode').value.trim(); if (v) act({ type: 'claimLoot', charId: me, card: v }).then(() => $('#claimCode').value = '').catch(() => {}); return; }
+    if (t.closest('#openStall')) return stallSheet();
+    const wr = t.closest('[data-ware]');
+    if (wr) return wareSheet(wr.dataset.ware);
     if (t.closest('#switch')) { localStorage.removeItem(KEY); me = null; render(); }
   };
 }
@@ -461,6 +500,8 @@ function render() {
 
   const rows = [['Move', `${s.move}″`], ['Reach', reachText(s.reach)], ['Health', fmt(s.maxHp)], ['Armor', `${s.armor}%`], ['Attack dice', s.dice], ['Damage / hit', fmt(s.damage)], ['Crit (on 6)', `×${s.critMult}`], ['Cleave', s.cleave], ['Energy / kill', s.energyPerKill], ['Energy / round', s.energyPerRound]];
   $('#stats').innerHTML = rows.map(([k, v]) => `<div><span class="dim">${k}</span><b>${v}</b></div>`).join('');
+  drawMerchant(ch);
+  drawCrown(ch);
   $('#log').innerHTML = S.log.slice(0, 8).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join('');
 }
 
@@ -704,6 +745,100 @@ function revealCache(items, label, kind) {
     if (b) { b.disabled = true; b.textContent = 'Equipped ✓'; act({ type: 'equip', charId: me, itemId: b.dataset.eqi }).catch(() => { b.disabled = false; b.textContent = 'Equip'; }); }
     if (e.target.closest('#done')) r.remove();
   });
+}
+
+// ---------------------------------------------------------- the Rakshasa
+const RAK = 'portraits/rakshasa.jpg';
+function rakSay(title, line, sub = '', art = '') {
+  sheet(`<div class="rak">${art || `<img class="rakpic" src="${RAK}" alt="">`}<h2 class="center">${esc(title)}</h2>${line ? `<p class="narr center">“${esc(line)}”</p>` : ''}${sub ? `<p class="faint center">${esc(sub)}</p>` : ''}</div>`);
+}
+let stallOpen = null;
+function drawMerchant(ch) {
+  const open = !!S.merchant?.open;
+  $('#stallbtn').innerHTML = open ? `<button class="btn solid block stallbtn" id="openStall"><img class="rakpic sm" src="${RAK}" alt=""> Visit the Rakshasa's stall <span class="fav">⟡ ${ch.favour || 0}</span></button>` : '';
+  const ws = ch.consumables || [];
+  $('#wares').innerHTML = ws.length || ch.favour ? `<div class="wares"><span class="wl">Wares${ch.favour ? ` · <b>⟡ ${ch.favour}</b> Favour` : ''}</span>${ws.map(w => `<button class="ware" data-ware="${w.id}" title="${esc(CONSUMABLES[w.key]?.name || '')}">${consumableSVG(w.key, 44)}</button>`).join('')}</div>` : '';
+  if (stallOpen) { if (!open) { stallOpen.close(); stallOpen = null; } else stallOpen.el.querySelector('#stall').innerHTML = stallBody(ch); }
+}
+function stallBody(ch) {
+  const fav = ch.favour || 0;
+  const boons = Object.entries(BOONS).map(([k, B]) => {
+    const price = boonPrice(ch, k), lock = boonLocked(ch, k), have = (ch.boonBuys || {})[k] || 0;
+    return `<div class="srow"><div class="grow"><b>${esc(B.name)}</b>${have ? ` <span class="faint">×${have}</span>` : ''}<div class="faint">${esc(B.text)}${B.once ? ' · once only' : ''}</div></div>
+      <button class="btn sm ${!lock && fav >= price ? 'solid' : ''}" data-buyboon="${k}" ${lock || fav < price ? 'disabled' : ''}>${lock ? 'Owned' : `⟡ ${price}`}</button></div>`;
+  }).join('');
+  const wares = Object.entries(CONSUMABLES).map(([k, K]) => `<div class="srow">${consumableSVG(k, 40)}<div class="grow"><b>${esc(K.name)}</b><div class="faint">${esc(K.text)}</div></div>
+      <button class="btn sm ${fav >= K.cost ? 'solid' : ''}" data-buyware="${k}" ${fav < K.cost ? 'disabled' : ''}>⟡ ${K.cost}</button></div>`).join('');
+  const bag = ch.bag.length ? ch.bag.map(it => `<div class="srow"><div class="grow">${itemHTML(it)}</div><button class="btn sm" data-sell="${it.id}">Sell · ⟡ ${SELL_VALUE[it.rarity] || 1}</button></div>`).join('')
+    : '<p class="faint center">Your satchel is empty. (He only buys what you carry, not what you wear.)</p>';
+  return `<div class="rak"><img class="rakpic" src="${RAK}" alt=""><h2 class="center">The Rakshasa's Stall</h2><p class="narr center">“${esc(S.merchant?.line || '')}”</p>
+    <div class="favbig">⟡ ${fav} <small>Favour</small></div></div>
+    <div class="rule"><span class="gem"></span>Sell from your satchel<span class="gem"></span></div>${bag}
+    <div class="rule"><span class="gem"></span>Boons · permanent<span class="gem"></span></div><p class="faint" style="margin:0 0 6px;font-size:13px">Each one costs ⟡1 more every time you buy it again.</p>${boons}
+    <div class="rule"><span class="gem"></span>Wares · single use<span class="gem"></span></div>${wares}`;
+}
+function stallSheet() {
+  const ch = S.characters[me];
+  stallOpen = sheet(`<div id="stall">${stallBody(ch)}</div>`, { onClose: () => { stallOpen = null; } });
+  stallOpen.el.addEventListener('click', e => {
+    const sl = e.target.closest('[data-sell]');
+    if (sl) { const it = S.characters[me].bag.find(x => x.id === sl.dataset.sell); if (it && confirm(`Sell ${it.name} for ⟡ ${SELL_VALUE[it.rarity] || 1}? This can't be undone.`)) act({ type: 'sell', charId: me, itemId: it.id }).catch(() => {}); return; }
+    const bb = e.target.closest('[data-buyboon]');
+    if (bb) return act({ type: 'buyBoon', charId: me, key: bb.dataset.buyboon }).catch(() => {});
+    const bw = e.target.closest('[data-buyware]');
+    if (bw) return act({ type: 'buyConsumable', charId: me, key: bw.dataset.buyware }).catch(() => {});
+  });
+}
+function wareSheet(id) {
+  const ch = S.characters[me], w = (ch.consumables || []).find(x => x.id === id);
+  if (!w) return;
+  const K = CONSUMABLES[w.key];
+  const used = ch.usedConsumable === S.round;
+  const { el, close } = sheet(`<div class="rak">${consumableSVG(w.key, 96)}<h2 class="center">${esc(K.name)}</h2><p class="center" style="font-size:18px">${esc(K.text)}</p>
+    <p class="faint center" style="font-size:13px">Free to use on your turn (not your action). One per turn.</p>
+    <button class="btn aether block attack" id="useWare" ${used ? 'disabled' : ''}>${used ? 'Already used one this turn' : 'Use it now'}</button></div>`);
+  el.querySelector('#useWare').onclick = () => { close(); act({ type: 'useConsumable', charId: me, id }).catch(() => {}); };
+}
+
+// ---------------------------------------------------------- Three-Card Crown
+let crownPick = new Set(), crownWager = null, crownSeen = localStorage.getItem('dl.crownSeen') || '';
+function drawCrown(ch) {
+  const g = S.crown, p = g?.players?.[me];
+  let box = $('#crownTable');
+  if (!g || !p || (g.phase === 'done' && crownSeen === g.id)) { if (box) box.remove(); return; }
+  if (!box) { box = h('<div class="reveal crown" id="crownTable"><div class="sunburst"></div><div class="ct" id="ct"></div></div>'); document.body.appendChild(box); crownPick = new Set(); crownWager = null; box.addEventListener('click', crownClick); }
+  if (box.dataset.g !== g.id) { box.dataset.g = g.id; crownPick = new Set(); crownWager = null; }
+  const fav = ch.favour || 0, maxW = Math.min(3, fav);
+  if (crownWager === null) crownWager = Math.min(1, maxW);
+  const done = g.phase === 'done';
+  const stakes = g.prize ? `<div class="stake">Prize: ${consumableSVG(g.prize, 30)} <b>${esc(CONSUMABLES[g.prize].name)}</b></div>`
+    : `<div class="stake">Wager <span class="wpick">${Array.from({ length: maxW + 1 }, (_, i) => `<button class="${crownWager === i ? 'on' : ''}" data-wager="${i}" ${p.done ? 'disabled' : ''}>${i}</button>`).join('')}</span> Favour <span class="faint">(you have ⟡ ${fav})</span></div>`;
+  const house = done ? g.house.map(c => cardSVG(c, { width: 64, cls: 'flip' })).join('') : g.house.map(() => cardBackSVG({ width: 64 })).join('');
+  const mine = p.cards.map((c, i) => `<button class="cslot ${!p.done && crownPick.has(i) ? 'pick' : ''}" data-card="${i}" ${p.done ? 'disabled' : ''}>${cardSVG(c, { width: 88 })}${!p.done && crownPick.has(i) ? '<span class="swaptag">swap</span>' : ''}</button>`).join('');
+  const others = Object.entries(g.players).filter(([id]) => id !== me).map(([id, q]) => {
+    const n = esc(S.characters[id]?.name || '?');
+    return done ? `<div class="orow ${q.win ? 'win' : 'lose'}">${n}: ${esc(q.hand)} — ${q.win ? (g.prize ? 'wins!' : q.wager ? `+${q.wager} ⟡` : 'wins (no wager)') : (g.prize ? 'loses' : q.wager ? `−${q.wager} ⟡` : 'loses (no wager)')}</div>` : `<div class="orow">${n}: ${q.done ? 'ready' : 'thinking…'}</div>`;
+  }).join('');
+  const myHand = handName(scoreHand(p.cards));
+  $('#ct').innerHTML = `<div class="hdr">Three-Card Crown</div>
+    <div class="rakline"><img class="rakpic sm" src="${RAK}" alt=""> “${esc(done ? g.result : g.line)}”</div>
+    <div class="lbl2">The Rakshasa${done ? ` · <b>${esc(g.houseHand)}</b>` : ''}</div><div class="hand house">${house}</div>
+    <div class="lbl2">Your hand · <b>${esc(myHand)}</b></div><div class="hand">${mine}</div>
+    ${done ? `<div class="verdict ${p.win ? 'win' : 'lose'}">${p.win ? (g.prize ? `You win the ${esc(CONSUMABLES[g.prize].name)}!` : p.wager ? `You win ⟡ ${p.wager}!` : 'You win! (no wager)') : (g.prize ? 'The house wins.' : p.wager ? `You lose ⟡ ${p.wager}.` : 'The house wins. (no wager)')}</div>`
+      : p.done ? '<div class="verdict">Waiting for the others…</div>'
+      : `${stakes}<p class="faint center" style="margin:6px 0">Tap up to 2 cards to swap, once. Ties go to the house.</p>
+        <button class="btn solid block attack" id="crownGo">${crownPick.size ? `Swap ${crownPick.size} and reveal` : 'Stand'}</button>`}
+    ${others ? `<div class="others2">${others}</div>` : ''}
+    <details class="ranks"><summary>Hand ranks</summary>Three of a kind › Run (4-5-6) › Flush (one suit) › Pair › High card. Rakshasa cards are wild.</details>
+    ${done ? '<button class="btn block" id="crownLeave" style="margin-top:10px">Leave the table</button>' : ''}`;
+}
+function crownClick(e) {
+  const c = e.target.closest('[data-card]');
+  if (c && !c.disabled) { const i = Number(c.dataset.card); if (crownPick.has(i)) crownPick.delete(i); else if (crownPick.size < 2) crownPick.add(i); else toast('Up to 2 cards'); return drawCrown(S.characters[me]); }
+  const w = e.target.closest('[data-wager]');
+  if (w && !w.disabled) { crownWager = Number(w.dataset.wager); return drawCrown(S.characters[me]); }
+  if (e.target.closest('#crownGo')) return act({ type: 'crownPlay', charId: me, swap: [...crownPick], wager: crownWager || 0 }).catch(() => {});
+  if (e.target.closest('#crownLeave')) { crownSeen = S.crown?.id || ''; localStorage.setItem('dl.crownSeen', crownSeen); $('#crownTable')?.remove(); }
 }
 
 // Unlocks can arrive together (a set power and a synergy from one piece): show them one at a time,

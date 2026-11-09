@@ -276,5 +276,32 @@
    ],
    "ability": "Lay it down on a hero in reach: grabbed."
   }
+ ],
+ "rakshasa arrives": [
+  {
+   "type": "merchant",
+   "open": true
+  }
+ ],
+ "rakshasa leaves": [
+  {
+   "type": "merchant",
+   "open": false
+  }
+ ],
+ "cards": [
+  {
+   "type": "crownDeal"
+  }
+ ],
+ "cards reveal": [
+  {
+   "type": "crownReveal"
+  }
+ ],
+ "cards end": [
+  {
+   "type": "crownEnd"
+  }
  ]
 }

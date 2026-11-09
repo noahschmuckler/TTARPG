@@ -3,6 +3,7 @@
 // and by the browser (for derived stats and display). No DOM, no I/O.
 
 import { SETS, SYNERGIES, CLASS_SETS } from './sets.js';
+import { SELL_VALUE, BOONS, CONSUMABLES, LINES, pick as pickLine, boonPrice, boonLocked, newDeck, scoreHand, handName, compareHands, houseSwaps } from './merchant.js';
 export { SETS, SYNERGIES, CLASS_SETS };
 
 export const HIT_ON = 4; // every foe is hit on a 4, 5 or 6
@@ -294,6 +295,7 @@ export function derive(ch) {
   const counts = setCounts(ch);
   for (const [k, n] of Object.entries(counts)) for (const b of SETS[k].bonuses) if (n >= b.n) add(b.stats);
   for (const sy of activeSynergies(ch, counts)) if (sy.stats) add(sy.stats);
+  for (const [k, v] of Object.entries(ch.boons || {})) s[k] = (s[k] || 0) + v; // the Rakshasa's permanent boons
   s.armor = Math.min(s.armor, 75);
   s.pool = s.dice + (ch.buffs?.bonusDice || 0);
   return s;
@@ -326,6 +328,31 @@ export function credit(ch, type, n = 1) {
   t[k] = (t[k] || 0) + n;
 }
 export const tallyOf = ch => ch.tally || { minion: ch.kills || 0, elite: 0, boss: 0 };
+
+// Three-Card Crown: the house redraws, every hand is compared with the house, stakes are paid.
+function crownReveal(state, ev, rng) {
+  const g = state.crown;
+  for (const i of houseSwaps(g.house)) g.house[i] = g.deck.shift();
+  const hs = scoreHand(g.house);
+  g.houseHand = handName(hs);
+  let won = 0;
+  for (const [id, p] of Object.entries(g.players)) {
+    const ch = state.characters[id];
+    p.done = true;
+    const sc = scoreHand(p.cards);
+    p.hand = handName(sc);
+    p.win = compareHands(sc, hs) > 0; // ties go to the house
+    if (!ch) continue;
+    if (p.win) won++;
+    if (g.prize) { if (p.win) (ch.consumables ||= []).push({ id: uid(rng), key: g.prize }); }
+    else ch.favour = Math.max(0, (ch.favour || 0) + (p.win ? p.wager : -p.wager));
+    log(state, `🃏 ${ch.name}: ${p.hand} — ${p.win ? (g.prize ? `wins a ${CONSUMABLES[g.prize].name}!` : `wins ${p.wager} Favour!`) : (g.prize ? 'loses.' : `loses ${p.wager} Favour.`)}`, p.win ? 'loot' : 'hurt');
+  }
+  g.phase = 'done';
+  g.result = pickLine(won ? LINES.houseLoses : LINES.houseWins, rng);
+  log(state, `🃏 The Rakshasa shows ${g.houseHand}. "${g.result}"`, 'narrate');
+  ev.push({ type: 'crownResult' });
+}
 
 function foeAnnounce(state, e, key, ev, detail) {
   const A = FOE_ABILITIES[key];
@@ -565,7 +592,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
+const GM_ONLY = new Set(['merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -610,6 +637,7 @@ export function apply(state, a, rng = Math.random) {
         if (a.hp != null) ch.hp = Number(a.hp) || 0;
         if (a.energy != null) ch.energy = Number(a.energy) || 0;
         if (a.ward != null) ch.ward = Math.max(0, Number(a.ward) || 0);
+        if (a.favour != null) ch.favour = Math.max(0, Math.round(Number(a.favour) || 0));
         if (a.portrait != null) { const u = String(a.portrait).trim().slice(0, 300); if (u) ch.portrait = u; else delete ch.portrait; }
         if (a.tally && typeof a.tally === 'object') {
           const t = { minion: 0, elite: 0, boss: 0 };
@@ -813,6 +841,113 @@ export function apply(state, a, rng = Math.random) {
         ev.push({ type: 'spawn', target: a.target, count: n });
         break;
       }
+      // ------------------------------------------------ the Rakshasa's stall
+      case 'merchant': { // GM opens or closes the stall
+        const open = !!a.open;
+        const line = pickLine(open ? LINES.open : LINES.close, rng);
+        state.merchant = { open, line };
+        log(state, open ? `🪔 The Rakshasa unrolls his rug. "${line}"` : `🪔 The Rakshasa rolls up his rug. "${line}"`, 'narrate');
+        ev.push({ type: 'merchant', open, line });
+        break;
+      }
+      case 'sell': {
+        need();
+        if (!state.merchant?.open) throw new Error("The Rakshasa isn't here");
+        const i = ch.bag.findIndex(it => it.id === a.itemId);
+        if (i < 0) throw new Error('Only items in your satchel can be sold');
+        const [it] = ch.bag.splice(i, 1);
+        const favour = SELL_VALUE[it.rarity] || 1;
+        ch.favour = (ch.favour || 0) + favour;
+        const line = pickLine(LINES.sell[it.rarity] || LINES.sell.common, rng);
+        log(state, `🪔 ${ch.name} sells ${it.name} for ${favour} Favour.`, 'loot');
+        ev.push({ type: 'sold', charId: ch.id, item: it.name, favour, line });
+        break;
+      }
+      case 'buyBoon': {
+        need();
+        if (!state.merchant?.open) throw new Error("The Rakshasa isn't here");
+        const B = BOONS[a.key];
+        if (!B) throw new Error('No such boon');
+        if (boonLocked(ch, a.key)) throw new Error('You already have that one');
+        const price = boonPrice(ch, a.key);
+        if ((ch.favour || 0) < price) throw new Error(`That costs ${price} Favour`);
+        ch.favour -= price;
+        ch.boons ||= {}; ch.boonBuys ||= {};
+        for (const [k, v] of Object.entries(B.stats)) ch.boons[k] = (ch.boons[k] || 0) + v;
+        ch.boonBuys[a.key] = (ch.boonBuys[a.key] || 0) + 1;
+        if (B.stats.maxHp) ch.hp += B.stats.maxHp;
+        const line = pickLine(LINES.boon, rng);
+        log(state, `🪔 ${ch.name} gains ${B.name} (${B.text}).`, 'ability');
+        ev.push({ type: 'boon', charId: ch.id, name: B.name, text: B.text, line });
+        break;
+      }
+      case 'buyConsumable': case 'grantConsumable': {
+        need();
+        const K = CONSUMABLES[a.key];
+        if (!K) throw new Error('No such item');
+        if (a.type === 'buyConsumable') {
+          if (!state.merchant?.open) throw new Error("The Rakshasa isn't here");
+          if ((ch.favour || 0) < K.cost) throw new Error(`That costs ${K.cost} Favour`);
+          ch.favour -= K.cost;
+        }
+        (ch.consumables ||= []).push({ id: uid(rng), key: a.key });
+        const line = a.line ? String(a.line).slice(0, 300) : pickLine(LINES.buy, rng);
+        log(state, a.type === 'buyConsumable' ? `🪔 ${ch.name} buys a ${K.name}.` : `🪔 The Rakshasa gives ${ch.name} a ${K.name}.`, 'loot');
+        ev.push({ type: 'consumable', charId: ch.id, key: a.key, name: K.name, granted: a.type === 'grantConsumable', line });
+        break;
+      }
+      case 'useConsumable': {
+        need();
+        const i = (ch.consumables || []).findIndex(c => c.id === a.id);
+        if (i < 0) throw new Error("You don't have that");
+        const K = CONSUMABLES[ch.consumables[i].key];
+        if (ch.hp <= 0 && K.effect.kind !== 'heal') throw new Error(`${ch.name} is down`);
+        if (ch.usedConsumable === state.round) throw new Error('One consumable per turn');
+        ch.consumables.splice(i, 1);
+        ch.usedConsumable = state.round;
+        const s = derive(ch), f = K.effect;
+        if (f.kind === 'heal') { const before = ch.hp; ch.hp = Math.min(s.maxHp, Math.max(0, ch.hp) + Math.round(s.maxHp * f.pct / 100)); ev.push({ type: 'heal', charId: ch.id, amount: ch.hp - before }); }
+        else if (f.kind === 'energy') gainEnergy(ch, f.amount);
+        else if (f.kind === 'ward') ch.ward = (ch.ward || 0) + f.amount;
+        else if (f.kind === 'hide') ch.hidden = true;
+        else if (f.kind === 'smite') { ch.strike = ch.strike || { hits: 0, crits: 0, minion: 0, mult: 1 }; ch.strike.minion = (ch.strike.minion || 0) + f.kills; }
+        else if (f.kind === 'buff') { ch.buffs ||= {}; ch.buffs.bonusDice = (ch.buffs.bonusDice || 0) + f.bonusDice; ch.buffs.label = K.name; }
+        log(state, `${ch.name} uses a ${K.name}.`, 'ability');
+        ev.push({ type: 'used', charId: ch.id, name: K.name, text: K.text });
+        break;
+      }
+      // ------------------------------------------------ Three-Card Crown
+      case 'crownDeal': {
+        const ids = (a.players?.length ? a.players : state.order).filter(id => state.characters[id]);
+        if (!ids.length) throw new Error('No players');
+        const prize = a.prize && CONSUMABLES[a.prize] ? a.prize : null;
+        const deck = newDeck(rng);
+        const players = {};
+        for (const id of ids) players[id] = { cards: deck.splice(0, 3), done: false, wager: 0 };
+        state.crown = { id: uid(rng), deck, players, house: deck.splice(0, 3), prize, phase: 'play', line: pickLine(LINES.deal, rng) };
+        log(state, `🃏 The Rakshasa deals Three-Card Crown to ${ids.map(id => state.characters[id].name).join(', ')}${prize ? ` for a ${CONSUMABLES[prize].name}` : ' (Favour on the table)'}.`, 'narrate');
+        ev.push({ type: 'crownDeal', players: ids, prize });
+        break;
+      }
+      case 'crownPlay': {
+        need();
+        const g = state.crown, p = g?.players?.[ch.id];
+        if (!p || g.phase !== 'play') throw new Error('No game for you right now');
+        if (p.done) throw new Error('You have already played');
+        if (!g.prize) p.wager = Math.max(0, Math.min(3, ch.favour || 0, Math.round(Number(a.wager) || 0)));
+        const swap = [...new Set((a.swap || []).map(Number))].filter(i => i >= 0 && i < 3).slice(0, 2);
+        for (const i of swap) p.cards[i] = g.deck.shift();
+        p.swapped = swap.length; p.done = true;
+        log(state, `🃏 ${ch.name} ${swap.length ? `swaps ${swap.length}` : 'stands'}${g.prize ? '' : `, wagering ${p.wager} Favour`}.`, 'info');
+        if (Object.values(g.players).every(x => x.done)) crownReveal(state, ev, rng);
+        break;
+      }
+      case 'crownReveal': {
+        if (!state.crown || state.crown.phase !== 'play') throw new Error('No game in play');
+        crownReveal(state, ev, rng);
+        break;
+      }
+      case 'crownEnd': delete state.crown; break;
       case 'narrate': { // GM story text: shown on every phone and kept in the chronicle
         const text = String(a.text || '').trim().slice(0, 1500);
         if (!text) throw new Error('Nothing to narrate');
