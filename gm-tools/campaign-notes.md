@@ -73,7 +73,7 @@ Presets are in `scenes.json`; run them with `node gm-tools/gm.cjs JBCX '@name'`.
 2. Session 3 opens: `@counting house`, then `@contract` at the Front Counter. Open the Rakshasa's stall.
 3. Clerks' Floor: `@clerks` whenever a fight comes within 2 of a desk. `@overdue` brings back clerks that weren't finished off.
 4. The offices, in any order: `@auditor`, `@collector`, `@defaulted`.
-5. The Filing Stacks: `@stacks wake` the first time a stack is struck. At the end of the third round, run `node gm-tools/surety.cjs JBCX bell`.
+5. The Filing Stacks: `@the stacks`, `@the hub`, then `@doom <colour>` for each run, with `@debtors` every End round. After the third folio, run `node gm-tools/surety.cjs JBCX bell <destroyed colours>`.
 6. The dais:
    - Move each orbiting stone one square clockwise every End round.
    - When a stone falls, run `node gm-tools/surety.cjs JBCX sync`.
@@ -83,19 +83,29 @@ Presets are in `scenes.json`; run them with `node gm-tools/gm.cjs JBCX '@name'`.
 ## Still to prepare
 - The "half-price boons" reward for striking the Rakshasa's debt isn't built in the app yet. Build it only if the party picks that ending.
 
-## The Filing Stacks (draft, see `ledger-stacks-maze.png`)
-- **The lure:** a single gap in the shelf line leads into the hub, which seals behind the party.
-- **The hub:** the teal walls never move. It has three exits, each blocked by a 1×1 colour shelf.
-  - The books on each shelf hint at its power.
-  - The party picks one shelf. It slides aside and becomes the doom shelf at the far end of that run's hall.
-- **The runs:** Auditor (west), Collector (east), Archive (north-west under the dais). Each run's maze ends in a 1-wide doom hall that seals behind the last hero.
-- **Doom shelf, every End round:**
-  - It advances 2 squares and pushes whatever is in front of it.
-  - Anyone who can't be pushed any further is crushed for 400.
-  - 2 debtor ghosts appear in front of it.
-- **Doom shelf, Enemy phase:** on a 5–6 it phases out of the wall beside the back hero and attacks. While it's gone, the way to the door is open.
-- **After the runs:**
-  - A doom shelf the party destroyed never reaches Old Surety.
-  - One they slipped past joins him.
-  - The 2 colours nobody picked always join him.
-- **Shelves to bring:** 8 × 1×2, 9 × 1×4, 6 × 1×6, plus the five colour shelves.
+## The Filing Stacks (rotating tiles; see `ledger-stacks-maze.png`)
+- **The maze:**
+  - It fills cols 5–19, rows 7–21: a 3×3 grid of 5×5 tiles.
+  - The centre tile is the hub. It is fixed and painted teal.
+  - The other 8 tiles (A–H) are each built as one solid piece.
+  - The search script is `maze-solver.cjs` and the drawing script is `maze-render.cjs`. The data is in `ledger-maze.json` (seed 42).
+- **Exits lead across the hall, not to the nearest door:**
+  - North goes to the Archive (doom hall 14).
+  - West goes to the Collector (doom hall 10).
+  - East goes to the Auditor (doom hall 10).
+- **Turn table** (clockwise, from the Hub layout; turn them back after each run):
+
+  | Scene | Tiles to turn |
+  |---|---|
+  | North run | A 270°, C 270° |
+  | West run | E 270°, F 270° |
+  | East run | C 270°, D 270°, G 90° |
+  | Final | E 90° |
+  | Lure to Hub (the seal) | G 180° |
+
+- **Presets:** `the stacks`, `the hub`, `doom <colour>` (that colour's doom shelf, with its power), and `debtors` (2 ghosts, every End round).
+- **Doom shelf:** each End round it moves 2 squares and crushes anything it can't push for 400. On an Enemy-phase roll of 5–6 it flanks the hero at the back. A finished exit still opens: its hall still hunts the party, but the office behind it is empty.
+- **The Final Account:** run `node gm-tools/surety.cjs JBCX bell <destroyed colours>`, e.g. `bell black,red`.
+  - Every colour not destroyed joins Old Surety.
+  - A doom shelf the party slipped past keeps its damage.
+  - Colours nobody picked arrive at full health.

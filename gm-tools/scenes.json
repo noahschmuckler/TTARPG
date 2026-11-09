@@ -398,78 +398,6 @@
    "text": "The Archive of Bad Debts is a garden now. In its centre a vast pale flower has swallowed a desk, a chair and, judging by the shoes, its last clerk. It opens. The smell is the worst thing any of you have ever met."
   }
  ],
- "stacks wake": [
-  {
-   "type": "spawn",
-   "etype": "elite",
-   "count": 1,
-   "name": "Red Stack: Arrears",
-   "scale": 1,
-   "attacks": 1,
-   "damage": 150,
-   "abilities": [
-    "enrage"
-   ],
-   "ability": "Arrears: angrier the longer it's left unpaid."
-  },
-  {
-   "type": "spawn",
-   "etype": "elite",
-   "count": 1,
-   "name": "Blue Stack: Compound Interest",
-   "scale": 1,
-   "attacks": 1,
-   "damage": 150,
-   "abilities": [
-    "regen"
-   ],
-   "ability": "Compound Interest: keeps growing back."
-  },
-  {
-   "type": "spawn",
-   "etype": "elite",
-   "count": 1,
-   "name": "Green Stack: Liabilities",
-   "scale": 1,
-   "attacks": 1,
-   "damage": 150,
-   "abilities": [
-    "summoner"
-   ],
-   "ability": "Liabilities: clerks keep arriving to file it."
-  },
-  {
-   "type": "spawn",
-   "etype": "elite",
-   "count": 1,
-   "name": "Black Stack: Bad Debt",
-   "scale": 1,
-   "attacks": 1,
-   "damage": 150,
-   "abilities": [
-    "throes"
-   ],
-   "ability": "Bad Debt: bursts when written off."
-  },
-  {
-   "type": "spawn",
-   "etype": "elite",
-   "count": 1,
-   "name": "Gold Stack: Assets",
-   "scale": 1,
-   "attacks": 1,
-   "damage": 150,
-   "abilities": [
-    "thickhide"
-   ],
-   "ability": "Assets: well protected."
-  },
-  {
-   "type": "narrate",
-   "title": "The Stacks Wake",
-   "text": "A shelf shudders. Then another. Books slide out in a long papery hiss and stack themselves into five lurching towers: red, blue, green, black and gold. Somewhere above the Filing Stacks a brass bell begins, very slowly, to swing. (The Audit Bell rings at the end of the third round. Every stack still standing joins whatever waits on the dais.)"
-  }
- ],
  "surety falls": [
   {
    "type": "narrate",
@@ -496,6 +424,128 @@
    "type": "narrate",
    "title": "Struck: the Kraken",
    "text": "The nib scratches through the Deep One's line, and far above you a sound like a mountain settling rolls down the stair: the Eighth Gate sealing for good. The Rakshasa smiles his widest smile. \"Lovely. Job done. Payment as promised.\" He counts it out to the last coin, perfectly fair. Then he leans in close. \"You read my page.\" The smile doesn't move. \"I won't forget that, mates. Not ever.\" He's gone before the lamp stops swinging."
+  }
+ ],
+ "doom red": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Red Stack: Arrears",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 200,
+   "abilities": [
+    "enrage"
+   ],
+   "ability": "Arrears: angrier the longer it is left unpaid. Grinds 2 squares down the hall each End round; crushes what it can't push (400)."
+  },
+  {
+   "type": "narrate",
+   "title": "The hall seals",
+   "text": "Behind you a shelf grinds shut with a sound like a ledger slamming. At the far end of the hall, the red shelf you chose turns to face you, and begins, very slowly, to move."
+  }
+ ],
+ "doom blue": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Blue Stack: Compound Interest",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 200,
+   "abilities": [
+    "regen"
+   ],
+   "ability": "Compound Interest: keeps growing back. Grinds 2 squares down the hall each End round; crushes what it can't push (400)."
+  },
+  {
+   "type": "narrate",
+   "title": "The hall seals",
+   "text": "Behind you a shelf grinds shut with a sound like a ledger slamming. At the far end of the hall, the blue shelf you chose turns to face you, and begins, very slowly, to move."
+  }
+ ],
+ "doom green": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Green Stack: Liabilities",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 200,
+   "abilities": [
+    "summoner"
+   ],
+   "ability": "Liabilities: more debtors keep arriving. Grinds 2 squares down the hall each End round; crushes what it can't push (400)."
+  },
+  {
+   "type": "narrate",
+   "title": "The hall seals",
+   "text": "Behind you a shelf grinds shut with a sound like a ledger slamming. At the far end of the hall, the green shelf you chose turns to face you, and begins, very slowly, to move."
+  }
+ ],
+ "doom black": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Black Stack: Bad Debt",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 200,
+   "abilities": [
+    "throes"
+   ],
+   "ability": "Bad Debt: bursts when written off. In a 1-wide hall, nobody is far enough away. Grinds 2 squares down the hall each End round; crushes what it can't push (400)."
+  },
+  {
+   "type": "narrate",
+   "title": "The hall seals",
+   "text": "Behind you a shelf grinds shut with a sound like a ledger slamming. At the far end of the hall, the black shelf you chose turns to face you, and begins, very slowly, to move."
+  }
+ ],
+ "doom gold": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Gold Stack: Assets",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 200,
+   "abilities": [
+    "thickhide"
+   ],
+   "ability": "Assets: well protected. Grinds 2 squares down the hall each End round; crushes what it can't push (400)."
+  },
+  {
+   "type": "narrate",
+   "title": "The hall seals",
+   "text": "Behind you a shelf grinds shut with a sound like a ledger slamming. At the far end of the hall, the gold shelf you chose turns to face you, and begins, very slowly, to move."
+  }
+ ],
+ "debtors": [
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 2,
+   "name": "Debtor Ghost"
+  }
+ ],
+ "the stacks": [
+  {
+   "type": "narrate",
+   "title": "The Filing Stacks",
+   "text": "Past the clerks, the shelves rise higher than any shelves should, and the aisles between them are exactly one person wide. There is a gap in the wall of books, just the one, and through it you can see a small clear room. It looks safe. It looks like the only way on. Somewhere deep in the stacks, something heavy is sliding across the floorboards."
+  }
+ ],
+ "the hub": [
+  {
+   "type": "narrate",
+   "title": "The Hub",
+   "text": "The moment the last of you steps through, the floor shudders and the stacks turn behind you like the wards of a lock. The gap is gone. Three openings remain, each plugged by a single squat shelf of coloured books: one shelf to a doorway, as if the house is asking you to choose your debt."
   }
  ]
 }
