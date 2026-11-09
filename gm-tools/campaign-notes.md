@@ -82,3 +82,20 @@ Presets are in `scenes.json`; run them with `node gm-tools/gm.cjs JBCX '@name'`.
 
 ## Still to prepare
 - The "half-price boons" reward for striking the Rakshasa's debt isn't built in the app yet. Build it only if the party picks that ending.
+
+## The Filing Stacks (draft, see `ledger-stacks-maze.png`)
+- **The lure:** a single gap in the shelf line leads into the hub, which seals behind the party.
+- **The hub:** the teal walls never move. It has three exits, each blocked by a 1×1 colour shelf.
+  - The books on each shelf hint at its power.
+  - The party picks one shelf. It slides aside and becomes the doom shelf at the far end of that run's hall.
+- **The runs:** Auditor (west), Collector (east), Archive (north-west under the dais). Each run's maze ends in a 1-wide doom hall that seals behind the last hero.
+- **Doom shelf, every End round:**
+  - It advances 2 squares and pushes whatever is in front of it.
+  - Anyone who can't be pushed any further is crushed for 400.
+  - 2 debtor ghosts appear in front of it.
+- **Doom shelf, Enemy phase:** on a 5–6 it phases out of the wall beside the back hero and attacks. While it's gone, the way to the door is open.
+- **After the runs:**
+  - A doom shelf the party destroyed never reaches Old Surety.
+  - One they slipped past joins him.
+  - The 2 colours nobody picked always join him.
+- **Shelves to bring:** 8 × 1×2, 9 × 1×4, 6 × 1×6, plus the five colour shelves.
