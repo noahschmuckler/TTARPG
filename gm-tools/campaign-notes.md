@@ -67,7 +67,18 @@ Threads it ties together: the app's name (Delvers' Ledger), the Runekeeper set (
   | Black: Bad Debt | Death Throes |
   | Gold: Assets | Thick Hide |
 
+## Running the Ledger Hall (a full session, about 4 hours)
+Presets are in `scenes.json`; run them with `node gm-tools/gm.cjs JBCX '@name'`.
+1. End of session 2: `@eye closes` (the cliffhanger).
+2. Session 3 opens: `@counting house`, then `@contract` at the Front Counter. Open the Rakshasa's stall.
+3. Clerks' Floor: `@clerks` whenever a fight comes within 2 of a desk. `@overdue` brings back clerks that weren't finished off.
+4. The offices, in any order: `@auditor`, `@collector`, `@defaulted`.
+5. The Filing Stacks: `@stacks wake` the first time a stack is struck. At the end of the third round, run `node gm-tools/surety.cjs JBCX bell`.
+6. The dais:
+   - Move each orbiting stone one square clockwise every End round.
+   - When a stone falls, run `node gm-tools/surety.cjs JBCX sync`.
+   - When Old Surety drops, run `@surety falls`, then `@the ledger`.
+7. The choice: `@strike rakshasa` or `@strike kraken`.
+
 ## Still to prepare
-- The cliffhanger narration, the contract scene, and both endings of the final choice.
-- A layout diagram for the plank floor.
-- Presets: clerks, each elite, the 5 stacks, and "assemble" (spawns the Beast with the surviving stacks' abilities).
+- The "half-price boons" reward for striking the Rakshasa's debt isn't built in the app yet. Build it only if the party picks that ending.

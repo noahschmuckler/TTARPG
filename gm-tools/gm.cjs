@@ -1,11 +1,12 @@
-// GM helper: node gm.cjs ROOM '<json action or array of actions>'   (no actions = just print state)
+// GM helper: node gm.cjs ROOM '<json action or array of actions>' | @scene   (no actions = just print state)
 // Actions may use "$Name" for a hero's id (e.g. "charId":"$Saile") and "$foe:Name" for an enemy id.
 const WebSocket = require('ws');
 const [room, raw] = process.argv.slice(2);
 const PIN = process.env.PIN || '1234';
-let actions = raw ? JSON.parse(raw) : [];
+let actions = !raw ? [] : raw.startsWith('@') ? require('./scenes.json')[raw.slice(1)] : JSON.parse(raw); // '@name' runs a preset from scenes.json
+if (!actions) { console.log('no such scene'); process.exit(1); }
 if (!Array.isArray(actions)) actions = [actions];
-const ws = new WebSocket(`wss://delvers-ledger.noah-schmuckler.workers.dev/ws?room=${room}`);
+const ws = new WebSocket(`${process.env.WS || 'wss://delvers-ledger.noah-schmuckler.workers.dev'}/ws?room=${room}`);
 let S = null, rid = 0;
 const pending = new Map();
 const send = a => new Promise((res, rej) => { const id = ++rid; pending.set(id, { res, rej }); ws.send(JSON.stringify({ t: 'act', action: a, rid: id })); });

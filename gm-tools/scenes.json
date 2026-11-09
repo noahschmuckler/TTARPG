@@ -303,5 +303,199 @@
   {
    "type": "crownEnd"
   }
+ ],
+ "eye closes": [
+  {
+   "type": "narrate",
+   "title": "The Eighth Gate",
+   "text": "The Kraken's last tentacle goes slack, and the great carved eye in the gate slowly closes. Ice cracks. Behind the gate, where there should be rock, a staircase of dark polished wood winds downward, and from somewhere far below comes a sound none of you expected: the scratch of a thousand pens. At the top of the stair, sitting on a crate he definitely did not have a minute ago, is the Rakshasa. He's holding a rolled contract tied with red ribbon. \"Lovely work, that. Really lovely. Now. Who here can read fine print?\""
+  }
+ ],
+ "counting house": [
+  {
+   "type": "narrate",
+   "title": "The Counting House",
+   "text": "The stair ends in a waiting room. Wooden benches, empty. A ticket dispenser on the wall reads NOW SERVING: 9,999,999. Past a long oak counter, rows of desks stretch into lamplit gloom, and at every desk a grey, translucent clerk is writing, writing, writing. None of them look up. Above the counter a brass plaque reads: ALL ACCOUNTS MUST BALANCE. The room smells of ink and old candles, and when you glance back at the stair, it is a little further away than it was."
+  }
+ ],
+ "contract": [
+  {
+   "type": "narrate",
+   "title": "The Rakshasa's Contract",
+   "text": "He unrolls the contract across the counter with a flourish. \"Simple job, mates. Up on that dais there's a book: the Great Ledger. Every debt ever owed this side of the Eighth Gate. That big squid you just flattened? It's in there. Overdue, see. Strike its line out and the gate stays shut for good, the house stops sending things up the stairs, and you lot get paid. Handsomely.\" He taps three empty boxes at the bottom of the page. \"Only catch: the Ledger's locked. Three folios open it, and three very unpleasant employees are holding them. Auditor, Collector, and... well. The Defaulted. You'll know it when you smell it.\" He slides a pen across. \"Sign here, here, and... there. Don't read that bit.\""
+  }
+ ],
+ "clerks": [
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 6,
+   "name": "Ghost Clerk"
+  }
+ ],
+ "overdue": [
+  {
+   "type": "spawn",
+   "etype": "minion",
+   "count": 3,
+   "name": "Overdue Clerk"
+  }
+ ],
+ "auditor": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "The Auditor",
+   "scale": 2,
+   "abilities": [
+    "leech",
+    "sweep"
+   ],
+   "ability": "Sees everything: Hidden doesn't work in its sight. Carries Folio I."
+  },
+  {
+   "type": "narrate",
+   "title": "The Auditor",
+   "text": "The office door swings open on its own. Behind the desk floats an enormous eye in a nest of wet, grasping roots, wearing a tiny pair of spectacles. \"Irregularities,\" it says, without a mouth. \"So many irregularities.\" Every one of you feels it counting you."
+  }
+ ],
+ "collector": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "The Collector",
+   "scale": 2,
+   "abilities": [
+    "enrage",
+    "throes"
+   ],
+   "ability": "Interest compounds: it grows crueller as it bleeds. Carries Folio II and the strongroom key."
+  },
+  {
+   "type": "narrate",
+   "title": "The Collector",
+   "text": "The bars of the Collections Window slide up with a pleasant little chime. The thing behind it is lovely, lilac and smiling, with claws like letter openers. \"Hello, darlings. You owe me. Not money, no. Just... a little interest.\""
+  }
+ ],
+ "defaulted": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "The Defaulted",
+   "scale": 2,
+   "abilities": [
+    "summoner",
+    "regen"
+   ],
+   "ability": "Grows from unpaid debts: clerks keep stumbling out of its roots. Carries Folio III."
+  },
+  {
+   "type": "narrate",
+   "title": "The Defaulted",
+   "text": "The Archive of Bad Debts is a garden now. In its centre a vast pale flower has swallowed a desk, a chair and, judging by the shoes, its last clerk. It opens. The smell is the worst thing any of you have ever met."
+  }
+ ],
+ "stacks wake": [
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Red Stack: Arrears",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 150,
+   "abilities": [
+    "enrage"
+   ],
+   "ability": "Arrears: angrier the longer it's left unpaid."
+  },
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Blue Stack: Compound Interest",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 150,
+   "abilities": [
+    "regen"
+   ],
+   "ability": "Compound Interest: keeps growing back."
+  },
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Green Stack: Liabilities",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 150,
+   "abilities": [
+    "summoner"
+   ],
+   "ability": "Liabilities: clerks keep arriving to file it."
+  },
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Black Stack: Bad Debt",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 150,
+   "abilities": [
+    "throes"
+   ],
+   "ability": "Bad Debt: bursts when written off."
+  },
+  {
+   "type": "spawn",
+   "etype": "elite",
+   "count": 1,
+   "name": "Gold Stack: Assets",
+   "scale": 1,
+   "attacks": 1,
+   "damage": 150,
+   "abilities": [
+    "thickhide"
+   ],
+   "ability": "Assets: well protected."
+  },
+  {
+   "type": "narrate",
+   "title": "The Stacks Wake",
+   "text": "A shelf shudders. Then another. Books slide out in a long papery hiss and stack themselves into five lurching towers: red, blue, green, black and gold. Somewhere above the Filing Stacks a brass bell begins, very slowly, to swing. (The Audit Bell rings at the end of the third round. Every stack still standing joins whatever waits on the dais.)"
+  }
+ ],
+ "surety falls": [
+  {
+   "type": "narrate",
+   "title": "Paid in Full",
+   "text": "Old Surety sways. The last of the light goes out of his ink-dark eyes, and he sits down, heavily, on the edge of the dais. Then he starts to shrink. When it stops he is just a small grey gnome in a clerk's coat, very tired, holding a pen. \"Paid in full,\" he whispers, and smiles for what looks like the first time in a thousand years. Behind him, the Great Ledger falls open on its own."
+  }
+ ],
+ "the ledger": [
+  {
+   "type": "narrate",
+   "title": "The Great Ledger",
+   "text": "Three folios slot into three locks, and the Ledger turns its own pages to the very end. Two lines in red ink, both OVERDUE. The first: THE DEEP ONE OF THE EIGHTH GATE. Owed: one sky. The second is in a smaller, neater hand you recognise from a certain contract: RAKSHASA, MERCHANT. Owed: one soul, his own, signed over for a fortune he spent long ago. Collection: imminent. Behind you a familiar voice clears its throat, very quietly. \"Ah. Right. So. About that.\" The pen is in your hand. There's ink enough for one line."
+  }
+ ],
+ "strike rakshasa": [
+  {
+   "type": "narrate",
+   "title": "Struck: the Rakshasa",
+   "text": "The nib scratches through his name. For a moment nothing happens; then the Rakshasa makes a sound none of you have heard from him before, a long, shaky breath out. \"You... you mad, beautiful idiots. You had the squid dead to rights.\" He straightens his coat and won't quite look at you. \"Right. Well. My stall's your stall. Half price, for life. And I'll find you. I always find you. But now it's a good thing.\" Far above, very faintly, the Eighth Gate's eye begins to open again."
+  }
+ ],
+ "strike kraken": [
+  {
+   "type": "narrate",
+   "title": "Struck: the Kraken",
+   "text": "The nib scratches through the Deep One's line, and far above you a sound like a mountain settling rolls down the stair: the Eighth Gate sealing for good. The Rakshasa smiles his widest smile. \"Lovely. Job done. Payment as promised.\" He counts it out to the last coin, perfectly fair. Then he leans in close. \"You read my page.\" The smile doesn't move. \"I won't forget that, mates. Not ever.\" He's gone before the lamp stops swinging."
+  }
  ]
 }
