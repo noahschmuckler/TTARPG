@@ -33,28 +33,31 @@ Threads it ties together: the app's name (Delvers' Ledger), the Runekeeper set (
 - **Setting:** a medieval counting house on the 24×36 plank floor, with a Backrooms feel.
   - **The room shifts:** each End round, roll a die. On a 1–2, move one shelf or desk, or swap two doors.
   - **Ghost clerks** are harmless while their books balance. Fighting near a desk wakes them.
-- **Layout** (entrance at the south):
+- **Layout:** see `gm-tools/ledger-hall-layout.png`. The entrance (the Eighth Gate, up from the Kraken) is at the bottom; the exit (the Final Door, three folio locks) is at the top.
 
   | Zone | Rows / position |
   |---|---|
-  | Front Counter (bell, contract, stall) | 30–36 |
-  | Clerks' Floor | 18–30 |
-  | Filing Stacks, where some of the shelves are the book-stack monsters | 8–18 |
-  | Auditor's Office | west |
-  | Collections Window | east |
-  | Archive of Bad Debts, with a chest | north-west |
-  | The Great Ledger dais | 1–7 |
+  | Entry hall: waiting benches, take-a-number, the Rakshasa's stall | 32–36 |
+  | Front Counter: bell, contract, counter flap (safe zone) | 31 |
+  | Clerks' Floor: 16 desks, ghost clerks | 21–30 |
+  | Auditor's Office (west) / Collections Window (east) | 11–22 |
+  | Filing Stacks: shelf maze, the 5 sleeping book stacks | 11–19 |
+  | Archive of Bad Debts (NW, chest) / Strongroom (NE, 2 locked chests, key on the Collector) | 1–9 |
+  | The Final Account: raised dais, Old Surety, the Great Ledger before the exit | 2–9 |
 
-- **Minions:** ghost clerks, about 35–40. "Overdue": a clerk that dies comes back once, unless it's finished off before the next End round.
-- **Elites:** each carries one of the three folios needed to read the Ledger.
+- **Minions:** ghost clerks, about 35–40. They wake when fighting happens within 2 of a desk. "Overdue": a clerk that dies comes back once, unless it's finished off before the next End round.
+- **Elites:** each carries one of the three folios that open the Final Door.
 
   | Elite | Presets | Notes |
   |---|---|---|
-  | The Auditor (Belashyrra) | Energy Leech + Sweeping Blows | Hidden doesn't work within sight of it |
-  | The Collector (daemonette) | Enrage + Death Throes | "Interest compounds" |
-  | The Defaulted (corpse flower) | Summoner + Regenerate | |
+  | The Auditor (Belashyrra) | Energy Leech + Sweeping Blows | Hidden doesn't work within sight of it. Folio I |
+  | The Collector (daemonette) | Enrage + Death Throes | "Interest compounds". Folio II and the strongroom key |
+  | The Defaulted (corpse flower) | Summoner + Regenerate | Folio III |
 
-- **The boss: the Book Beast ("The Overdue")**, built from 5 foam book stacks in different colours.
+- **The boss: Old Surety**, the guarantor of every unpaid debt (the user's sad grey gnome/troll mini, giant at game scale, 4×4 base).
+- **The book stacks as ioun stones:**
+  - The 5 coloured foam stacks sleep in the Filing Stacks. Smash what you can before the Audit Bell.
+  - The survivors fly to Old Surety and orbit him, each granting him its ability:
 
   | Stack | Ability |
   |---|---|
@@ -63,9 +66,6 @@ Threads it ties together: the app's name (Delvers' Ledger), the Runekeeper set (
   | Green: Liabilities | Summoner |
   | Black: Bad Debt | Death Throes |
   | Gold: Assets | Thick Hide |
-
-  - **Phase 1:** the stacks wake as 5 small elites, each with only its own ability. The Audit Bell rings at the end of round 3.
-  - **Phase 2:** the surviving stacks assemble into the boss, which has **only the survivors' abilities**. The party chooses its own boss fight.
 
 ## Still to prepare
 - The cliffhanger narration, the contract scene, and both endings of the final choice.
