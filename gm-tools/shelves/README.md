@@ -21,3 +21,16 @@ These are double-sided bookcase blocks that fill whole 1-inch squares, with book
 
 ## Changing them
 Run `pip install manifold3d numpy trimesh`, then `python3 make_shelves.py stl`. Height, bay depth and book sizes are constants at the top of `make_shelves.py`. To get a fresh set of books, change the seeds in `main()`.
+
+## Bookshelf DungeonSticks (the version for play and storage)
+`make_sticks.py` adds the same book-spine relief to ecaroth's **Starlink wall template**, on both faces of the plain web.
+- The connector ends and the foot are unchanged, so the sticks join and store like your other DungeonSticks.
+- The relief stands 1.45 mm proud of each face, inside the template's 11.7 mm width.
+
+```
+python3 make_sticks.py "Starlink - Wall Template - 2.stl" sticks/
+```
+
+- **Output:** `bookshelf-stick-1in` to `-4in`, each with a `-b` variant that has different books.
+- **Lengths:** the 2″ piece is the template itself. The 1″, 3″ and 4″ pieces stretch only the plain middle section, by 25.4 mm per inch. Check one against your own sticks of that length. With ecaroth's 1″, 3″ and 4″ templates, change the script to load each one directly.
+- **Licence:** the template and the STLs made from it are ecaroth's design, so they are not kept in this repo. Use them for your own table only, and credit ecaroth if you share them.

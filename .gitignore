@@ -3,3 +3,6 @@ data/
 .wrangler/
 .dev.vars
 worker/assets.gen.js
+
+# third-party derived models (ecaroth DungeonSticks): sent to the user, not committed
+bookshelf-sticks.zip
