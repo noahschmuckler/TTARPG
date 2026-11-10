@@ -37,7 +37,11 @@ python3 make_sticks.py "Starlink - Wall Template - 2.stl" sticks/
 
 ## Starlink peg cleaner
 `make_peg_cleaner.py TEMPLATE.stl out.stl` makes a sizing die for the male Starlink pegs. It reads the peg's star profile from the same template.
-- **Shape:** a bar with three necks: S is tight, M is socket-sized, L is loose. They are marked with 1, 2 and 3 dimples.
+- **Size:** a 196 × 48 × 66 mm bar.
 - **How it works:** a tapered star lead-in steers the peg into a throat the size of a socket. A sharp step below the throat shaves off flash and elephant's foot, or folds it over when you pull the peg back out. The trimmings fall out through the bottom.
+- **Raised necks (left):** S, M and L, marked with 1, 2 and 3 dimples. Point the stick's wall forward or back, never along the bar, or it hits the next neck.
+- **Inset dies (right):** S, M and L again, sunk into the 16 mm block, so they are solid on every side except the groove that takes the stick's wall. The groove also fits the bookshelf sticks.
+- **Knob (middle):** palm the dome to hold the bar flat on the table, or pick it up by the waist like a stamp to try angles.
 - **Using it:** push the stick straight down until the head sits on the rim, then pull it straight up. Start with M. Use S if pegs still feel tight in sockets, or L if M is hard to push through.
-- **Printing:** print it upright, as modelled, with no supports.
+- **Printing:** print upright, as modelled, with no supports. The knob flares at 45°.
+- **Fit check:** the template stick was placed in a neck and in each inset die, and it overlaps the tool by less than 0.04 mm³.
