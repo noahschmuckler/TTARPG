@@ -34,3 +34,10 @@ python3 make_sticks.py "Starlink - Wall Template - 2.stl" sticks/
 - **Output:** `bookshelf-stick-1in` to `-4in`, each with a `-b` variant that has different books.
 - **Lengths:** the 2″ piece is the template itself. The 1″, 3″ and 4″ pieces stretch only the plain middle section, by 25.4 mm per inch. Check one against your own sticks of that length. With ecaroth's 1″, 3″ and 4″ templates, change the script to load each one directly.
 - **Licence:** the template and the STLs made from it are ecaroth's design, so they are not kept in this repo. Use them for your own table only, and credit ecaroth if you share them.
+
+## Starlink peg cleaner
+`make_peg_cleaner.py TEMPLATE.stl out.stl` makes a sizing die for the male Starlink pegs. It reads the peg's star profile from the same template.
+- **Shape:** a bar with three necks: S is tight, M is socket-sized, L is loose. They are marked with 1, 2 and 3 dimples.
+- **How it works:** a tapered star lead-in steers the peg into a throat the size of a socket. A sharp step below the throat shaves off flash and elephant's foot, or folds it over when you pull the peg back out. The trimmings fall out through the bottom.
+- **Using it:** push the stick straight down until the head sits on the rim, then pull it straight up. Start with M. Use S if pegs still feel tight in sockets, or L if M is hard to push through.
+- **Printing:** print it upright, as modelled, with no supports.
