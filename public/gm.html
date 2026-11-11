@@ -139,6 +139,7 @@ function render() {
     document.querySelectorAll('.foeabs').forEach(d => { if (openAbs.has(d.dataset.e)) d.open = true; });
     if (gearOpen) gearOpen.el.querySelector('#gearbody').innerHTML = gearBody(gearOpen.id);
     $('#tally').innerHTML = tallyPanel();
+    $('#rak').innerHTML = rakPanel();
     $('#log').innerHTML = S.log.slice(0, 60).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join('');
   });
 }
@@ -167,6 +168,7 @@ function shell() {
       <div class="heroes" id="heroes"></div>
       <div class="side">
         <div class="plate"><h3>Summon foes</h3><div id="spawn"></div></div>
+        <div class="plate dim"><h3>The Rakshasa</h3><div id="rak"></div></div>
         <div class="plate dim"><h3>Foes on the board</h3><div id="roam"></div></div>
         <div class="plate dim"><h3>Killing blows</h3><div id="tally"></div></div>
         <div class="plate dim"><h3>Chronicle</h3><div class="log" id="log"></div></div>
@@ -181,6 +183,19 @@ function shell() {
 
 // Leaderboard: killing blows by foe type (bosses first, then elites, then minions).
 const tallyText = ch => { const t = tallyOf(ch); return `${t.boss ? `♛${t.boss} ` : ''}${t.elite ? `⚔${t.elite} ` : ''}☠${t.minion} slain`; };
+// The Rakshasa's stall and Three-Card Crown: only the buttons that make sense right now.
+function rakPanel() {
+  if (!S.merchant?.open) return `<button class="btn solid block" data-a="rakOpen" title="Opens his stall on every phone: sell gear, buy boons and wares">🪔 Rakshasa appears</button>`;
+  const g = S.crown;
+  let cards = '';
+  if (!g) cards = `<button class="btn block" data-a="crownDeal" title="Deal Three-Card Crown to every hero">🃏 Deal Three-Card Crown</button>`;
+  else if (g.phase === 'play') {
+    const ps = Object.values(g.players), done = ps.filter(p => p.done).length;
+    cards = `<div class="faint" style="margin:4px 0">🃏 ${done} of ${ps.length} have played</div><button class="btn block" data-a="crownReveal" title="Reveal now, even if someone hasn't played">Reveal hands</button>`;
+  } else cards = `<div class="faint" style="margin:4px 0">🃏 House had ${esc(g.houseHand || '')}</div><button class="btn block" data-a="crownEnd">Clear the table</button>`;
+  return `<div class="faint" style="margin-bottom:6px">His stall is open on every phone.</div>${cards}<div style="height:6px"></div><button class="btn sm block" data-a="rakClose">Rakshasa leaves</button>`;
+}
+
 function tallyPanel() {
   const rows = S.order.map(id => S.characters[id]).map(c => ({ c, t: tallyOf(c) }))
     .sort((x, y) => y.t.boss - x.t.boss || y.t.elite - x.t.elite || y.t.minion - x.t.minion);
@@ -319,6 +334,11 @@ function onClick(e) {
     case 'moveM': return moveSheet(id || null);
     case 'undo': return act({ type: 'undo' });
     case 'save': return saveBackup();
+    case 'rakOpen': return act({ type: 'merchant', open: true });
+    case 'rakClose': return act({ type: 'merchant', open: false });
+    case 'crownDeal': return act({ type: 'crownDeal' });
+    case 'crownReveal': return act({ type: 'crownReveal' });
+    case 'crownEnd': return act({ type: 'crownEnd' });
     case 'restore': return $('#restoreFile').click();
     case 'reset': if (confirm('Wipe this game? Heroes, foes and loot will be cleared. (Undo can restore it.)')) act({ type: 'resetGame' }); return;
     case 'qr': return qrSheet();
