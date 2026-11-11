@@ -67,9 +67,10 @@ export function burst(big, small = '', kind = '') {
 }
 
 export function sheet(inner, { onClose } = {}) {
-  const s = h(`<div class="scrim"><div class="plate sheet" style="animation:rise .22s"><button class="x" aria-label="Close">✕</button></div></div>`);
-  const body = s.querySelector('.sheet');
-  if (typeof inner === 'string') body.insertAdjacentHTML('beforeend', inner); else body.appendChild(inner);
+  // The plate is a fixed frame; its contents scroll inside it, so the plate's background always covers the whole sheet.
+  const s = h(`<div class="scrim"><div class="plate sheet" style="animation:rise .22s"><div class="sheet-in"></div><button class="x" aria-label="Close">✕</button></div></div>`);
+  const body = s.querySelector('.sheet'), scroll = s.querySelector('.sheet-in');
+  if (typeof inner === 'string') scroll.insertAdjacentHTML('beforeend', inner); else scroll.appendChild(inner);
   const close = () => { s.remove(); onClose?.(); };
   s.addEventListener('click', e => { if (e.target === s || e.target.closest('.x')) close(); });
   document.body.appendChild(s);

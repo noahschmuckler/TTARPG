@@ -193,7 +193,8 @@ label.lbl { display: block; font-family: var(--display); font-weight: 600; lette
 
 /* ---------------------------------------------------------- sheets & overlays */
 .scrim { position: fixed; inset: 0; z-index: 50; background: rgba(5,4,3,.72); backdrop-filter: blur(3px); display: flex; align-items: flex-end; justify-content: center; animation: fade .18s; }
-.sheet { width: 100%; max-width: 560px; max-height: 92vh; overflow: auto; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); }
+.sheet { width: 100%; max-width: 560px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.sheet-in { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); }
 .sheet .x { position: absolute; top: 10px; right: 12px; background: none; border: 0; font-size: 26px; color: var(--ink-dim); width: 44px; height: 44px; }
 .sheet h2 { margin: 0 0 4px; font-family: var(--carved); font-size: 24px; color: var(--brass-hi); }
 @media (min-width: 700px) { .scrim { align-items: center; } }
