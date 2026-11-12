@@ -51,6 +51,8 @@
   .incoming { margin-top: 16px; text-align: center; font-family: var(--display); font-weight: 800; letter-spacing: .08em; font-size: 20px; color: #ff9ca4; }
   .attack { width: 100%; min-height: 76px; font-size: 24px; margin-top: 14px; --c: 18px; }
   .attack .dice { display: inline-flex; gap: 4px; }
+  .attack.spent { opacity: .55; filter: grayscale(.6); font-size: 20px; flex-direction: column; line-height: 1.15; }
+  .attack.spent .sub { display: block; font-size: 13px; letter-spacing: .02em; text-transform: none; font-family: var(--body, inherit); opacity: .85; }
   .die { width: 18px; height: 18px; border-radius: 4px; background: #1b150a; display: inline-block; position: relative; }
   .die::after { content: ''; position: absolute; inset: 0; margin: auto; width: 5px; height: 5px; border-radius: 50%; background: var(--brass-hi); }
 
@@ -214,7 +216,7 @@
 <body>
 <div class="wrap" id="app"><p class="center dim" style="margin-top:40vh">Opening the ledger…</p></div>
 <script type="module">
-import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, FOE_ABILITIES, SETS, HIDDEN_DICE, derive, engagedWith, strikeLeft, powersFor, reachText, fmt, activeSynergies, tallyOf } from './engine.js';
+import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, FOE_ABILITIES, SETS, HIDDEN_DICE, derive, engagedWith, strikeLeft, powersFor, reachText, fmt, activeSynergies, tallyOf, actedThisRound } from './engine.js';
 import { BOONS, CONSUMABLES, SELL_VALUE, boonPrice, boonLocked, scoreHand, handName } from './merchant.js';
 import { cardSVG, cardBackSVG, consumableSVG } from './art.js';
 let seenDefense = null, defenseOpen = false;
@@ -447,10 +449,14 @@ function render() {
   if (D && D.id !== seenDefense) { seenDefense = D.id; if (!defenseOpen) setTimeout(defenseSheet, 50); }
   const atk = $('#atk');
   const left = strikeLeft(ch), st = ch.strike || {};
+  const acted = actedThisRound(S, ch), spent = acted && acted !== 'attackPower';
   atk.classList.toggle('hidden', left > 0);
-  atk.disabled = ch.hp <= 0;
+  atk.classList.toggle('spent', !!spent);
+  atk.disabled = ch.hp <= 0 || !!spent;
   const basePool = s.pool + (ch.hidden ? HIDDEN_DICE : 0);
-  atk.innerHTML = ch.hp <= 0 ? 'Fallen — await healing' : `Attack · roll ${basePool}${ch.hidden ? ' from hiding' : ''} <span class="dice">${'<i class="die"></i>'.repeat(Math.min(basePool, 8))}</span>`;
+  atk.innerHTML = ch.hp <= 0 ? 'Fallen — await healing'
+    : spent ? `✓ Action used <span class="sub">your next action comes when the GM ends the round</span>`
+    : `${acted === 'attackPower' ? 'Roll your power\'s attack' : 'Attack'} · roll ${basePool}${ch.hidden ? ' from hiding' : ''} <span class="dice">${'<i class="die"></i>'.repeat(Math.min(basePool, 8))}</span>`;
 
   // foes
   const mine = engagedWith(S, me);
@@ -478,7 +484,7 @@ function render() {
     ${!all.length ? `<p class="faint center" style="margin:0">No foes tracked. After rolling, use “Slay one on the table” for each minion you cut down.</p>` : ''}`;
 
   $('#powers').innerHTML = powersFor(ch).map(a => {
-    const ready = ch.energy >= a.cost && ch.hp > 0;
+    const ready = ch.energy >= a.cost && ch.hp > 0 && !acted;
     const tag = a.set ? `<div class="pset" style="color:${SETS[a.set].color}">✦ ${esc(SETS[a.set].name)} · ${a.pieces} piece${a.pieces > 1 ? 's' : ''}${a.boosted?.length ? ' · ⟡ ' + esc(a.boosted.join(', ')) : ''}</div>` : '';
     const tags = (a.tags || []).map(t => `<span class="ptag">${esc(t)}</span>`).join('');
     return `<button class="plate power ${ready ? 'ready' : ''}" data-power="${a.key}"><div class="row"><div class="grow">${tag}<div class="pn">${esc(a.name)}${tags}</div><div class="pt">${esc(a.text)}</div></div><div class="cost">${a.cost}</div></div><div class="bar en"><i style="width:${Math.min(100, ch.energy / a.cost * 100)}%"></i></div></button>`;
@@ -623,7 +629,8 @@ function powerSheet(key) {
     }).join('')}</div></div>`).join('');
   };
   const draw = () => {
-    const ok = ch.energy >= a.cost && ch.hp > 0;
+    const used = actedThisRound(S, ch);
+    const ok = ch.energy >= a.cost && ch.hp > 0 && !used;
     const max = T?.max || 99;
     const allyOk = !T?.allies || !T.exactly || allies.size === T.exactly;
     const nFoes = picked.size + table;
@@ -634,7 +641,7 @@ function powerSheet(key) {
       ${T?.allies ? `<div class="instr" style="font-size:16px">Choose ${T.exactly === 1 ? 'the ally' : 'allies'} ${esc(T.allies)}:</div>
         <div class="row" style="flex-wrap:wrap;gap:8px">${S.order.filter(id => id !== me).map(id => `<button class="tog ${allies.has(id) ? 'on' : ''}" data-ally="${id}">${esc(S.characters[id].name)}</button>`).join('') || '<span class="faint">No allies in the game.</span>'}</div>` : ''}
       <p class="num" style="font-size:20px;margin:14px 0 8px;color:${ok ? 'var(--aether)' : 'var(--ink-faint)'}">Costs ${a.cost} energy · you have ${ch.energy}</p>
-      <button class="btn aether block attack" id="use" ${ok && allyOk ? '' : 'disabled'}>${!ok ? 'Not enough energy' : !allyOk ? 'Choose an ally' : T?.foes && !nFoes && !T.optional ? 'Unleash (no foes caught)' : a.attack ? 'Unleash & attack' : 'Unleash'}</button>
+      <button class="btn aether block attack" id="use" ${ok && allyOk ? '' : 'disabled'}>${used ? 'Action used this round' : !ok ? 'Not enough energy' : !allyOk ? 'Choose an ally' : T?.foes && !nFoes && !T.optional ? 'Unleash (no foes caught)' : a.attack ? 'Unleash & attack' : 'Unleash'}</button>
       ${a.attack ? '<p class="faint center" style="font-size:13px;margin:6px 0 0">An attack power: the attack roll opens next, all as one action.</p>' : ''}`;
     el.dataset.max = max;
   };

@@ -327,6 +327,15 @@ export function credit(ch, type, n = 1) {
   const k = type in t ? type : 'minion';
   t[k] = (t[k] || 0) + n;
 }
+// One action per hero per round ("a move and one action"). An attack power leaves its own attack roll open.
+// ch.acted = { round, kind: 'attack' | 'power' | 'attackPower' }; End round clears it by moving the round on.
+export const actedThisRound = (state, ch) => (ch?.acted?.round === state.round ? ch.acted.kind : null);
+function needAction(state, ch, kind) {
+  const done = actedThisRound(state, ch);
+  if (!done) return;
+  if (kind === 'attack' && done === 'attackPower') return;
+  throw new Error(`${ch.name} has already acted this round. The GM ends the round to refresh it.`);
+}
 export const tallyOf = ch => ch.tally || { minion: ch.kills || 0, elite: 0, boss: 0 };
 
 // Three-Card Crown: the house redraws, every hand is compared with the house, stakes are paid.
@@ -592,7 +601,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
+const GM_ONLY = new Set(['freeAction', 'merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -659,6 +668,8 @@ export function apply(state, a, rng = Math.random) {
         need();
         if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
         if (strikeLeft(ch) && !a.force) throw new Error('Spend your remaining hits first');
+        needAction(state, ch, 'attack');
+        ch.acted = { round: state.round, kind: 'attack' };
         const s = derive(ch);
         const bonus = Math.max(0, Math.min(Number(a.bonus) || 0, 2)); // high ground, flanking
         const fromHiding = ch.hidden ? HIDDEN_DICE : 0;
@@ -709,18 +720,26 @@ export function apply(state, a, rng = Math.random) {
         break;
       }
       case 'endAttack': { need(); delete ch.strike; break; }
+      case 'freeAction': { // GM: let a hero act again this round (a misclick, a haste effect, rule of cool)
+        need();
+        delete ch.acted;
+        log(state, `${ch.name} may act again this round.`, 'info');
+        break;
+      }
       case 'ability': {
         need();
         if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
         const ab = powersFor(ch).find(x => x.key === a.key);
         if (!ab) throw new Error('Unknown ability');
         if (ch.energy < ab.cost) throw new Error('Not enough energy');
+        needAction(state, ch, 'power');
         const T = ab.target || {};
         const foes = [...new Set(a.targets || [])].map(id => state.enemies[id]).filter(Boolean).slice(0, T.max || 99);
         const slammed = new Set(a.slammed || []);
         const allies = [...new Set(a.allies || [])].map(id => state.characters[id]).filter(c => c && c.id !== ch.id);
         if (T.allies && T.exactly && allies.length !== T.exactly) throw new Error(`Choose ${T.exactly === 1 ? 'an ally' : T.exactly + ' allies'}`);
         ch.energy -= ab.cost;
+        ch.acted = { round: state.round, kind: ab.attack ? 'attackPower' : 'power' };
         const others = state.order.map(id => state.characters[id]).filter(c => c.id !== ch.id);
         const party = [ch, ...others];
         let detail = '';
@@ -1028,6 +1047,7 @@ export function apply(state, a, rng = Math.random) {
           }
         }
         if (!targets.length) throw new Error('No foes are engaged with any standing, unhidden hero');
+        state.enemyPhaseRound = state.round;
         log(state, `⚔ The foes attack! ${targets.map(id => state.characters[id].name).join(', ')} must defend.`, 'hurt');
         ev.push({ type: 'enemyPhase', targets });
         break;

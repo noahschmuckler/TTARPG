@@ -31,9 +31,11 @@ test('hits are capped by dice pool; buffs add dice and are consumed', () => {
   apply(s, { type: 'attack', charId: id, hits: 9 });
   assert.equal(s.characters[id].strike.hits, 3);
   apply(s, { type: 'endAttack', charId: id });
+  apply(s, { type: 'endRound' });
   s.characters[id].energy = 100;
   apply(s, { type: 'ability', charId: id, key: 'leap' });
   assert.equal(derive(s.characters[id]).pool, 5);
+  apply(s, { type: 'endRound' });
   apply(s, { type: 'attack', charId: id, hits: 5 });
   assert.equal(derive(s.characters[id]).pool, 3);
 });
@@ -47,6 +49,7 @@ test('crits go to big foes first, enemy armor cuts damage, smite gives minion-on
   assert.equal(s.enemies[eid].hp, 2000 - 840 * 0.8); // crit first: 420×2, 20% armor
   s.characters[id].energy = 100;
   equipSet(s, id, 'thunderforge', 'helm'); // Thunderclap: 3 minion-only hits
+  apply(s, { type: 'freeAction', charId: id });
   apply(s, { type: 'ability', charId: id, key: 'set:thunderforge' });
   assert.deepEqual(s.characters[id].strike, { hits: 1, crits: 0, minion: 3, mult: 1 });
   apply(s, { type: 'spend', charId: id, enemyId: eid });
@@ -293,6 +296,7 @@ test('movement: position bonuses, hiding, area powers with slams, pins, taunts',
   const ids = Object.keys(s.enemies);
   const brute = Object.values(s.enemies).find(e => e.name === 'Brute');
   s.characters[iron].energy = 100;
+  apply(s, { type: 'freeAction', charId: iron });
   apply(s, { type: 'ability', charId: iron, key: 'quake', targets: ids, slammed: [brute.id], tableKills: 1 });
   assert.equal(brute.hp, 3000 - 2 * 420);
   assert.equal(Object.keys(s.enemies).length, 1);
@@ -304,6 +308,7 @@ test('movement: position bonuses, hiding, area powers with slams, pins, taunts',
   assert.equal(brute.target, null);
   apply(s, { type: 'moveEnemy', enemyId: brute.id, target: shade });
   assert.match(apply(s, { type: 'enemyPhase' }).error, /unhidden/);
+  apply(s, { type: 'freeAction', charId: shade });
   apply(s, { type: 'attack', charId: shade, hits: 6 });
   assert.equal(s.characters[shade].strike.hits, 6);
   assert.equal(s.characters[shade].hidden, undefined);
@@ -318,6 +323,7 @@ test('movement: position bonuses, hiding, area powers with slams, pins, taunts',
   s.characters[priest].energy = 100;
   apply(s, { type: 'ability', charId: priest, key: 'hammer', targets: [brute.id] });
   assert.equal(brute.pinned, true);
+  apply(s, { type: 'freeAction', charId: priest });
   assert.match(apply(s, { type: 'ability', charId: priest, key: 'recall' }).error, /ally/);
   apply(s, { type: 'ability', charId: priest, key: 'recall', allies: [iron] });
   assert.equal(brute.target, priest);
@@ -518,4 +524,39 @@ test('Three-Card Crown: hand ranks, jokers, ties to the house, wagers and prizes
   assert.equal((s.characters[b].consumables || []).length, s.crown.players[b].win ? 1 : 0);
   E.apply(s, { type: 'crownEnd' });
   assert.equal(s.crown, undefined);
+});
+
+test('one action per round: attacks and powers lock until End round; attack powers allow their roll', () => {
+  const { s, id } = setup();
+  apply(s, { type: 'attack', charId: id, hits: 1 });
+  apply(s, { type: 'endAttack', charId: id });
+  assert.match(apply(s, { type: 'attack', charId: id, hits: 1 }).error, /already acted/);
+  s.characters[id].energy = 100;
+  assert.match(apply(s, { type: 'ability', charId: id, key: 'leap' }).error, /already acted/);
+  // wares are free
+  apply(s, { type: 'grantConsumable', charId: id, key: 'knuckle' });
+  assert.equal(apply(s, { type: 'useConsumable', charId: id, id: s.characters[id].consumables[0].id }).error, undefined);
+  // End round refreshes
+  apply(s, { type: 'endRound' });
+  assert.equal(apply(s, { type: 'ability', charId: id, key: 'leap' }).error, undefined);   // a non-attack power is the whole action
+  assert.match(apply(s, { type: 'attack', charId: id, hits: 1 }).error, /already acted/);
+  // the GM can grant another action
+  apply(s, { type: 'freeAction', charId: id });
+  assert.equal(apply(s, { type: 'attack', charId: id, hits: 1 }).error, undefined);
+  // an attack power (Thousand Cuts) opens its own roll, but only one
+  const r = newGame('AP');
+  const blade = apply(r, { type: 'createCharacter', name: 'Vex', cls: 'shadowblade' }).result.charId;
+  r.characters[blade].energy = 200;
+  assert.equal(apply(r, { type: 'ability', charId: blade, key: 'cuts' }).error, undefined);
+  assert.equal(apply(r, { type: 'attack', charId: blade, hits: 1 }).error, undefined);
+  apply(r, { type: 'endAttack', charId: blade });
+  assert.match(apply(r, { type: 'attack', charId: blade, hits: 1 }).error, /already acted/);
+  assert.match(apply(r, { type: 'ability', charId: blade, key: 'cuts' }).error, /already acted/);
+});
+
+test('enemy phase is recorded for the round', () => {
+  const { s, id } = setup();
+  apply(s, { type: 'spawn', etype: 'minion', count: 1, target: id });
+  apply(s, { type: 'enemyPhase' });
+  assert.equal(s.enemyPhaseRound, s.round);
 });

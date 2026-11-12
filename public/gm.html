@@ -64,6 +64,19 @@
   .gearline:hover { border-color: var(--brass); }
   .gearline .k { font-family: var(--display); font-weight: 600; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; color: var(--ink-faint); }
   .scrim .sheet.wide { max-width: 860px; }
+  /* turn tracker */
+  .turnbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid rgba(201,164,106,.18); background: rgba(0,0,0,.25); }
+  .turnbar .tlabel { font-family: var(--display); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; color: var(--ink-dim); }
+  .tchip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; border: 1px solid rgba(201,164,106,.45); background: rgba(201,164,106,.12); color: var(--ink); font-size: 14px; font-weight: 700; }
+  .tchip .st { font-weight: 500; font-size: 12px; color: var(--ink-dim); }
+  .tchip.ready { border-color: #9fe0a0; background: rgba(120,200,120,.16); }
+  .tchip.busy { border-color: #f0c060; background: rgba(240,192,96,.18); }
+  .tchip.done { opacity: .45; filter: grayscale(1); cursor: pointer; }
+  .tchip.alert { border-color: #ff8a8a; background: rgba(255,90,90,.18); }
+  .tchip.off { opacity: .35; }
+  .turnbar .endnow { margin-left: auto; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,216,74,.0); } 50% { box-shadow: 0 0 0 6px rgba(255,216,74,.45); } }
+  .pulse { animation: pulse 1.3s ease-in-out infinite; }
   .tally { width: 100%; border-collapse: collapse; font-size: 15px; }
   .tally th { font-size: 16px; color: var(--brass); text-align: center; padding: 2px 6px; }
   .tally td { padding: 4px 6px; border-bottom: 1px solid #2a2519; text-align: center; font-family: var(--display); font-weight: 800; }
@@ -81,7 +94,7 @@
 <body>
 <div id="root"></div>
 <script type="module">
-import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES, tallyOf } from './engine.js';
+import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES, tallyOf, actedThisRound } from './engine.js';
 import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML, setsHTML, heroIcon } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
@@ -140,6 +153,9 @@ function render() {
     if (gearOpen) gearOpen.el.querySelector('#gearbody').innerHTML = gearBody(gearOpen.id);
     $('#tally').innerHTML = tallyPanel();
     $('#rak').innerHTML = rakPanel();
+    const t = turnState();
+    $('#turnbar').innerHTML = turnBar(t);
+    document.querySelector('[data-a="endRound"]')?.classList.toggle('pulse', t.ready);
     $('#log').innerHTML = S.log.slice(0, 60).map(l => `<div class="${l.kind}">${esc(l.text)}</div>`).join('');
   });
 }
@@ -164,6 +180,7 @@ function shell() {
       <input type="file" id="restoreFile" accept=".json,application/json" style="display:none">
       <button class="btn sm danger" data-a="reset">Reset</button>
     </div>
+    <div class="turnbar" id="turnbar"></div>
     <div class="layout" id="main">
       <div class="heroes" id="heroes"></div>
       <div class="side">
@@ -183,6 +200,38 @@ function shell() {
 
 // Leaderboard: killing blows by foe type (bosses first, then elites, then minions).
 const tallyText = ch => { const t = tallyOf(ch); return `${t.boss ? `♛${t.boss} ` : ''}${t.elite ? `⚔${t.elite} ` : ''}☠${t.minion} slain`; };
+// Turn tracker: who has used their action, where the enemy phase stands, and whether the round can end.
+function turnState() {
+  const heroes = S.order.map(id => S.characters[id]).filter(Boolean).map(ch => {
+    const acted = actedThisRound(S, ch), left = strikeLeft(ch);
+    let st;
+    if (ch.hp <= 0) st = 'down';
+    else if (S.defense?.[ch.id]) st = 'defending';
+    else if (left > 0) st = 'spending';
+    else if (acted === 'attackPower') st = 'rolling';
+    else if (acted) st = acted;            // 'attack' | 'power'
+    else st = 'ready';
+    return { ch, st };
+  });
+  const engaged = Object.values(S.enemies).some(e => { const c = S.characters[e.target]; return c && c.hp > 0 && !c.hidden; });
+  const pending = Object.keys(S.defense || {}).length > 0;
+  const phase = pending ? 'rolling' : S.enemyPhaseRound === S.round ? 'done' : engaged ? 'waiting' : 'none';
+  const standing = heroes.filter(h => h.st !== 'down');
+  const notActed = standing.filter(h => !['attack', 'power'].includes(h.st));
+  const ready = standing.length > 0 && !notActed.length && (phase === 'done' || phase === 'none');
+  return { heroes, phase, notActed, ready };
+}
+function turnBar(t) {
+  const LBL = { ready: 'ready', attack: '⚔ attacked', power: '✦ power used', rolling: '✦ rolling its attack', spending: '⚔ spending hits', defending: '⏳ defending', down: '✝ down' };
+  const CLS = { ready: 'ready', attack: 'done', power: 'done', rolling: 'busy', spending: 'busy', defending: 'alert', down: 'off' };
+  const PH = { none: ['off', 'no foes engaged'], waiting: ['busy', 'waiting'], rolling: ['alert', 'rolling defence'], done: ['done', '✓ done'] };
+  if (!t.heroes.length) return '';
+  return `<span class="tlabel">Round ${S.round}</span>
+    ${t.heroes.map(({ ch, st }) => `<span class="tchip ${CLS[st]}" ${['attack', 'power'].includes(st) ? `data-a="freeAction" data-id="${ch.id}" title="Tap to let ${esc(ch.name)} act again"` : ''}>${esc(ch.name)} <span class="st">${LBL[st]}</span></span>`).join('')}
+    <span class="tlabel" style="margin-left:6px">Enemy phase</span><span class="tchip ${PH[t.phase][0]}" style="cursor:default;filter:none;opacity:1">${PH[t.phase][1]}</span>
+    ${t.ready ? `<button class="btn solid sm endnow pulse" data-a="endRound">Everyone has acted · End round ⟳</button>` : ''}`;
+}
+
 // The Rakshasa's stall and Three-Card Crown: only the buttons that make sense right now.
 function rakPanel() {
   if (!S.merchant?.open) return `<button class="btn solid block" data-a="rakOpen" title="Opens his stall on every phone: sell gear, buy boons and wares">🪔 Rakshasa appears</button>`;
@@ -328,7 +377,15 @@ function onClick(e) {
   if (!b) return;
   const { a, id, n } = b.dataset;
   switch (a) {
-    case 'endRound': return act({ type: 'endRound' });
+    case 'endRound': {
+      const t = turnState(), missing = [];
+      if (t.notActed.length) missing.push(`${t.notActed.map(h => h.ch.name).join(', ')} ${t.notActed.length > 1 ? "haven't" : "hasn't"} finished acting`);
+      if (t.phase === 'waiting') missing.push("the foes haven't attacked yet (Enemy phase)");
+      if (t.phase === 'rolling') missing.push('defence rolls are still open');
+      if (missing.length && !confirm(`End round ${S.round} anyway?\n\n• ${missing.join('\n• ')}`)) return;
+      return act({ type: 'endRound' });
+    }
+    case 'freeAction': { const c = S.characters[id]; if (c && confirm(`Let ${c.name} act again this round?`)) act({ type: 'freeAction', charId: id }); return; }
     case 'enemyPhase': return act({ type: 'enemyPhase' });
     case 'cancelDef': return act({ type: 'cancelDefense', charId: id });
     case 'moveM': return moveSheet(id || null);
