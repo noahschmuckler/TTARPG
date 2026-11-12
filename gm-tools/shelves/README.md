@@ -32,6 +32,7 @@ python3 make_sticks.py "Starlink - Wall Template - 2.stl" sticks/
 ```
 
 - **Output:** `bookshelf-stick-1in` to `-4in`, each with a `-b` variant that has different books.
+- **Wood grain:** the top carries grain grooves 0.6 mm deep and 0.55 mm wide, with a knot or two. Prime black, then brush colour across the top; the grooves stay black. Use a 0.16 mm layer height.
 - **Lengths:** the 2″ piece is the template itself. The 1″, 3″ and 4″ pieces stretch only the plain middle section, by 25.4 mm per inch. Check one against your own sticks of that length. With ecaroth's 1″, 3″ and 4″ templates, change the script to load each one directly.
 - **Licence:** the template and the STLs made from it are ecaroth's design, so they are not kept in this repo. Use them for your own table only, and credit ecaroth if you share them.
 

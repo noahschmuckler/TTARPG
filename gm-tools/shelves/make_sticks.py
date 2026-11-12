@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 import trimesh
-from manifold3d import Manifold, Mesh, OpType
+from manifold3d import CrossSection, Manifold, Mesh, OpType
 
 # Measured from "Starlink - Wall Template - 2" (origin moved to its min corner)
 BODY_X0, BODY_X1 = 12.10, 61.00          # plain web between the male post and the female socket
@@ -26,6 +26,7 @@ UPR = 1.4
 BOARD = 1.0
 PLINTH_TOP, TOPBOARD = 3.0, 24.2
 BOARDS = [9.6, 17.4]
+GRAIN_D, GRAIN_W, GRAIN_PITCH = 0.6, 0.55, 1.45   # wood-grain grooves on the top: deep enough to stay black under a brush coat
 BAYS = [(PLINTH_TOP, BOARDS[0]), (BOARDS[0] + BOARD, BOARDS[1]), (BOARDS[1] + BOARD, TOPBOARD)]
 
 
@@ -89,6 +90,34 @@ def face(rng, length, inches):
     return union(parts)
 
 
+def grain(rng, x0, x1, y0, y1):
+    """Wavy grain grooves along x across the top face [x0,x1] x [y0,y1], flowing round the odd knot."""
+    L, n = x1 - x0, int((y1 - y0) // GRAIN_PITCH)
+    knots = [(x0 + rng.uniform(0.15, 0.85) * L, rng.uniform(y0 + 2.5, y1 - 2.5), rng.uniform(1.6, 2.4))
+             for _ in range(max(1, int(L // 45)))]
+    wave = [(rng.uniform(0.15, 0.35), rng.uniform(9, 22), rng.uniform(0, 6.3)) for _ in range(2)]
+    xs = np.linspace(x0 + 0.5, x1 - 0.5, max(40, int(L * 2)))
+    polys = []
+    for i in range(n):
+        base = y0 + GRAIN_PITCH * (i + 0.5) + (y1 - y0 - n * GRAIN_PITCH) / 2
+        ys = base + sum(a * np.sin(2 * np.pi * xs / w + ph + i * 0.35) for a, w, ph in wave)
+        for kx, ky, kr in knots:                       # lines bow around a knot
+            side = 1 if base >= ky else -1
+            ys += side * kr * 0.9 * np.exp(-((xs - kx) / (kr * 2.2)) ** 2) * np.exp(-abs(base - ky) / 3.0)
+        ys = np.clip(ys, y0 + 0.45, y1 - 0.45)
+        pts = np.stack([xs, ys], 1)
+        d = np.gradient(pts, axis=0); nrm = np.stack([-d[:, 1], d[:, 0]], 1); nrm /= np.linalg.norm(nrm, axis=1, keepdims=True)
+        hw = GRAIN_W / 2 * (0.7 + 0.3 * np.sin(xs / rng.uniform(3, 7)))   # grooves swell and thin a little
+        polys.append(np.concatenate([pts + nrm * hw[:, None], (pts - nrm * hw[:, None])[::-1]]))
+    for kx, ky, kr in knots:                           # the knot itself: a small ring
+        t = np.linspace(0, 2 * np.pi, 40, endpoint=False)
+        for r in (kr * 0.45,):
+            outer = np.stack([kx + (r + GRAIN_W / 2) * 1.6 * np.cos(t), ky + (r + GRAIN_W / 2) * np.sin(t)], 1)
+            polys.append(outer)
+    fixed = [p if 0.5 * np.sum(p[:, 0] * np.roll(p[:, 1], -1) - np.roll(p[:, 0], -1) * p[:, 1]) > 0 else p[::-1] for p in polys]
+    return CrossSection(fixed).extrude(GRAIN_D + 1.0).translate([0, 0, TOP_Z - GRAIN_D])
+
+
 def stick(template, inches, seed):
     rng = random.Random(seed)
     grow = (inches - 2) * 25.4
@@ -102,7 +131,8 @@ def stick(template, inches, seed):
     length = BODY_X1 + grow - BODY_X0
     front = face(rng, length, inches).translate([BODY_X0, FACE_Y0 - F, 0])
     back = face(rng, length, inches).rotate([0, 0, 180]).translate([BODY_X0 + length, FACE_Y1 + F, 0])
-    return union([base, front, back])
+    top_y0, top_y1 = FACE_Y0 - F, FACE_Y1 + F
+    return union([base, front, back]) - grain(rng, BODY_X0 + UPR, BODY_X0 + length - UPR, top_y0, top_y1)
 
 
 def main():
