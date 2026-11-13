@@ -249,27 +249,28 @@ function turnState() {
     let st;
     if (ch.hp <= 0) st = 'down';
     else if (S.defense?.[ch.id]) st = 'defending';
+    else if (S.slammed?.[ch.id]) st = 'slammed';
     else if (left > 0) st = 'spending';
     else if (acted === 'attackPower') st = 'rolling';
-    else if (acted) st = acted;            // 'attack' | 'power'
-    else st = 'ready';
+    else if (acted) st = acted;            // 'attack' | 'power' | 'climb'
+    else st = ch.pit ? 'pit' : 'ready';
     return { ch, st };
   });
   const engaged = Object.values(S.enemies).some(e => { const c = S.characters[e.target]; return c && c.hp > 0 && !c.hidden; });
-  const pending = Object.keys(S.defense || {}).length > 0;
+  const pending = Object.keys(S.defense || {}).length > 0 || Object.keys(S.slammed || {}).length > 0;
   const phase = pending ? 'rolling' : S.enemyPhaseRound === S.round ? 'done' : engaged ? 'waiting' : 'none';
   const standing = heroes.filter(h => h.st !== 'down');
-  const notActed = standing.filter(h => !['attack', 'power'].includes(h.st));
+  const notActed = standing.filter(h => !['attack', 'power', 'climb'].includes(h.st));
   const ready = standing.length > 0 && !notActed.length && (phase === 'done' || phase === 'none');
   return { heroes, phase, notActed, ready };
 }
 function turnBar(t) {
-  const LBL = { ready: 'ready', attack: '⚔ attacked', power: '✦ power used', rolling: '✦ rolling its attack', spending: '⚔ spending hits', defending: '⏳ defending', down: '✝ down' };
-  const CLS = { ready: 'ready', attack: 'done', power: 'done', rolling: 'busy', spending: 'busy', defending: 'alert', down: 'off' };
+  const LBL = { ready: 'ready', attack: '⚔ attacked', power: '✦ power used', climb: '🧗 climbed', rolling: '✦ rolling its attack', spending: '⚔ spending hits', defending: '⏳ defending', slammed: '⤞ slammed: where did they land?', pit: '🕳 in the chasm: climb', down: '✝ down' };
+  const CLS = { ready: 'ready', attack: 'done', power: 'done', climb: 'done', rolling: 'busy', spending: 'busy', defending: 'alert', slammed: 'alert', pit: 'busy', down: 'off' };
   const PH = { none: ['off', 'no foes engaged'], waiting: ['busy', 'waiting'], rolling: ['alert', 'rolling defence'], done: ['done', '✓ done'] };
   if (!t.heroes.length) return '';
   return `<span class="tlabel">Round ${S.round}</span>
-    ${t.heroes.map(({ ch, st }) => `<span class="tchip ${CLS[st]}" ${['attack', 'power'].includes(st) ? `data-a="freeAction" data-id="${ch.id}" title="Tap to let ${esc(ch.name)} act again"` : ''}>${esc(ch.name)} <span class="st">${LBL[st]}</span></span>`).join('')}
+    ${t.heroes.map(({ ch, st }) => `<span class="tchip ${CLS[st]}" ${['attack', 'power', 'climb'].includes(st) ? `data-a="freeAction" data-id="${ch.id}" title="Tap to let ${esc(ch.name)} act again"` : ''}>${esc(ch.name)} <span class="st">${LBL[st]}</span></span>`).join('')}
     <span class="tlabel" style="margin-left:6px">Enemy phase</span><span class="tchip ${PH[t.phase][0]}" style="cursor:default;filter:none;opacity:1">${PH[t.phase][1]}</span>
     ${t.ready ? `<button class="btn solid sm endnow pulse" data-a="endRound">Everyone has acted · End round ⟳</button>` : ''}`;
 }
@@ -323,8 +324,9 @@ function heroCard(ch) {
   const id = ch.id;
   return `<div class="plate hc ${ch.hp <= 0 ? 'down' : ''}">
     <div class="row">
-      <div class="grow"><div class="nm">${heroIcon(ch, C.glyph, 34)} ${esc(ch.name)}</div><div class="sub">${ch.marker != null ? `◰${ch.marker} · ` : ''}${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · ${s.armor}% armor · ${tallyText(ch)}</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}</div>
+      <div class="grow"><div class="nm">${heroIcon(ch, C.glyph, 34)} ${esc(ch.name)}</div><div class="sub">${ch.marker != null ? `◰${ch.marker} · ` : ''}${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · ${s.armor}% armor · ${tallyText(ch)}</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}${ch.pit ? `<div class="sub" style="color:#e8b07a">🕳 In the chasm${ch.pit.tries ? ` · ${ch.pit.tries} failed climb${ch.pit.tries > 1 ? 's' : ''}` : ''}: skipped by the enemy phase</div>` : ''}</div>
       <a class="icon" href="play.html?room=${room}&as=${id}" target="_blank" title="Open this hero's phone view">↗</a>
+      <button class="icon" data-a="pit" data-id="${id}" title="${ch.pit ? 'Pull out of the chasm' : 'Drop into the chasm (fall damage)'}">${ch.pit ? '🧗' : '🕳'}</button>
       <button class="icon" data-a="edit" data-id="${id}" title="Edit">✎</button>
     </div>
     <div class="bars">
@@ -438,6 +440,7 @@ function onClick(e) {
     case 'undo': return act({ type: 'undo' });
     case 'save': return saveBackup();
     case 'sceneBegin': return act({ type: 'sceneBegin' });
+    case 'pit': { const c = S.characters[id]; if (!c) return; if (c.pit ? confirm(`Pull ${c.name} out of the chasm?`) : confirm(`Drop ${c.name} into the chasm? They take fall damage and must climb out.`)) act({ type: 'setPit', charId: id, inPit: !c.pit }); return; }
     case 'beat': {
       const adv = S.adventure, r = adv?.running; if (!r) return;
       const sc = adv.acts[r.act].scenes[r.scene], i = Number(b.dataset.i), bt = sc.beats?.[i]; if (!bt) return;

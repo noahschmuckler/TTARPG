@@ -611,3 +611,46 @@ test('adventures: scenes spawn sized foes, waves arrive on End round, acts ancho
   assert.ok(setsIn('B') > setsIn('A'), `act end ${setsIn('B')} vs ${setsIn('A')}`);
   assert.ok(plan.totalSlots > 0);
 });
+
+test('slam: landed blows hurl the hero; impact costs a blow, the chasm costs a fall and a climb', () => {
+  const { s, id } = setup();
+  const ch = s.characters[id];
+  apply(s, { type: 'spawn', etype: 'boss', name: 'Zombie Clot', hp: 50000, armor: 35, attacks: 3, damage: 500, abilities: ['slam'], target: id });
+  apply(s, { type: 'enemyPhase' });
+  assert.ok(s.defense[id].groups[0].slam);
+  // no blows land: no slam
+  apply(s, { type: 'defend', charId: id, landed: [0] });
+  assert.equal(s.slammed?.[id], undefined);
+  apply(s, { type: 'endRound' });
+  apply(s, { type: 'enemyPhase' });
+  apply(s, { type: 'defend', charId: id, landed: [1] });
+  assert.equal(s.slammed[id].damage, 500);
+  // into a wall: one more blow, armour applies
+  const hp = ch.hp, ward = ch.ward || 0;
+  apply(s, { type: 'slamLanding', charId: id, where: 'impact' });
+  assert.equal(ch.hp + ward, hp - Math.round(500 * (1 - derive(ch).armor / 100)) + (ch.ward || 0));
+  // next round: slammed into the chasm
+  apply(s, { type: 'endRound' });
+  apply(s, { type: 'enemyPhase' });
+  apply(s, { type: 'defend', charId: id, landed: [2] });
+  const before = ch.hp;
+  apply(s, { type: 'slamLanding', charId: id, where: 'pit' });
+  assert.ok(ch.pit);
+  assert.equal(before - ch.hp, Math.round(derive(ch).maxHp * 0.10) - 0); // armour doesn't stop a fall (no ward here)
+  assert.equal(Object.values(s.enemies)[0].target, null, 'foes lose their grip');
+  assert.match(apply(s, { type: 'attack', charId: id, hits: 1 }).error, /chasm/);
+  apply(s, { type: 'moveEnemy', enemyId: Object.keys(s.enemies)[0], target: id });
+  assert.match(apply(s, { type: 'enemyPhase' }).error, /No foes/);   // nobody can reach them down there
+  // climbing: a 2 fails, the next try gets +1, an ally at the edge +1 more
+  apply(s, { type: 'climb', charId: id, roll: 2 });
+  assert.equal(ch.pit.tries, 1);
+  assert.match(apply(s, { type: 'climb', charId: id, roll: 6 }).error, /already acted/);
+  apply(s, { type: 'endRound' });
+  apply(s, { type: 'climb', charId: id, roll: 2, help: true });   // 2 + 1 try + 1 help = 4
+  assert.equal(ch.pit, undefined);
+  // the GM can drop a hero in or pull them out
+  apply(s, { type: 'setPit', charId: id, inPit: true });
+  assert.ok(ch.pit);
+  apply(s, { type: 'setPit', charId: id, inPit: false });
+  assert.equal(ch.pit, undefined);
+});

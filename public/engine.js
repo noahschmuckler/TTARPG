@@ -318,6 +318,7 @@ export const FOE_ABILITIES = {
   sweep: { name: 'Sweeping Blows', icon: '⟲', when: 'phase', text: 'Enemy phase: attacks every standing hero, not just the one it is fighting.' },
   leech: { name: 'Energy Leech', icon: 'ϟ', when: 'phase', text: 'Enemy phase: every hero it attacks loses 10 energy.' },
   thickhide: { name: 'Thick Hide', icon: '⛊', when: 'passive', text: '6s never crit it.' },
+  slam: { name: 'Slam', icon: '⤞', when: 'phase', text: 'Enemy phase: if any of its blows land, the hero is hurled 3″ straight away from it. Into a wall, a foe or an ally: one more blow of damage. Over an edge: they fall into the chasm.' },
   throes: { name: 'Death Throes', icon: '✹', when: 'death', text: 'On death: explodes for 300 damage to every hero (armor applies).' },
 };
 export const foeHas = (e, k) => (e.abilities || []).includes(k);
@@ -344,6 +345,17 @@ function spawnFoes(state, a, ev, rng) {
   const who = a.target && state.characters[a.target] ? ` upon ${state.characters[a.target].name}` : '';
   log(state, `${n} ${a.name || T.label}${n > 1 ? 's' : ''} emerge${n > 1 ? '' : 's'}${who}!${scale ? ` (${fmt(hp)} health, scaled to the party)` : ''}`, 'spawn');
   ev.push({ type: 'spawn', target: a.target, count: n });
+}
+// Falling into a chasm or pit: damage that armour can't stop, every foe loses its grip, and the hero must climb out.
+export const FALL_SHARE = 0.10, CLIMB_TARGET = 4;
+function fallIn(state, ch, ev) {
+  const r = hurt(ch, Math.round(derive(ch).maxHp * FALL_SHARE), true);
+  ch.pit = { round: state.round, tries: 0 };
+  delete ch.strike;
+  for (const e of Object.values(state.enemies)) if (e.target === ch.id) e.target = null;
+  if (state.defense) delete state.defense[ch.id];
+  log(state, `🕳 ${ch.name} falls into the chasm: ${fmt(r.net)} damage. Climb out: roll 4+ (each failed try +1).${ch.hp <= 0 ? ' DOWN!' : ''}`, 'hurt');
+  ev.push({ type: 'fell', charId: ch.id, ...r });
 }
 function needAdventure(state) {
   if (!state.adventure) throw new Error('No adventure set up. Build one in Loot & campaign');
@@ -468,7 +480,7 @@ function defenseGroupsFrom(list, dice = e => e.attacks || ENEMY_TYPES[e.type]?.a
   const groups = new Map();
   for (const e of list) {
     const key = e.type === 'minion' ? `m:${e.name}:${e.damage}` : e.id;
-    const g = groups.get(key) || { name: e.name, type: e.type, count: 0, damage: e.damage, dice: 0 };
+    const g = groups.get(key) || { name: e.name, type: e.type, count: 0, damage: e.damage, dice: 0, ...(foeHas(e, 'slam') ? { slam: true } : {}) };
     g.count += 1;
     g.dice += dice(e);
     groups.set(key, g);
@@ -631,7 +643,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['adventureSet', 'adventureClear', 'adventureDifficulty', 'sceneSelect', 'adventureReanchor', 'sceneBegin', 'sceneClear', 'freeAction', 'merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
+const GM_ONLY = new Set(['setPit', 'adventureSet', 'adventureClear', 'adventureDifficulty', 'sceneSelect', 'adventureReanchor', 'sceneBegin', 'sceneClear', 'freeAction', 'merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -698,6 +710,7 @@ export function apply(state, a, rng = Math.random) {
         need();
         if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
         if (strikeLeft(ch) && !a.force) throw new Error('Spend your remaining hits first');
+        if (ch.pit) throw new Error(`${ch.name} is in the chasm: climb out first`);
         needAction(state, ch, 'attack');
         ch.acted = { round: state.round, kind: 'attack' };
         const s = derive(ch);
@@ -762,6 +775,7 @@ export function apply(state, a, rng = Math.random) {
         const ab = powersFor(ch).find(x => x.key === a.key);
         if (!ab) throw new Error('Unknown ability');
         if (ch.energy < ab.cost) throw new Error('Not enough energy');
+        if (ch.pit) throw new Error(`${ch.name} is in the chasm: climb out first`);
         needAction(state, ch, 'power');
         const T = ab.target || {};
         const foes = [...new Set(a.targets || [])].map(id => state.enemies[id]).filter(Boolean).slice(0, T.max || 99);
@@ -1105,7 +1119,7 @@ export function apply(state, a, rng = Math.random) {
         const targets = [];
         for (const id of state.order) {
           const c = state.characters[id];
-          if (c.hp <= 0 || c.hidden) continue;
+          if (c.hp <= 0 || c.hidden || c.pit) continue;
           const groups = defenseGroups(state, c);
           if (!groups.length) continue;
           // Surrounded: 3+ foes on you → one extra die against you (added to the most numerous group).
@@ -1144,6 +1158,43 @@ export function apply(state, a, rng = Math.random) {
         const r = hurt(ch, raw);
         ev.push({ type: 'hurt', charId: ch.id, ...r });
         log(state, `${blows} blow${blows === 1 ? ' lands' : 's land'} on ${ch.name}: ${fmt(r.net)} damage${r.blocked ? ` (${fmt(r.blocked)} blocked)` : ''}${r.warded ? ` (${fmt(r.warded)} warded)` : ''}.${ch.hp <= 0 ? ' DOWN!' : ''}`, 'hurt');
+        const slammer = d.groups.find((g, i) => g.slam && landed[i] > 0);
+        if (slammer && ch.hp > 0) {
+          state.slammed ||= {};
+          state.slammed[ch.id] = { by: slammer.name, damage: slammer.damage };
+          log(state, `⤞ ${slammer.name} slams ${ch.name} 3″ backwards!`, 'hurt');
+          ev.push({ type: 'slammed', charId: ch.id, by: slammer.name, damage: slammer.damage });
+        }
+        break;
+      }
+      case 'slamLanding': { // where a slammed hero ended up: 'open' | 'impact' | 'pit'
+        need();
+        const sl = state.slammed?.[ch.id];
+        if (!sl) throw new Error('Not slammed');
+        delete state.slammed[ch.id];
+        if (a.where === 'impact') {
+          const r = hurt(ch, sl.damage);
+          ev.push({ type: 'hurt', charId: ch.id, ...r });
+          log(state, `${ch.name} crashes into something: ${fmt(r.net)} more damage.${ch.hp <= 0 ? ' DOWN!' : ''}`, 'hurt');
+        } else if (a.where === 'pit') fallIn(state, ch, ev);
+        else log(state, `${ch.name} rolls and comes up on open ground.`, 'info');
+        break;
+      }
+      case 'climb': { // in the chasm: your action is a climb. 4+ gets out; each failed try and a helper at the edge add +1
+        need();
+        if (!ch.pit) throw new Error(`${ch.name} isn't in the chasm`);
+        needAction(state, ch, 'climb');
+        ch.acted = { round: state.round, kind: 'climb' };
+        const roll = Math.max(1, Math.min(6, Math.round(Number(a.roll) || 1)));
+        const total = roll + (ch.pit.tries || 0) + (a.help ? 1 : 0);
+        if (total >= CLIMB_TARGET) { delete ch.pit; log(state, `🧗 ${ch.name} hauls themselves out of the chasm!`, 'heal'); ev.push({ type: 'climbed', charId: ch.id, out: true }); }
+        else { ch.pit.tries = (ch.pit.tries || 0) + 1; log(state, `🧗 ${ch.name} slips back down (${total} of ${CLIMB_TARGET}). Next try +${ch.pit.tries}.`, 'info'); ev.push({ type: 'climbed', charId: ch.id, out: false }); }
+        break;
+      }
+      case 'setPit': { // GM: put a hero in the chasm (fall included) or pull them out
+        need();
+        if (a.inPit && !ch.pit) fallIn(state, ch, ev);
+        else if (!a.inPit && ch.pit) { delete ch.pit; log(state, `${ch.name} is pulled out of the chasm.`, 'heal'); }
         break;
       }
       case 'cancelDefense': {

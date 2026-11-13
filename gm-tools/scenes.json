@@ -166,9 +166,10 @@
    "abilities": [
     "regen",
     "horde",
-    "throes"
+    "throes",
+    "slam"
    ],
-   "ability": "The spore mushrooms feed it. Pop all three to stop its healing."
+   "ability": "Its arms are balls of bodies: a landed blow slams you 3″, maybe into the chasm. The spore mushrooms feed it: pop all three to stop its healing."
   },
   {
    "type": "spawn",
@@ -183,7 +184,8 @@
    "enemyId": "$foe:Zombie Clot",
    "abilities": [
     "horde",
-    "throes"
+    "throes",
+    "slam"
    ]
   }
  ],
