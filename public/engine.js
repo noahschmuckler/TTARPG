@@ -3,6 +3,7 @@
 // and by the browser (for derived stats and display). No DOM, no I/O.
 
 import { SETS, SYNERGIES, CLASS_SETS } from './sets.js';
+import { TEMPLATES, DIFFICULTY, cleanAdventure, partyPower, planScene, flatIndex, waveText } from './adventure.js';
 import { SELL_VALUE, BOONS, CONSUMABLES, LINES, pick as pickLine, boonPrice, boonLocked, newDeck, scoreHand, handName, compareHands, houseSwaps } from './merchant.js';
 export { SETS, SYNERGIES, CLASS_SETS };
 
@@ -330,6 +331,35 @@ export function credit(ch, type, n = 1) {
 // One action per hero per round ("a move and one action"). An attack power leaves its own attack roll open.
 // ch.acted = { round, kind: 'attack' | 'power' | 'attackPower' }; End round clears it by moving the round on.
 export const actedThisRound = (state, ch) => (ch?.acted?.round === state.round ? ch.acted.kind : null);
+function spawnFoes(state, a, ev, rng) {
+  const T = ENEMY_TYPES[a.etype] || ENEMY_TYPES.minion;
+  const n = Math.max(1, Math.min(Number(a.count) || 1, 30));
+  const armor = a.armor != null && a.armor !== '' ? Math.max(0, Math.min(90, Number(a.armor) || 0)) : T.armor;
+  const scale = a.etype !== 'minion' && Number(a.scale) > 0 && state.order.length ? Math.min(Number(a.scale), 20) : 0;
+  const hp = scale ? scaledHealth(state, scale, armor) : Number(a.hp) || T.hp;
+  for (let i = 0; i < n; i++) {
+    const e = { id: uid(rng), type: a.etype in ENEMY_TYPES ? a.etype : 'minion', name: a.name || T.label, hp, maxHp: hp, armor, ...(scale ? { scaleRounds: scale } : {}), damage: Number(a.damage) || T.damage, attacks: Number(a.attacks) || T.attacks, ability: a.ability ? String(a.ability).slice(0, 140) : '', abilities: a.etype === 'minion' ? [] : (a.abilities || []).filter(k => FOE_ABILITIES[k]), target: a.target || null };
+    state.enemies[e.id] = e;
+  }
+  const who = a.target && state.characters[a.target] ? ` upon ${state.characters[a.target].name}` : '';
+  log(state, `${n} ${a.name || T.label}${n > 1 ? 's' : ''} emerge${n > 1 ? '' : 's'}${who}!${scale ? ` (${fmt(hp)} health, scaled to the party)` : ''}`, 'spawn');
+  ev.push({ type: 'spawn', target: a.target, count: n });
+}
+function needAdventure(state) {
+  if (!state.adventure) throw new Error('No adventure set up. Build one in Loot & campaign');
+  return state.adventure;
+}
+// End round: any waves of the running scene that are due arrive now.
+function adventureWaves(state, ev, rng) {
+  const r = state.adventure?.running;
+  if (!r?.waves?.length) return;
+  const due = r.waves.filter(w => w.due <= state.round);
+  r.waves = r.waves.filter(w => w.due > state.round);
+  for (const w of due) {
+    for (const sp of w.spawns) spawnFoes(state, sp, ev, rng);
+    log(state, `📜 Reinforcements: ${waveText(w)}!`, 'spawn');
+  }
+}
 function needAction(state, ch, kind) {
   const done = actedThisRound(state, ch);
   if (!done) return;
@@ -601,7 +631,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['freeAction', 'merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
+const GM_ONLY = new Set(['adventureSet', 'adventureClear', 'adventureDifficulty', 'sceneSelect', 'adventureReanchor', 'sceneBegin', 'sceneClear', 'freeAction', 'merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -845,19 +875,63 @@ export function apply(state, a, rng = Math.random) {
         if (d >= 0) gainEnergy(ch, d); else ch.energy = Math.max(0, ch.energy + d);
         break;
       }
-      case 'spawn': {
-        const T = ENEMY_TYPES[a.etype] || ENEMY_TYPES.minion;
-        const n = Math.max(1, Math.min(Number(a.count) || 1, 30));
-        const armor = a.armor != null && a.armor !== '' ? Math.max(0, Math.min(90, Number(a.armor) || 0)) : T.armor;
-        const scale = a.etype !== 'minion' && Number(a.scale) > 0 && state.order.length ? Math.min(Number(a.scale), 20) : 0;
-        const hp = scale ? scaledHealth(state, scale, armor) : Number(a.hp) || T.hp;
-        for (let i = 0; i < n; i++) {
-          const e = { id: uid(rng), type: a.etype in ENEMY_TYPES ? a.etype : 'minion', name: a.name || T.label, hp, maxHp: hp, armor, ...(scale ? { scaleRounds: scale } : {}), damage: Number(a.damage) || T.damage, attacks: Number(a.attacks) || T.attacks, ability: a.ability ? String(a.ability).slice(0, 140) : '', abilities: a.etype === 'minion' ? [] : (a.abilities || []).filter(k => FOE_ABILITIES[k]), target: a.target || null };
-          state.enemies[e.id] = e;
-        }
-        const who = a.target && state.characters[a.target] ? ` upon ${state.characters[a.target].name}` : '';
-        log(state, `${n} ${a.name || T.label}${n > 1 ? 's' : ''} emerge${n > 1 ? '' : 's'}${who}!${scale ? ` (${fmt(hp)} health, scaled to the party)` : ''}`, 'spawn');
-        ev.push({ type: 'spawn', target: a.target, count: n });
+      case 'spawn': { spawnFoes(state, a, ev, rng); break; }
+      // ------------------------------------------------ adventures: acts, scenes, waves (see adventure.js)
+      case 'adventureSet': {
+        const adv = cleanAdventure(a.adventure || {}, Object.keys(FOE_ABILITIES));
+        const old = state.adventure;
+        const keep = a.keepProgress && old;
+        state.adventure = { ...adv, anchors: keep ? old.anchors || {} : {}, done: keep ? old.done || {} : {}, pos: keep && old.pos && adv.acts[old.pos.act]?.scenes[old.pos.scene] ? old.pos : { act: 0, scene: 0 }, running: keep ? old.running || null : null };
+        log(state, `📜 Adventure set: ${adv.name} (${adv.acts.length} act${adv.acts.length > 1 ? 's' : ''}).`, 'narrate');
+        break;
+      }
+      case 'adventureClear': delete state.adventure; break;
+      case 'adventureDifficulty': {
+        const adv = needAdventure(state);
+        if (!DIFFICULTY[a.difficulty]) throw new Error('Unknown difficulty');
+        adv.difficulty = a.difficulty;
+        log(state, `Difficulty: ${DIFFICULTY[a.difficulty].label}.`, 'info');
+        break;
+      }
+      case 'sceneSelect': {
+        const adv = needAdventure(state);
+        if (adv.running) throw new Error('Clear the current scene first');
+        if (!adv.acts[a.act]?.scenes[a.scene]) throw new Error('No such scene');
+        adv.pos = { act: Number(a.act), scene: Number(a.scene) };
+        break;
+      }
+      case 'adventureReanchor': { // measure the party again for this act
+        const adv = needAdventure(state);
+        const act = a.act ?? adv.pos.act;
+        adv.anchors[act] = partyPower(state, derive, partyDamagePerRound);
+        log(state, `The foes of ${adv.acts[act].name} are re-sized to the party.`, 'info');
+        break;
+      }
+      case 'sceneBegin': {
+        const adv = needAdventure(state);
+        if (adv.running) throw new Error('A scene is already running');
+        if (!state.order.length) throw new Error('No heroes yet');
+        const { act, scene } = adv.pos;
+        const sc = adv.acts[act].scenes[scene];
+        adv.anchors[act] ||= partyPower(state, derive, partyDamagePerRound);
+        const plan = planScene(adv, act, scene, adv.anchors[act]);
+        const [now, ...later] = plan.waves;
+        for (const sp of now?.spawns || []) spawnFoes(state, sp, ev, rng);
+        adv.running = { act, scene, began: state.round, pressure: plan.pressure, waves: later.map(w => ({ due: state.round + w.at, spawns: w.spawns })) };
+        log(state, `📜 ${adv.acts[act].name} · ${sc.name} begins (${TEMPLATES[sc.template].label}, pressure ${plan.pressure}).`, 'narrate');
+        if (sc.intro) { log(state, `${sc.name}: ${sc.intro}`, 'narrate'); ev.push({ type: 'narrate', title: sc.name, text: sc.intro }); }
+        break;
+      }
+      case 'sceneClear': {
+        const adv = needAdventure(state);
+        const r = adv.running;
+        const at = r ? { act: r.act, scene: r.scene } : adv.pos;
+        const sc = adv.acts[at.act].scenes[at.scene];
+        adv.done[flatIndex(adv, at.act, at.scene)] = true;
+        adv.running = null;
+        adv.pos = adv.acts[at.act].scenes[at.scene + 1] ? { act: at.act, scene: at.scene + 1 } : adv.acts[at.act + 1] ? { act: at.act + 1, scene: 0 } : at;
+        log(state, `📜 ${sc.name} is cleared.`, 'narrate');
+        if (sc.outro) { log(state, `${sc.name}: ${sc.outro}`, 'narrate'); ev.push({ type: 'narrate', title: sc.name, text: sc.outro }); }
         break;
       }
       // ------------------------------------------------ the Rakshasa's stall
@@ -1104,6 +1178,7 @@ export function apply(state, a, rng = Math.random) {
         log(state, `— Round ${state.round} begins. Energy surges. —`, 'round');
         ev.push({ type: 'round', round: state.round });
         foesRoundEnd(state, ev, rng);
+        adventureWaves(state, ev, rng);
         break;
       }
       case 'giveLoot': {
@@ -1222,7 +1297,9 @@ export function setPlanFor(items, want) {
 }
 
 export function planCampaign(state, a, rng = Math.random) {
-  const scenes = (a.scenes || []).slice(0, 12).map((sc, i) => ({
+  const lootShift = a.difficulty === 'brutal' ? 1 : a.difficulty === 'casual' ? -1 : 0; // Brutal pays better
+  const scenes = (a.scenes || []).slice(0, 40).map((sc, i) => ({
+    actEnd: !!sc.actEnd,
     name: String(sc.name || `Scene ${i + 1}`).slice(0, 40),
     chests: Math.max(0, Math.min(Number(sc.chests) || 0, 12)),
     elites: (sc.elites || []).slice(0, 8).map(x => String(x || 'Elite').slice(0, 40)),
@@ -1250,6 +1327,9 @@ export function planCampaign(state, a, rng = Math.random) {
     ...sc.bosses.map(n => ({ kind: 'boss', label: n })),
   ].map(c => ({ ...c, sceneIdx: si, scene: sc.name, slots: per[c.kind] })));
   const sceneSlots = sceneCaches.map(cs => cs.reduce((t, c) => t + c.slots, 0));
+  // act-ending scenes (the boss hoard) count double when set pieces are shared out: that's the power spike
+  const sceneWeight = sceneSlots.map((n, i) => n * (scenes[i].actEnd ? 2 : 1));
+  const totalWeight = sceneWeight.reduce((x, y) => x + y, 0);
   const totalSlots = sceneSlots.reduce((x, y) => x + y, 0);
   if (!totalSlots) throw new Error('Add some chests, elites or bosses');
 
@@ -1272,13 +1352,13 @@ export function planCampaign(state, a, rng = Math.random) {
   for (const k of removed) delete state.loot[k];
   const summary = [];
   scenes.forEach((sc, si) => {
-    slotsSeen += sceneSlots[si];
-    let upto = si === scenes.length - 1 ? setBudget : Math.round(setBudget * slotsSeen / totalSlots);
+    slotsSeen += sceneWeight[si];
+    let upto = si === scenes.length - 1 ? setBudget : Math.round(setBudget * slotsSeen / totalWeight);
     if (si === 0) upto = Math.max(upto, Math.min(featured.length, Math.floor(sceneSlots[0] * 0.6)));
     upto = Math.min(setBudget, Math.max(upto, qi));
     const pieces = queue.slice(qi, upto); qi = upto;
     const progress = scenes.length > 1 ? si / (scenes.length - 1) : 0;
-    const level = 1 + 0.25 * si;
+    const level = Math.max(1, 1 + 0.25 * si + 0.25 * lootShift);
     const slots = [];
     sceneCaches[si].forEach((c, ci) => { for (let j = 0; j < c.slots; j++) slots.push({ ci, j }); });
     // spread set pieces: shuffle slots, then bosses/elites slightly favoured
@@ -1300,7 +1380,8 @@ export function planCampaign(state, a, rng = Math.random) {
       if (ci < 0) break;
       holders[ci].push(makeItem('set', rng, pieces[pi].slot, level, pieces[pi].set));
     }
-    const weights = { legendary: 0.03 + 0.12 * progress, rare: 0.14 + 0.2 * progress, magic: 0.36 };
+    const end = sc.actEnd ? 1 : 0;
+    const weights = { legendary: Math.max(0.01, 0.03 + 0.12 * progress + 0.06 * end + 0.04 * lootShift), rare: Math.max(0.05, 0.14 + 0.2 * progress + 0.08 * end + 0.06 * lootShift), magic: 0.36 };
     const rollRarity = () => { const x = rng(); return x < weights.legendary ? 'legendary' : x < weights.legendary + weights.rare ? 'rare' : x < weights.legendary + weights.rare + weights.magic ? 'magic' : 'common'; };
     sceneCaches[si].forEach((c, ci) => {
       while (holders[ci].length < c.slots) {
@@ -1314,7 +1395,7 @@ export function planCampaign(state, a, rng = Math.random) {
     });
     summary.push({ scene: sc.name, caches: sceneCaches[si].length, items: sceneSlots[si], setPieces: pieces.map(p => SETS[p.set].pieces[p.slot]) });
   });
-  state.campaign = { scenes, per, classes, featured, featuredCount: Number(a.featuredCount) || null, pinned: a.pinned || [], generated: Date.now() };
+  state.campaign = { scenes, per, classes, difficulty: a.difficulty || 'normal', featured, featuredCount: Number(a.featuredCount) || null, pinned: a.pinned || [], generated: Date.now() };
   log(state, `The campaign is planned: ${scenes.length} scene${scenes.length > 1 ? 's' : ''}, ${totalSlots} treasures await.`, 'loot');
   return { featured, summary, totalSlots, setPieces: setBudget };
 }

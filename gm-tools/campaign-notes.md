@@ -108,3 +108,10 @@ Presets are in `scenes.json`; run them with `node gm-tools/gm.cjs JBCX '@name'`.
   - Every colour not destroyed joins Old Surety.
   - A doom shelf the party slipped past keeps its damage.
   - Colours nobody picked arrive at full health.
+
+## Running the campaign with the adventure stepper (from 2026-11)
+The whole campaign is built into the app as the **Eighth Gate** adventure preset (`public/adventure.js`).
+1. Open Loot & campaign, then Adventure → **Load the Eighth Gate** → **Save to the game**. Optionally, **Forge this adventure's loot**: boss scenes get the most set pieces.
+2. In Headquarters, use the 📜 bar to choose the act and scene. It previews what will be summoned. Press **Begin scene**; later waves arrive on End round. Press **Scene clear** to move on; the bar lists that scene's loot cards.
+3. For room JBCX, pick Act II → The Zombie Clot. Act II's foes are sized to the party as it is when that first scene begins; use ↻ to measure the party again.
+4. The gm-tools presets still work for one-off moments: narration, the Rakshasa, `surety.cjs` for Old Surety's stones.

@@ -560,3 +560,54 @@ test('enemy phase is recorded for the round', () => {
   apply(s, { type: 'enemyPhase' });
   assert.equal(s.enemyPhaseRound, s.round);
 });
+
+test('adventures: scenes spawn sized foes, waves arrive on End round, acts anchor the party, loot favours act ends', async () => {
+  const { EIGHTH_GATE, curvePressure } = await import('../public/adventure.js');
+  const s = newGame('ADV');
+  for (const c of ['ironclad', 'ranger', 'runepriest', 'arcanist']) apply(s, { type: 'createCharacter', name: c, cls: c });
+  assert.match(apply(s, { type: 'sceneBegin' }).error, /No adventure/);
+  apply(s, { type: 'adventureSet', adventure: EIGHTH_GATE });
+  assert.equal(s.adventure.acts.length, 4);
+  // Act I, scene 2: The Ruins (gauntlet: the troll + 3 waves of minions)
+  apply(s, { type: 'sceneSelect', act: 0, scene: 1 });
+  apply(s, { type: 'sceneBegin' });
+  const troll = Object.values(s.enemies).find(e => e.name === 'Dire Troll');
+  assert.ok(troll && troll.hp >= 1000 && troll.abilities.includes('regen'));
+  const before = Object.values(s.enemies).length;
+  assert.equal(s.adventure.running.waves.length, 2);
+  apply(s, { type: 'endRound' });
+  assert.ok(Object.values(s.enemies).length > before, 'wave 2 arrives on End round');
+  assert.equal(s.adventure.running.waves.length, 1);
+  assert.match(apply(s, { type: 'sceneBegin' }).error, /already running/);
+  apply(s, { type: 'sceneClear' });
+  assert.deepEqual(s.adventure.pos, { act: 0, scene: 2 });
+  // the anchor holds for the act even when the party gets stronger
+  const anchor = s.adventure.anchors[0].dpr;
+  for (const id of s.order) s.characters[id].gear.weapon = { id: 'w' + id, slot: 'weapon', rarity: 'legendary', name: 'Big Stick', stats: { damage: 2000 } };
+  apply(s, { type: 'sceneSelect', act: 0, scene: 3 });
+  apply(s, { type: 'clearEnemies' });
+  apply(s, { type: 'sceneBegin' });
+  assert.equal(s.adventure.anchors[0].dpr, anchor);
+  const boss1 = Object.values(s.enemies).find(e => e.type === 'boss');
+  apply(s, { type: 'sceneClear' });
+  // a new act measures the stronger party: Act II's boss outclasses Act I's
+  apply(s, { type: 'clearEnemies' });
+  apply(s, { type: 'sceneSelect', act: 1, scene: 4 });
+  apply(s, { type: 'sceneBegin' });
+  assert.ok(s.adventure.anchors[1].dpr > anchor * 2);
+  const boss2 = Object.values(s.enemies).find(e => e.type === 'boss');
+  assert.ok(boss2.maxHp > boss1.maxHp * 2);
+  // difficulty shifts pressure
+  apply(s, { type: 'sceneClear' });
+  apply(s, { type: 'adventureDifficulty', difficulty: 'brutal' });
+  apply(s, { type: 'clearEnemies' });
+  apply(s, { type: 'sceneSelect', act: 1, scene: 0 });
+  apply(s, { type: 'sceneBegin' });
+  assert.equal(s.adventure.running.pressure, Math.round((curvePressure(1, 0, 5) + 0.2) * 100) / 100);
+  // loot: act-end scenes get the larger share of set pieces
+  const plan = apply(s, { type: 'planCampaign', scenes: [
+    { name: 'A', chests: 3 }, { name: 'B', chests: 3, actEnd: true }], classes: ['ironclad', 'ranger', 'runepriest', 'arcanist'] }).result;
+  const setsIn = n => Object.values(s.loot).filter(c => c.scene === n).flatMap(c => c.items).filter(i => i.set).length;
+  assert.ok(setsIn('B') > setsIn('A'), `act end ${setsIn('B')} vs ${setsIn('A')}`);
+  assert.ok(plan.totalSlots > 0);
+});

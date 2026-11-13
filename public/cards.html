@@ -64,10 +64,47 @@
     .scenehdr { color: #000; } .scenehdr .rule { color: #000; }
     .scenegrp + .scenegrp { break-before: page; }
   }
+
+  /* adventure editor */
+  .adv .acts { display: grid; gap: 14px; }
+  .adv .act { padding: 10px; background: var(--obsidian); border: 1px solid var(--line); }
+  .adv .acthead { display: flex; gap: 8px; align-items: center; }
+  .adv details.sc { border-top: 1px solid var(--line); padding: 6px 0; }
+  .adv details.sc > summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+  .adv details.sc > summary::-webkit-details-marker { display: none; }
+  .adv .sn { font-weight: 800; color: var(--ink); }
+  .adv .pv { font-size: 13px; color: var(--ink-dim); flex: 1 1 260px; }
+  .adv .pr { font-family: var(--display); font-weight: 800; padding: 2px 8px; border-radius: 6px; font-size: 12px; color: #1b1712; }
+  .adv .grid { display: grid; grid-template-columns: 1.4fr 1fr 90px 80px; gap: 8px; margin-top: 8px; }
+  .adv .grid .full { grid-column: 1 / -1; }
+  .adv textarea.field { min-height: 56px; font-size: 14px; resize: vertical; }
+  .adv .chart { width: 100%; height: 150px; display: block; margin: 8px 0 4px; }
+  @media (max-width: 760px) { .adv .grid { grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
 <body>
 <div class="tools">
+  <div class="rule"><span class="gem"></span>Adventure: acts &amp; scenes<span class="gem"></span></div>
+  <div class="plate adv" id="adv">
+    <p class="dim" style="margin-top:0">Lay out the adventure as acts of scenes. Each scene's foes are sized from a <b>pressure</b> curve: scenes climb from easy to hard through each act, the act's boss hoard lifts the party, and the next act starts easier again against the stronger party. Headquarters steps through the scenes and summons each one, wave by wave.</p>
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      <input class="field sm" id="advName" placeholder="Adventure name" style="flex:1 1 220px">
+      <select class="field sm" id="advDiff" style="width:auto"></select>
+      <button class="btn sm" id="advLoad">Load the Eighth Gate</button>
+      <button class="btn sm" id="advNew">New</button>
+      <button class="btn solid sm" id="advSave">Save to the game</button>
+    </div>
+    <div id="advChart"></div>
+    <div class="acts" id="acts"></div>
+    <div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px">
+      <button class="btn sm" id="addAct">+ Add act</button>
+      <span class="grow"></span>
+      <span class="faint" id="advStatus" style="font-size:13px"></span>
+      <button class="btn sm" id="advLoot" title="Uses the party and cache settings in the planner below">Forge this adventure's loot</button>
+    </div>
+    <p class="faint" style="font-size:13px;margin:8px 0 0">Elites and bosses: one per line, as <b>Name x2 @0.5: enrage, regen | what it does</b>. <b>x2</b> = how many; <b>@0.5</b> = size (health and damage). Abilities: <span id="ablist"></span>. Pressure left blank follows the curve.</p>
+  </div>
+
   <div class="rule"><span class="gem"></span>Campaign planner<span class="gem"></span></div>
   <div class="plate planner">
     <p class="dim" style="margin-top:0">Lay out the delve scene by scene. The planner fills every chest, elite and boss with loot: each hero's favoured item sets appear early so new powers unlock in the first scene, sets fill in as the party goes deeper, and rarity and item power climb from scene to scene.</p>
@@ -119,14 +156,15 @@
 </div>
 <div id="cards"></div>
 <script type="module">
-import { RARITIES, SLOT_LABEL, STAT_INFO, CLASSES, SETS, SYNERGIES, CLASS_SETS, CACHE_DEFAULTS, autoFeatured, setPlanFor } from './engine.js';
+import { RARITIES, SLOT_LABEL, STAT_INFO, CLASSES, SETS, SYNERGIES, CLASS_SETS, CACHE_DEFAULTS, autoFeatured, setPlanFor, FOE_ABILITIES, derive, partyDamagePerRound } from './engine.js';
+import { TEMPLATES, DIFFICULTY, EIGHTH_GATE, curvePressure, scenePressure, partyPower, planScene, parseFoes, formatFoes } from './adventure.js';
 import { $, params, connect, qrSVG, esc, toast } from './ui.js';
 const flipped = new Set();
 const room = (params.get('room') || '').toUpperCase();
 const pin = localStorage.getItem('dl.pin') || '';
 const DRAFT = `dl.plan.${room}`;
-let S, plan = null, lastSummary = null;
-const net = connect({ room, role: 'gm', pin, onState: st => { S = st; if (!plan) initPlan(); drawCards(); }, onFatal: m => alert(m + ' — open Headquarters first.') });
+let S, plan = null, lastSummary = null, adv = null, adoptAdv = false;
+const net = connect({ room, role: 'gm', pin, onState: st => { S = st; if (!plan) initPlan(); if (!adv) initAdv(); else if (adoptAdv && S.adventure) { adoptAdv = false; adv = clone(strip(S.adventure)); saveAdv(); drawAdv(); } else drawAdvStatus(); drawCards(); }, onFatal: m => alert(m + ' — open Headquarters first.') });
 
 // ------------------------------------------------------------ planner state
 function initPlan() {
@@ -238,6 +276,130 @@ async function generate() {
     drawSummary();
     $('#filter').value = 'all';
     toast(`${lastSummary.totalSlots} treasures forged across ${scenes.length} scenes`);
+  } catch {}
+}
+
+// ------------------------------------------------------------ adventure editor
+const ADV_DRAFT = `dl.adv.${room}`;
+const clone = x => JSON.parse(JSON.stringify(x));
+const strip = a => ({ name: a.name, difficulty: a.difficulty, acts: a.acts });
+const prColour = p => p < 0.85 ? '#7fd38a' : p < 1.1 ? '#e8c45a' : p < 1.35 ? '#f08a4b' : '#ff5a6a';
+const saveAdv = () => { try { localStorage.setItem(ADV_DRAFT, JSON.stringify(adv)); } catch {} };
+const openScenes = new Set();
+function initAdv() {
+  try { adv = JSON.parse(localStorage.getItem(ADV_DRAFT)); } catch { adv = null; }
+  if (!adv && S.adventure) adv = clone(strip(S.adventure));
+  if (!adv) adv = { name: 'New adventure', difficulty: 'normal', acts: [{ name: 'Act I', scenes: [{ name: 'Scene 1', template: 'skirmish', chests: 1, minions: ['Minion'], elites: [], bosses: [] }] }] };
+  $('#ablist').textContent = Object.entries(FOE_ABILITIES).map(([k, A]) => `${k} (${A.name})`).join(', ');
+  drawAdv();
+}
+function anchorFor(a) { return S.adventure?.anchors?.[a] || partyPower(S, derive, partyDamagePerRound); }
+function drawAdvStatus() {
+  const saved = S.adventure && JSON.stringify(strip(S.adventure)) === JSON.stringify(adv);
+  $('#advStatus').textContent = !S.adventure ? 'Not in the game yet' : saved ? '✓ Saved to the game' : 'Unsaved changes';
+}
+function drawChart() {
+  const pts = []; let x = 0;
+  const seps = [];
+  adv.acts.forEach((act, a) => { if (a) seps.push(x - 0.5); act.scenes.forEach((sc, i) => pts.push({ x: x++, p: scenePressure(adv, a, i), name: `${act.name} · ${sc.name}`, t: sc.template })); });
+  if (!pts.length) return $('#advChart').innerHTML = '';
+  const W = 900, H = 150, n = Math.max(pts.length - 1, 1);
+  const X = i => 30 + i * (W - 50) / n, Y = p => H - 18 - (Math.min(p, 1.9) - 0.3) / 1.6 * (H - 30);
+  $('#advChart').innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <line x1="30" x2="${W - 20}" y1="${Y(1)}" y2="${Y(1)}" stroke="rgba(243,230,204,.25)" stroke-dasharray="4 4"/><text x="2" y="${Y(1) + 4}" font-size="11" fill="rgba(243,230,204,.5)">1.0</text>
+    ${seps.map(sx => `<line x1="${X(sx)}" x2="${X(sx)}" y1="6" y2="${H - 14}" stroke="rgba(201,164,106,.35)"/>`).join('')}
+    <polyline fill="none" stroke="rgba(243,230,204,.6)" stroke-width="2" points="${pts.map(q => `${X(q.x)},${Y(q.p)}`).join(' ')}"/>
+    ${pts.map(q => `<circle cx="${X(q.x)}" cy="${Y(q.p)}" r="${q.t === 'boss' ? 7 : 5}" fill="${prColour(q.p)}"><title>${esc(q.name)} · ${TEMPLATES[q.t].label} · pressure ${q.p.toFixed(2)}</title></circle>`).join('')}
+  </svg>`;
+}
+function previewText(a, i) {
+  const pl = planScene(adv, a, i, anchorFor(a));
+  if (!pl.waves.length) return 'no foes';
+  const bigs = pl.waves[0].spawns.filter(x => x.etype !== 'minion');
+  return `${pl.minions} minions in ${pl.waves.length} wave${pl.waves.length > 1 ? 's' : ''}${bigs.length ? ' · ' + bigs.map(b => `${esc(b.name)} ${fmt(b.hp)}❤`).join(', ') : ''}`;
+}
+const fmt = n => Number(n).toLocaleString();
+function drawAdv() {
+  $('#advName').value = adv.name;
+  $('#advDiff').innerHTML = Object.entries(DIFFICULTY).map(([k, D]) => `<option value="${k}" ${adv.difficulty === k ? 'selected' : ''}>${D.label}</option>`).join('');
+  const tOpts = cur => Object.entries(TEMPLATES).map(([k, T]) => `<option value="${k}" ${cur === k ? 'selected' : ''} title="${esc(T.text)}">${T.label}</option>`).join('');
+  $('#acts').innerHTML = adv.acts.map((act, a) => `<div class="act" data-a="${a}">
+    <div class="acthead"><input class="field sm" data-af="name" value="${esc(act.name)}" style="flex:1"><button class="mini" data-addsc="${a}">+ Scene</button><button class="mini" data-rmact="${a}" title="Remove act">✕</button></div>
+    ${act.scenes.map((sc, i) => { const p = scenePressure(adv, a, i), key = `${a}:${i}`; return `<details class="sc" data-s="${i}" ${openScenes.has(key) ? 'open' : ''}>
+      <summary><span class="sn">${i + 1}. ${esc(sc.name)}</span><span class="pr" style="background:${prColour(p)}">${TEMPLATES[sc.template].label} · ${p.toFixed(2)}</span><span class="pv">${previewText(a, i)}</span></summary>
+      <div class="grid">
+        <div><label class="lbl">Scene</label><input class="field sm" data-f="name" value="${esc(sc.name)}"></div>
+        <div><label class="lbl">Template</label><select class="field sm" data-f="template">${tOpts(sc.template)}</select></div>
+        <div><label class="lbl">Pressure</label><input class="field sm" data-f="pressure" inputmode="decimal" value="${sc.pressure ?? ''}" placeholder="${curvePressure(a, i, act.scenes.length).toFixed(2)}"></div>
+        <div><label class="lbl">Chests</label><input class="field sm" data-f="chests" inputmode="numeric" value="${sc.chests || 0}"></div>
+        <div class="full"><label class="lbl">Minions (comma separated; they take turns)</label><input class="field sm" data-f="minions" value="${esc((sc.minions || []).join(', '))}"></div>
+        <div class="full"><label class="lbl">Elites</label><textarea class="field" data-f="elites">${esc(formatFoes(sc.elites))}</textarea></div>
+        <div class="full"><label class="lbl">Bosses</label><textarea class="field" data-f="bosses">${esc(formatFoes(sc.bosses))}</textarea></div>
+        <div class="full"><label class="lbl">Opening narration (shown on every phone)</label><textarea class="field" data-f="intro">${esc(sc.intro || '')}</textarea></div>
+        <div class="full"><label class="lbl">Closing narration</label><textarea class="field" data-f="outro">${esc(sc.outro || '')}</textarea></div>
+        <div class="full"><label class="lbl">GM notes (Headquarters only)</label><input class="field sm" data-f="notes" value="${esc(sc.notes || '')}"></div>
+        <div class="full row"><span class="grow"></span><button class="mini" data-up="${i}">↑</button><button class="mini" data-down="${i}">↓</button><button class="mini" data-rmsc="${i}">Remove scene</button></div>
+      </div></details>`; }).join('')}
+  </div>`).join('');
+  drawChart(); drawAdvStatus();
+}
+function refreshSummaries() { // after typing: update summaries and the chart without rebuilding the inputs
+  document.querySelectorAll('#acts .act').forEach(el => { const a = Number(el.dataset.a);
+    el.querySelectorAll('details.sc').forEach(d => { const i = Number(d.dataset.s), sc = adv.acts[a].scenes[i], p = scenePressure(adv, a, i);
+      d.querySelector('.sn').textContent = `${i + 1}. ${sc.name}`;
+      const pr = d.querySelector('.pr'); pr.textContent = `${TEMPLATES[sc.template].label} · ${p.toFixed(2)}`; pr.style.background = prColour(p);
+      d.querySelector('.pv').innerHTML = previewText(a, i); }); });
+  drawChart(); drawAdvStatus();
+}
+$('#adv').addEventListener('toggle', e => { const d = e.target.closest?.('details.sc'); if (!d) return; const key = `${d.closest('.act').dataset.a}:${d.dataset.s}`; d.open ? openScenes.add(key) : openScenes.delete(key); }, true);
+$('#adv').addEventListener('input', e => {
+  const t = e.target, actEl = t.closest('.act');
+  if (t.id === 'advName') { adv.name = t.value; saveAdv(); return drawAdvStatus(); }
+  if (!actEl) return;
+  const a = Number(actEl.dataset.a);
+  if (t.dataset.af) { adv.acts[a].name = t.value; saveAdv(); return refreshSummaries(); }
+  const d = t.closest('details.sc'); if (!d) return;
+  const sc = adv.acts[a].scenes[Number(d.dataset.s)], f = t.dataset.f;
+  if (f === 'minions') sc.minions = t.value.split(',').map(x => x.trim()).filter(Boolean);
+  else if (f === 'elites' || f === 'bosses') sc[f] = parseFoes(t.value, FOE_ABILITIES);
+  else if (f === 'chests') sc.chests = Number(t.value.replace(/[^\d]/g, '')) || 0;
+  else if (f === 'pressure') { const v = t.value.trim(); if (v === '') delete sc.pressure; else if (!isNaN(Number(v))) sc.pressure = Number(v); }
+  else sc[f] = t.value;
+  saveAdv(); refreshSummaries();
+});
+$('#adv').addEventListener('change', e => {
+  if (e.target.id === 'advDiff') { adv.difficulty = e.target.value; saveAdv(); return drawAdv(); }
+  if (e.target.dataset.f === 'template') { const a = Number(e.target.closest('.act').dataset.a); adv.acts[a].scenes[Number(e.target.closest('details').dataset.s)].template = e.target.value; saveAdv(); refreshSummaries(); }
+});
+$('#adv').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const actEl = b.closest('.act'), a = actEl ? Number(actEl.dataset.a) : -1;
+  if (b.id === 'advLoad') { if (!confirm('Replace this draft with the Eighth Gate campaign?')) return; adv = clone(EIGHTH_GATE); openScenes.clear(); saveAdv(); return drawAdv(); }
+  if (b.id === 'advNew') { if (!confirm('Start a new, empty adventure draft? (The adventure saved in the game stays until you save over it.)')) return; adv = { name: 'New adventure', difficulty: 'normal', acts: [{ name: 'Act I', scenes: [{ name: 'Scene 1', template: 'skirmish', chests: 1, minions: ['Minion'], elites: [], bosses: [] }] }] }; openScenes.clear(); saveAdv(); return drawAdv(); }
+  if (b.id === 'addAct') { adv.acts.push({ name: `Act ${adv.acts.length + 1}`, scenes: [{ name: 'Scene 1', template: 'skirmish', chests: 1, minions: ['Minion'], elites: [], bosses: [] }] }); saveAdv(); return drawAdv(); }
+  if (b.id === 'advSave') {
+    const keep = S.adventure && confirm('Keep the progress already made (scenes cleared, acts sized)?\n\nOK keeps it; Cancel starts the adventure from the top.');
+    adoptAdv = true; // take the game's tidied copy back as the draft
+    try { await net.act({ type: 'adventureSet', adventure: adv, keepProgress: !!keep }); toast('Adventure saved: step through it in Headquarters'); } catch { adoptAdv = false; }
+    return;
+  }
+  if (b.id === 'advLoot') return forgeAdventureLoot();
+  if (b.dataset.addsc != null) { adv.acts[a].scenes.push({ name: `Scene ${adv.acts[a].scenes.length + 1}`, template: 'skirmish', chests: 1, minions: ['Minion'], elites: [], bosses: [] }); saveAdv(); return drawAdv(); }
+  if (b.dataset.rmact != null) { if (confirm(`Remove ${adv.acts[a].name}?`)) { adv.acts.splice(a, 1); saveAdv(); drawAdv(); } return; }
+  const d = b.closest('details.sc'); const i = d ? Number(d.dataset.s) : -1, list = a >= 0 ? adv.acts[a].scenes : null;
+  if (b.dataset.rmsc != null) { if (confirm(`Remove ${list[i].name}?`)) { list.splice(i, 1); openScenes.clear(); saveAdv(); drawAdv(); } return; }
+  if (b.dataset.up != null && i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; openScenes.clear(); saveAdv(); return drawAdv(); }
+  if (b.dataset.down != null && i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; openScenes.clear(); saveAdv(); return drawAdv(); }
+});
+async function forgeAdventureLoot() {
+  const classes = Object.entries(plan.classes).flatMap(([k, n]) => Array(n).fill(k));
+  if (!classes.length) return toast('Set the party in the planner below first', 'err');
+  if (Object.values(S.loot).some(c => c.plan) && !confirm('Replace the unclaimed cards from the previous campaign plan?')) return;
+  const scenes = adv.acts.flatMap(act => act.scenes.map((sc, i) => ({ name: sc.name, chests: sc.chests || 0, elites: (sc.elites || []).map(f => f.name), bosses: (sc.bosses || []).map(f => f.name), actEnd: i === act.scenes.length - 1 })));
+  try {
+    lastSummary = await net.act({ type: 'planCampaign', scenes, per: plan.per, classes, featuredCount: plan.featuredCount || undefined, pinned: plan.pinned, difficulty: adv.difficulty });
+    drawSummary(); $('#filter').value = 'all';
+    toast(`${lastSummary.totalSlots} treasures forged across ${scenes.length} scenes; boss hoards carry the most`);
   } catch {}
 }
 

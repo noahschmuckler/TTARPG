@@ -77,6 +77,13 @@
   .turnbar .endnow { margin-left: auto; }
   @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,216,74,.0); } 50% { box-shadow: 0 0 0 6px rgba(255,216,74,.45); } }
   .pulse { animation: pulse 1.3s ease-in-out infinite; }
+  /* adventure stepper */
+  .advbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 14px; background: linear-gradient(90deg, rgba(90,61,107,.35), rgba(0,0,0,.2)); border-bottom: 1px solid rgba(201,164,106,.18); }
+  .advbar select { min-height: 34px; width: auto; max-width: 260px; }
+  .advbar .pr { font-family: var(--display); font-weight: 800; padding: 3px 9px; border-radius: 6px; font-size: 13px; }
+  .advbar .preview { flex: 1 1 320px; font-size: 13px; color: var(--ink-dim); line-height: 1.35; }
+  .advbar .preview b { color: var(--ink); }
+  .advbar .run { color: #ffd84a; font-weight: 700; }
   .tally { width: 100%; border-collapse: collapse; font-size: 15px; }
   .tally th { font-size: 16px; color: var(--brass); text-align: center; padding: 2px 6px; }
   .tally td { padding: 4px 6px; border-bottom: 1px solid #2a2519; text-align: center; font-family: var(--display); font-weight: 800; }
@@ -95,6 +102,7 @@
 <div id="root"></div>
 <script type="module">
 import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES, tallyOf, actedThisRound } from './engine.js';
+import { TEMPLATES, DIFFICULTY, partyPower, planScene, flatIndex, waveText } from './adventure.js';
 import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML, setsHTML, heroIcon } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
@@ -153,6 +161,7 @@ function render() {
     if (gearOpen) gearOpen.el.querySelector('#gearbody').innerHTML = gearBody(gearOpen.id);
     $('#tally').innerHTML = tallyPanel();
     $('#rak').innerHTML = rakPanel();
+    $('#advbar').innerHTML = advBar();
     const t = turnState();
     $('#turnbar').innerHTML = turnBar(t);
     document.querySelector('[data-a="endRound"]')?.classList.toggle('pulse', t.ready);
@@ -180,6 +189,7 @@ function shell() {
       <input type="file" id="restoreFile" accept=".json,application/json" style="display:none">
       <button class="btn sm danger" data-a="reset">Reset</button>
     </div>
+    <div class="advbar" id="advbar"></div>
     <div class="turnbar" id="turnbar"></div>
     <div class="layout" id="main">
       <div class="heroes" id="heroes"></div>
@@ -200,6 +210,35 @@ function shell() {
 
 // Leaderboard: killing blows by foe type (bosses first, then elites, then minions).
 const tallyText = ch => { const t = tallyOf(ch); return `${t.boss ? `♛${t.boss} ` : ''}${t.elite ? `⚔${t.elite} ` : ''}☠${t.minion} slain`; };
+// Adventure stepper: choose the act and scene, preview what it will summon, begin it, clear it.
+function pressureColour(p) { return p < 0.85 ? '#7fd38a' : p < 1.1 ? '#e8c45a' : p < 1.35 ? '#f08a4b' : '#ff5a6a'; }
+function advBar() {
+  const adv = S.adventure;
+  if (!adv) return `<span class="faint" style="font-size:13px">📜 No adventure loaded. Build one, or load the Eighth Gate, in <a href="cards.html?room=${room}" target="_blank" style="color:var(--brass-hi)">Loot &amp; campaign ›</a></span>`;
+  const r = adv.running;
+  const { act, scene } = r ? r : adv.pos;
+  const A = adv.acts[act], sc = A.scenes[scene];
+  const anchor = adv.anchors[act] || partyPower(S, derive, partyDamagePerRound);
+  const plan = planScene(adv, act, scene, anchor);
+  const loot = Object.values(S.loot).filter(c => c.plan && c.sceneIdx === flatIndex(adv, act, scene));
+  const actSel = `<select class="field sm" data-adv="act" ${r ? 'disabled' : ''}>${adv.acts.map((x, i) => `<option value="${i}" ${i === act ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>`;
+  const scSel = `<select class="field sm" data-adv="scene" ${r ? 'disabled' : ''}>${A.scenes.map((x, i) => `<option value="${i}" ${i === scene ? 'selected' : ''}>${adv.done[flatIndex(adv, act, i)] ? '✓ ' : ''}${i + 1}. ${esc(x.name)}</option>`).join('')}</select>`;
+  const pr = `<span class="pr" style="background:${pressureColour(plan.pressure)};color:#1b1712" title="Pressure: 1.0 is a fair fight">${esc(TEMPLATES[sc.template].label)} · ${plan.pressure.toFixed(2)}</span>`;
+  const diff = `<select class="field sm" data-adv="difficulty" title="Shifts every scene's pressure; Brutal also improves planned loot">${Object.entries(DIFFICULTY).map(([k, D]) => `<option value="${k}" ${adv.difficulty === k ? 'selected' : ''}>${D.label}</option>`).join('')}</select>`;
+  const sized = `<span class="faint" style="font-size:12px" title="Foes in this act are sized to the party as it was when the act began">${adv.anchors[act] ? `act sized to ${fmt(anchor.dpr)} dmg/round` : 'act not begun: sized to the party now'} <button class="mini" data-a="reanchor" title="Measure the party again for this act">↻</button></span>`;
+  let mid, btn;
+  if (r) {
+    const next = r.waves[0];
+    mid = `<span class="run">▶ Running</span> ${next ? `· next wave (${esc(waveText(next))}) at End round ${next.due}` : '· no more waves'}${loot.length ? ` · loot cards: ${loot.map(c => `<b>${esc(c.card)}</b> ${esc(c.label)}`).join(', ')}` : ''}`;
+    btn = `<button class="btn solid sm" data-a="sceneClear">✓ Scene clear</button>`;
+  } else {
+    mid = plan.waves.length ? plan.waves.map((w, i) => `${i ? `round +${w.at}: ` : '<b>Now:</b> '}${w.spawns.map(x => x.etype === 'minion' ? `${x.count} ${esc(x.name)}` : `<b>${esc(x.name)}</b> (${fmt(x.hp)} ❤ · ${x.attacks}×${fmt(x.damage)})`).join(', ')}`).join(' · ') : 'No foes: a story scene.';
+    if (sc.notes) mid += `<br><span style="color:#cfe0ff">✎ ${esc(sc.notes)}</span>`;
+    btn = `<button class="btn solid sm" data-a="sceneBegin">▶ Begin scene</button>`;
+  }
+  return `<span class="tlabel">📜</span>${actSel}${scSel}${pr}<span class="preview">${mid}</span>${btn}${diff}${sized}`;
+}
+
 // Turn tracker: who has used their action, where the enemy phase stands, and whether the round can end.
 function turnState() {
   const heroes = S.order.map(id => S.characters[id]).filter(Boolean).map(ch => {
@@ -368,6 +407,10 @@ function onChange(e) {
   if (e.target.dataset.cfgc === 'scale') { document.querySelectorAll('[data-cfg]').forEach(i => spawnCfg[i.dataset.cfg] = i.value); spawnCfg.scale = e.target.checked; return render(); }
   const c = e.target.dataset.cfg;
   if (c) { spawnCfg[c] = e.target.value; if (c === 'etype') { spawnCfg.hp = spawnCfg.armor = spawnCfg.attacks = spawnCfg.damage = spawnCfg.name = spawnCfg.ability = spawnCfg.rounds = ''; render(); } return; }
+  const av = e.target.dataset.adv;
+  if (av === 'act') return act({ type: 'sceneSelect', act: Number(e.target.value), scene: 0 });
+  if (av === 'scene') return act({ type: 'sceneSelect', act: S.adventure.pos.act, scene: Number(e.target.value) });
+  if (av === 'difficulty') return act({ type: 'adventureDifficulty', difficulty: e.target.value });
   const mv = e.target.dataset.move;
   if (mv) act({ type: 'moveEnemy', enemyId: mv, target: e.target.value || null });
 }
@@ -391,6 +434,13 @@ function onClick(e) {
     case 'moveM': return moveSheet(id || null);
     case 'undo': return act({ type: 'undo' });
     case 'save': return saveBackup();
+    case 'sceneBegin': return act({ type: 'sceneBegin' });
+    case 'sceneClear': {
+      const left = Object.values(S.enemies).length, waves = S.adventure?.running?.waves?.length || 0;
+      if ((left || waves) && !confirm(`Clear this scene?${left ? `\n• ${left} foe${left > 1 ? 's are' : ' is'} still on the board (they stay)` : ''}${waves ? `\n• ${waves} wave${waves > 1 ? 's' : ''} won't arrive` : ''}`)) return;
+      return act({ type: 'sceneClear' });
+    }
+    case 'reanchor': if (confirm('Re-size this act\'s foes to the party as it is right now?')) act({ type: 'adventureReanchor' }); return;
     case 'rakOpen': return act({ type: 'merchant', open: true });
     case 'rakClose': return act({ type: 'merchant', open: false });
     case 'crownDeal': return act({ type: 'crownDeal' });
