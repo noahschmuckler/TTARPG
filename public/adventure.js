@@ -123,6 +123,7 @@ export function cleanAdventure(a, abilityKeys) {
       elites: (sc.elites || []).slice(0, 6).map(f => cleanFoe(f, abilityKeys)),
       bosses: (sc.bosses || []).slice(0, 3).map(f => cleanFoe(f, abilityKeys)),
       intro: str(sc.intro, 1500), outro: str(sc.outro, 1500), notes: str(sc.notes, 400),
+      beats: (sc.beats || []).slice(0, 8).map(b => ({ label: str(b.label || 'Beat', 30), text: str(b.text, 1500) })).filter(b => b.text),
     })),
   })).filter(act => act.scenes.length);
   if (!acts.length) throw new Error('Add at least one act with a scene');
@@ -152,6 +153,13 @@ export function formatFoes(list) {
   return (list || []).map(f => `${f.name}${f.count > 1 ? ` x${f.count}` : ''}${f.size && f.size !== 1 ? ` @${f.size}` : ''}${f.abilities?.length ? ': ' + f.abilities.join(', ') : ''}${f.ability ? ' | ' + f.ability : ''}`).join('\n');
 }
 
+// Narration beats, one per line:  Label | text   (sent from Headquarters while the scene runs)
+export const parseBeats = text => String(text || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+  const bar = l.indexOf('|');
+  return bar < 0 ? { label: l.slice(0, 24), text: l } : { label: l.slice(0, bar).trim(), text: l.slice(bar + 1).trim() };
+});
+export const formatBeats = list => (list || []).map(b => `${b.label} | ${b.text}`).join('\n');
+
 // ------------------------------------------------------------ the campaign we've been playing
 const F = (name, abilities = [], ability = '', extra = {}) => ({ name, abilities, ability, ...extra });
 export const EIGHTH_GATE = {
@@ -169,7 +177,10 @@ export const EIGHTH_GATE = {
       { name: 'The Warren', template: 'elitepack', chests: 1, minions: ['Zombie'], elites: [F('Archmage', ['summoner'], 'Raises the dead every round. Kill him first.'), F('Loup Garou', ['enrage', 'thickhide'], 'Released from the beast pit')] },
       { name: 'The Gnawhole', template: 'gauntlet', chests: 1, minions: ['Spider'], elites: [F('Rakshasa', ['leech', 'thickhide'], 'Will offer a deal before it dies')] },
       { name: 'The Zombie Clot', template: 'boss', chests: 1, minions: ['Zombie'], bosses: [F('Zombie Clot', ['regen', 'horde', 'throes'], 'The spore mushrooms feed it. Pop all three to stop its healing.')],
-        notes: '3 spore mushrooms (block sight): a hero spends their whole attack on one, 2+ hits pops it. All three popped: untick Regenerate on the Clot. Spores 3 sits south of the palisade and can be popped early.' },
+        notes: '3 spore mushrooms (block sight): a hero spends their whole attack on one, 2+ hits pops it. All three popped: untick Regenerate on the Clot. Spores 3 sits south of the palisade and can be popped early. Send "The Clot feeds" at the first End round; untick Regenerate with "Last mushroom".',
+        intro: "The tunnel opens into a cavern that stinks of wet earth and old meat. Three great mushrooms stand around it like pillars, their caps pulsing slowly, and from their gills drifts a thin, glittering haze of spores. The haze isn't drifting at random. All of it flows toward the middle of the cave, where something the size of a cart is breathing. It's made of bodies: dozens of them, pressed and knotted together, grey limbs and slack faces shifting as it moves, all held together by a fine white web that glistens wherever the spores settle. The Zombie Clot turns toward your light, and every face in it opens its mouth at once.",
+        outro: "The Clot sags, bulges and bursts. A wave of rot and bone blasts across the cavern and slaps into every one of you. When it settles there's no Clot, only a wide grey heap of what used to be people, and white threads dissolving into nothing. Beyond the heap, the cave mouth opens onto cold air and grey light: the foot of the mountain path, and above it, faint and far, the peak.",
+        beats: [{"label": "The Clot feeds", "text": "More zombies shamble in through the north gate, slack-jawed and swaying. A surge of spores rolls off the mushrooms in a glittering wave and breaks over the Clot. Its white threads lash out like fishing lines, hook the two nearest zombies and reel them in. They fold into its mass with a wet crunch, and the wounds you've cut into it knit closed over them. The Clot is bigger than it was. As long as those mushrooms keep breathing, it'll keep doing that."}, {"label": "Mushroom 1 pops", "text": "The mushroom splits with a sound like a wet drum and collapses in a puff of dead grey dust. The haze over the Clot thins, and one strand of its white webbing goes slack. The Clot shudders, as if it felt that."}, {"label": "Mushroom 2 pops", "text": "A second mushroom bursts. The spore stream is a trickle now. Where the Clot's wounds were knitting, they stop, and weep instead."}, {"label": "Last mushroom", "text": "The last mushroom ruptures and the glittering haze simply stops. The Clot's white threads blacken and curl like burnt hair. Bodies at its edges begin to slump away from it, and its wounds stay open. It can't heal any more, and it knows it. It screams with every mouth it has."}, {"label": "The Horde", "text": "The Clot convulses and splits along a seam. Zombies tumble out of it by the armful, half-formed and furious, and throw themselves at you."}] },
     ] },
     { name: 'Act III · The Peak', scenes: [
       { name: 'The Climb', template: 'skirmish', chests: 1, minions: ['Frozen Dead'], notes: 'Last campfire: heal, and a stall visit.' },

@@ -157,7 +157,7 @@
 <div id="cards"></div>
 <script type="module">
 import { RARITIES, SLOT_LABEL, STAT_INFO, CLASSES, SETS, SYNERGIES, CLASS_SETS, CACHE_DEFAULTS, autoFeatured, setPlanFor, FOE_ABILITIES, derive, partyDamagePerRound } from './engine.js';
-import { TEMPLATES, DIFFICULTY, EIGHTH_GATE, curvePressure, scenePressure, partyPower, planScene, parseFoes, formatFoes } from './adventure.js';
+import { TEMPLATES, DIFFICULTY, EIGHTH_GATE, curvePressure, scenePressure, partyPower, planScene, parseFoes, formatFoes, parseBeats, formatBeats } from './adventure.js';
 import { $, params, connect, qrSVG, esc, toast } from './ui.js';
 const flipped = new Set();
 const room = (params.get('room') || '').toUpperCase();
@@ -337,6 +337,7 @@ function drawAdv() {
         <div class="full"><label class="lbl">Bosses</label><textarea class="field" data-f="bosses">${esc(formatFoes(sc.bosses))}</textarea></div>
         <div class="full"><label class="lbl">Opening narration (shown on every phone)</label><textarea class="field" data-f="intro">${esc(sc.intro || '')}</textarea></div>
         <div class="full"><label class="lbl">Closing narration</label><textarea class="field" data-f="outro">${esc(sc.outro || '')}</textarea></div>
+        <div class="full"><label class="lbl">Narration beats: one per line, <b>Label | text</b>. Headquarters shows a 📣 button for each while the scene runs.</label><textarea class="field" data-f="beats" style="min-height:80px">${esc(formatBeats(sc.beats))}</textarea></div>
         <div class="full"><label class="lbl">GM notes (Headquarters only)</label><input class="field sm" data-f="notes" value="${esc(sc.notes || '')}"></div>
         <div class="full row"><span class="grow"></span><button class="mini" data-up="${i}">↑</button><button class="mini" data-down="${i}">↓</button><button class="mini" data-rmsc="${i}">Remove scene</button></div>
       </div></details>`; }).join('')}
@@ -362,6 +363,7 @@ $('#adv').addEventListener('input', e => {
   const sc = adv.acts[a].scenes[Number(d.dataset.s)], f = t.dataset.f;
   if (f === 'minions') sc.minions = t.value.split(',').map(x => x.trim()).filter(Boolean);
   else if (f === 'elites' || f === 'bosses') sc[f] = parseFoes(t.value, FOE_ABILITIES);
+  else if (f === 'beats') sc.beats = parseBeats(t.value);
   else if (f === 'chests') sc.chests = Number(t.value.replace(/[^\d]/g, '')) || 0;
   else if (f === 'pressure') { const v = t.value.trim(); if (v === '') delete sc.pressure; else if (!isNaN(Number(v))) sc.pressure = Number(v); }
   else sc[f] = t.value;

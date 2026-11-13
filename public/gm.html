@@ -103,6 +103,7 @@
 <script type="module">
 import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES, tallyOf, actedThisRound } from './engine.js';
 import { TEMPLATES, DIFFICULTY, partyPower, planScene, flatIndex, waveText } from './adventure.js';
+const beatsSent = new Set();
 import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML, setsHTML, heroIcon } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
@@ -231,6 +232,8 @@ function advBar() {
     const next = r.waves[0];
     mid = `<span class="run">▶ Running</span> ${next ? `· next wave (${esc(waveText(next))}) at End round ${next.due}` : '· no more waves'}${loot.length ? ` · loot cards: ${loot.map(c => `<b>${esc(c.card)}</b> ${esc(c.label)}`).join(', ')}` : ''}`;
     btn = `<button class="btn solid sm" data-a="sceneClear">✓ Scene clear</button>`;
+    const key = i => `${act}:${scene}:${r.began}:${i}`;
+    if (sc.beats?.length) mid += `<br>${sc.beats.map((b, i) => `<button class="mini" data-a="beat" data-i="${i}" title="${esc(b.text)}" style="${beatsSent.has(key(i)) ? 'opacity:.45' : ''}">📣 ${esc(b.label)}</button>`).join(' ')}`;
   } else {
     mid = plan.waves.length ? plan.waves.map((w, i) => `${i ? `round +${w.at}: ` : '<b>Now:</b> '}${w.spawns.map(x => x.etype === 'minion' ? `${x.count} ${esc(x.name)}` : `<b>${esc(x.name)}</b> (${fmt(x.hp)} ❤ · ${x.attacks}×${fmt(x.damage)})`).join(', ')}`).join(' · ') : 'No foes: a story scene.';
     if (sc.notes) mid += `<br><span style="color:#cfe0ff">✎ ${esc(sc.notes)}</span>`;
@@ -435,6 +438,12 @@ function onClick(e) {
     case 'undo': return act({ type: 'undo' });
     case 'save': return saveBackup();
     case 'sceneBegin': return act({ type: 'sceneBegin' });
+    case 'beat': {
+      const adv = S.adventure, r = adv?.running; if (!r) return;
+      const sc = adv.acts[r.act].scenes[r.scene], i = Number(b.dataset.i), bt = sc.beats?.[i]; if (!bt) return;
+      beatsSent.add(`${r.act}:${r.scene}:${r.began}:${i}`);
+      return act({ type: 'narrate', title: bt.label, text: bt.text });
+    }
     case 'sceneClear': {
       const left = Object.values(S.enemies).length, waves = S.adventure?.running?.waves?.length || 0;
       if ((left || waves) && !confirm(`Clear this scene?${left ? `\n• ${left} foe${left > 1 ? 's are' : ' is'} still on the board (they stay)` : ''}${waves ? `\n• ${waves} wave${waves > 1 ? 's' : ''} won't arrive` : ''}`)) return;
