@@ -79,8 +79,10 @@ export function planScene(adv, a, s, anchor) {
     const boss = type === 'boss', size = f.size || 1;
     const attacks = f.attacks || (boss ? 3 : 2);
     const damage = Math.min(boss ? 3000 : 2000, Math.max(boss ? 300 : 150, r10(per * (boss ? 2.5 : 1) * size / (attacks * LAND))));
-    const hp = Math.max(boss ? 4000 : 1000, r500((anchor.dpr || 3000) * (boss ? BOSS_ROUNDS : ELITE_ROUNDS) * p * size));
-    return { type: 'spawn', etype: type, count: 1, name: f.name, hp, armor: f.armor ?? (boss ? 35 : 20), attacks, damage, abilities: f.abilities || [], ability: f.ability || '' };
+    const armor = f.armor ?? (boss ? 35 : 20);
+    // armor cuts every hit, so size health against the damage that actually gets through
+    const hp = Math.max(boss ? 4000 : 1000, r500((anchor.dpr || 3000) * (1 - armor / 100) * (boss ? BOSS_ROUNDS : ELITE_ROUNDS) * p * size));
+    return { type: 'spawn', etype: type, count: 1, name: f.name, hp, armor, attacks, damage, abilities: f.abilities || [], ability: f.ability || '' };
   };
   const minionNames = (sc.minions && sc.minions.length) ? sc.minions : ['Minion'];
   const minionSpawns = n => {
@@ -166,7 +168,8 @@ export const EIGHTH_GATE = {
       { name: 'The Gap', template: 'skirmish', chests: 0, minions: ['Skeleton'] },
       { name: 'The Warren', template: 'elitepack', chests: 1, minions: ['Zombie'], elites: [F('Archmage', ['summoner'], 'Raises the dead every round. Kill him first.'), F('Loup Garou', ['enrage', 'thickhide'], 'Released from the beast pit')] },
       { name: 'The Gnawhole', template: 'gauntlet', chests: 1, minions: ['Spider'], elites: [F('Rakshasa', ['leech', 'thickhide'], 'Will offer a deal before it dies')] },
-      { name: 'The Zombie Clot', template: 'boss', chests: 1, minions: ['Zombie'], bosses: [F('Zombie Clot', ['regen', 'horde', 'throes'], 'The spore mushrooms feed it. Pop all three to stop its healing.')] },
+      { name: 'The Zombie Clot', template: 'boss', chests: 1, minions: ['Zombie'], bosses: [F('Zombie Clot', ['regen', 'horde', 'throes'], 'The spore mushrooms feed it. Pop all three to stop its healing.')],
+        notes: '3 spore mushrooms (block sight): a hero spends their whole attack on one, 2+ hits pops it. All three popped: untick Regenerate on the Clot. Spores 3 sits south of the palisade and can be popped early.' },
     ] },
     { name: 'Act III · The Peak', scenes: [
       { name: 'The Climb', template: 'skirmish', chests: 1, minions: ['Frozen Dead'], notes: 'Last campfire: heal, and a stall visit.' },
