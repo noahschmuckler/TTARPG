@@ -714,6 +714,7 @@ function attackSheet() {
   if (ch.hp <= 0) return;
   let hits = null, sixes = 0, high = false, flank = false;
   const hiding = ch.hidden ? HIDDEN_DICE : 0;
+  const leapt = ch.buffs?.label === 'Leaping Strike' && actedThisRound(S, ch) === 'attackPower';
   const { el, close } = sheet('<div id="as"></div>');
   const draw = () => {
     const pool = s.pool + hiding + (high ? 1 : 0) + (flank ? 1 : 0);
@@ -722,7 +723,7 @@ function attackSheet() {
       <h2>Attack</h2>
       <p class="dim" style="margin:2px 0 8px">${s.reach ? `Any foe within ${s.reach}″ that you can see.` : 'A foe next to you.'}</p>
       <div class="toggles">
-        <button class="tog ${high ? 'on' : ''}" data-tog="high">▲ High ground <b>+1</b></button>
+        <button class="tog ${high ? 'on' : ''}" data-tog="high">${leapt ? '▲ Leapt down from height' : '▲ High ground'} <b>+1</b></button>
         <button class="tog ${flank ? 'on' : ''}" data-tog="flank">⇆ Flanking <b>+1</b></button>
         ${hiding ? `<span class="tog on fixed">◐ From hiding <b>+${hiding}</b></span>` : ''}
       </div>
