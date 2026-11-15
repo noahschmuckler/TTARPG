@@ -66,7 +66,7 @@ export const SETS = {
     pieces: { weapon: 'Vaultbreaker Dirks', gloves: 'Vaultbreaker Picks', boots: 'Vaultbreaker Soft-Soles', ring: 'Vaultbreaker Key-Ring' },
     bonuses: [{ n: 2, stats: { critMult: 0.5 } }, { n: 3, stats: { energyPerKill: 3 } }],
     power: {
-      key: 'set:vaultbreaker', name: 'Shadowstep', cost: 30,
+      key: 'set:vaultbreaker', name: 'Vault', cost: 30,
       effects: n => [{ kind: 'ward', amount: 100 + 150 * n, who: 'self' }, ...(n >= 2 ? [{ kind: 'buff', damageMult: n >= 4 ? 2 : 1.5 }] : [])],
     },
   },
