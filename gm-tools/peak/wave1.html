@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#1b1712}</style></head><body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" width="1040" height="1060"></svg>
+<script src="board.js"></script>
+<script>
+const b = drawPeak(document.getElementById('s'), [
+  { t: 'M', kind: 'melee', c: 5, r: 31.6 },
+  { t: 'M', kind: 'melee', c: 10.5, r: 33.7 },
+  { t: 'M', kind: 'melee', c: 13, r: 33.7 },
+  { t: 'R', kind: 'ranged', c: 9.4, r: 21, reach: 6 },
+  { t: 'R', kind: 'ranged', c: 13.6, r: 21, reach: 6 },
+], 'The Seals · round 19 · wave 1', 'The Slaad is awake on its plinth. 5 Frozen Dead climb from the cracks: 3 melee, 2 archers.');
+let y = b.ly + 10; const t = (s, size = 14, fill = '#f3e6cc', bold) => { b.el('text', { x: b.LX, y, 'font-size': size, fill, 'font-family': 'Georgia', 'font-weight': bold ? 'bold' : 'normal' }, s); y += size + 8; };
+t('Placing them', 16, '#ffe9a8', true);
+t('crack B: 1 melee (near the party)');
+t('crack D: 2 melee');
+t('crack A: 2 archers, behind the');
+t('    dark cube, covering the Slaad');
+y += 8; t('Already in play', 16, '#ffe9a8', true);
+t('Green Slaad: 23,500 · 2×170');
+t('Sweeping Blows: its chaos bolts hit');
+t('    every hero each enemy phase,');
+t('    wherever they stand');
+y += 8; t('Coming', 16, '#ffe9a8', true);
+t('End rd 19: 5 more Frozen Dead');
+t('    + tap "The dead leak" (3)');
+t('End rd 20: Skelespider wakes');
+t('End rd 22: Relentless Killer wakes');
+</script></body></html>
