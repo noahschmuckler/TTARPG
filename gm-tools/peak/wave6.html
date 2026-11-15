@@ -1,0 +1,43 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#1b1712}</style></head><body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" width="1040" height="1060"></svg>
+<script>window.PLINTHS = { slaad: '', spider: 'empty', killer: 'empty' };</script>
+<script src="board.js"></script>
+<script>
+const b = drawPeak(document.getElementById('s'), [
+  { t: 'L', kind: 'hero', c: 5.5, r: 24 },
+  { t: 'S', kind: 'hero', c: 4.5, r: 31 },
+  { t: 'G', kind: 'hero', c: 7, r: 33.5 },
+  { t: 'K', kind: 'boss', c: 8.6, r: 32.4 },
+  { t: 'SP', kind: 'boss', c: 10, r: 24.6, reach: 6 },
+  { t: 'M', kind: 'melee', c: 10, r: 30.6 },
+  { t: 'M', kind: 'melee', c: 3, r: 33.6 },
+  { t: 'M', kind: 'melee', c: 12.5, r: 35.5 },
+  { t: 'R', kind: 'ranged', c: 12, r: 20.3 },
+], 'The Seals · round 24', 'Grey-ringed: already on the board (moved). New from the leak: the melee at cracks B and D, and the archer at crack A.');
+// highlight the new ones and the moved ones
+const NS='http://www.w3.org/2000/svg', svg=document.getElementById('s');
+const ring=(c,r,col,dash)=>{const e=document.createElementNS(NS,'circle');e.setAttribute('cx',b.X(c));e.setAttribute('cy',b.Y(r));e.setAttribute('r',17);e.setAttribute('fill','none');e.setAttribute('stroke',col);e.setAttribute('stroke-width',3);if(dash)e.setAttribute('stroke-dasharray','4 3');svg.appendChild(e)};
+ring(3,33.6,'#ffd84a'); ring(12.5,35.5,'#ffd84a'); ring(12,20.3,'#ffd84a');
+ring(10,30.6,'#ddd',1); ring(10,24.6,'#ddd',1);
+// arrows for the two movers
+const arr=(c1,r1,c2,r2)=>{const l=document.createElementNS(NS,'line');l.setAttribute('x1',b.X(c1));l.setAttribute('y1',b.Y(r1));l.setAttribute('x2',b.X(c2));l.setAttribute('y2',b.Y(r2));l.setAttribute('stroke','#555');l.setAttribute('stroke-width',3);l.setAttribute('stroke-dasharray','6 4');svg.appendChild(l)};
+arr(12,30.2,10.6,30.5); arr(15.3,25.4,10.7,24.7);
+let y = b.ly + 10; const t = (s, size = 14, fill = '#f3e6cc', bold) => { b.el('text', { x: b.LX, y, 'font-size': size, fill, 'font-family': 'Georgia', 'font-weight': bold ? 'bold' : 'normal' }, s); y += size + 8; };
+t('Key', 16, '#ffe9a8', true);
+t('L / S / G  Lyle, Steve, Gonk (blue)');
+t('K  Relentless Killer · SP  Skelespider');
+t('yellow ring: new from the leak');
+t('grey ring: moved last enemy phase');
+y += 8; t('Already moved', 16, '#ffe9a8', true);
+t('Melee: down off the Killer\'s plinth,');
+t('    5 toward Gonk (3 squares short)');
+t('Skelespider: 6 toward Lyle, by the');
+t('    dark cube; webs reach 6″ (ring)');
+y += 8; t('New from the leak (3)', 16, '#ffe9a8', true);
+t('crack B: 1 melee, beside Steve');
+t('crack D: 1 melee');
+t('crack A: 1 archer, toward Lyle');
+y += 8; t('Standing', 16, '#ffe9a8', true);
+t('Skelespider 19,276 · Killer 20,932');
+t('Killer\'s pin is gone: it goes for Steve');
+</script></body></html>
