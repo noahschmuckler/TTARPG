@@ -128,7 +128,7 @@
 <body>
 <div id="root"></div>
 <script type="module">
-import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES, tallyOf, actedThisRound, statsText, setCounts, activeSynergies, synergyText } from './engine.js';
+import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES, tallyOf, actedThisRound, statsText, setCounts, activeSynergies, synergyText, armorCut, wardOf } from './engine.js';
 import { SETS, SYNERGIES } from './sets.js';
 import { TEMPLATES, DIFFICULTY, partyPower, planScene, flatIndex, waveText } from './adventure.js';
 const beatsSent = new Set();
@@ -363,7 +363,7 @@ function partyOverview() {
       <div class="row" style="gap:6px;flex-wrap:wrap"><span class="tchip ${t[0]}" style="cursor:default">${t[1]}</span>${ch.hidden ? '<span class="ovtag" style="color:#c8b6ff">◐ hidden</span>' : ''}</div>
       ${bar('hp', ch.hp, s.maxHp, ch.hp <= 0 ? 'DOWN' : `${fmt(ch.hp)} / ${fmt(s.maxHp)}`)}
       ${bar('en', ch.energy, s.maxEnergy, `⚡ ${ch.energy} / ${s.maxEnergy}`)}
-      <div class="ovs"><span title="Armour">⛨ ${s.armor}%</span>${ch.ward ? `<span title="Ward" style="color:#9fd3ff">🛡 ${fmt(ch.ward)}</span>` : ''}<span title="Damage per hit × dice">⚔ ${fmt(s.damage)} × ${s.dice}d6</span>${s.critMult !== 2 ? `<span>crit ×${s.critMult}</span>` : ''}${s.cleave ? `<span>cleave ${s.cleave}</span>` : ''}<span>👣 ${s.move}″ · ${reachText(s.reach)}</span></div>
+      <div class="ovs"><span title="Armour rating (share of each blow it stops)">⛨ ${s.armor} (${Math.round(armorCut(s.armor) * 100)}%)</span>${wardOf(ch) ? `<span title="Ward${ch.rune ? ' + rune ward' : ''}" style="color:#9fd3ff">🛡 ${fmt(ch.ward || 0)}${ch.rune ? ` + ᛟ${fmt(ch.rune)}` : ''}</span>` : ''}${ch.surged === S.round ? '<span style="color:#aef7ee">⚡ surged</span>' : ''}<span title="Damage per hit × dice">⚔ ${fmt(s.damage)} × ${s.dice}d6</span>${s.critMult !== 2 ? `<span>crit ×${s.critMult}</span>` : ''}${s.cleave ? `<span>cleave ${s.cleave}</span>` : ''}<span>👣 ${s.move}″ · ${reachText(s.reach)}</span></div>
       <div class="ovs faint"><span>☠ ${T.minion || 0}</span><span>◆ ${T.elite || 0}</span><span>♛ ${T.boss || 0}</span>${ch.favour ? `<span style="color:var(--brass-hi)">⟡ ${ch.favour} Favour</span>` : ''}</div>
       ${foes.length ? `<div class="ovfoe">On them: ${mins ? `<span class="ovchip">☠×${mins}<button data-a="moveM" data-id="${ch.id}" title="Move these minions to another hero, or set them roaming">⇄</button><button data-a="rmMinion" data-id="${ch.id}" title="Remove one (killed off the app)">−</button><button data-a="clearOn" data-id="${ch.id}" title="Remove them all">✕</button></span>` : ''}${bigs.map(b => `<span class="ovchip">${esc(b.name)} ${fmt(b.hp)}<button data-a="unengage" data-e="${b.id}" title="Set it roaming: no longer fighting ${esc(ch.name)}">⇢ roam</button></span>`).join('')}</div>` : ''}
       ${left ? `<div style="font-size:12px;color:var(--brass-hi)">⚔ ${left} hit${left === 1 ? '' : 's'} to spend</div>` : ''}
@@ -397,7 +397,7 @@ function heroCard(ch) {
   const id = ch.id;
   return `<div class="plate hc ${ch.hp <= 0 ? 'down' : ''}" ${ch.away ? 'style="opacity:.45"' : ''}>${ch.away ? '<div class="sub" style="color:#9fc3ff;margin-bottom:4px">💤 Sitting out tonight: not counted for difficulty or the enemy phase</div>' : ''}
     <div class="row">
-      <div class="grow"><div class="nm">${heroIcon(ch, C.glyph, 34)} ${esc(ch.name)}</div><div class="sub">${ch.marker != null ? `◰${ch.marker} · ` : ''}${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · ${s.armor}% armor · ${tallyText(ch)}</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}${ch.pit ? `<div class="sub" style="color:#e8b07a">🕳 In the chasm${ch.pit.tries ? ` · ${ch.pit.tries} failed climb${ch.pit.tries > 1 ? 's' : ''}` : ''}: skipped by the enemy phase</div>` : ''}</div>
+      <div class="grow"><div class="nm">${heroIcon(ch, C.glyph, 34)} ${esc(ch.name)}</div><div class="sub">${ch.marker != null ? `◰${ch.marker} · ` : ''}${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · armour ${s.armor} (${Math.round(armorCut(s.armor) * 100)}%) · ${tallyText(ch)}</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}${ch.pit ? `<div class="sub" style="color:#e8b07a">🕳 In the chasm${ch.pit.tries ? ` · ${ch.pit.tries} failed climb${ch.pit.tries > 1 ? 's' : ''}` : ''}: skipped by the enemy phase</div>` : ''}</div>
       <a class="icon" href="play.html?room=${room}&as=${id}" target="_blank" title="Open this hero's phone view">↗</a>
       <button class="icon" data-a="away" data-id="${id}" title="${ch.away ? 'Back at the table' : 'Sitting out tonight: not counted for difficulty, never attacked'}">${ch.away ? '🪑' : '💤'}</button>
       <button class="icon" data-a="pit" data-id="${id}" title="${ch.pit ? 'Pull out of the chasm' : 'Drop into the chasm (fall damage)'}">${ch.pit ? '🧗' : '🕳'}</button>
@@ -405,7 +405,7 @@ function heroCard(ch) {
     </div>
     <div class="bars">
       ${bar('hp', ch.hp, s.maxHp, ch.hp <= 0 ? 'DOWN' : `${fmt(ch.hp)} / ${fmt(s.maxHp)}`)}
-      ${ch.ward ? bar('ward', ch.ward, Math.max(ch.ward, 600), `Ward ${fmt(ch.ward)}`) : ''}
+      ${wardOf(ch) ? bar('ward', wardOf(ch), Math.max(wardOf(ch), 600), `Ward ${fmt(ch.ward || 0)}${ch.rune ? ` + rune ${fmt(ch.rune)}` : ''}`) : ''}
       ${bar('en', ch.energy, s.maxEnergy, `Energy ${ch.energy} / ${s.maxEnergy}`)}
     </div>
     ${ch.buffs.label ? `<div class="dim" style="font-size:13px;color:#aef7ee">⚡ ${esc(ch.buffs.label)} primed</div>` : ''}
@@ -614,7 +614,7 @@ function gearBody(id) {
   return `<h2>${heroIcon(ch, C.glyph, 56)} ${esc(ch.name)}</h2>
     <div class="faint" style="font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;font-size:12px">${C.name} · ${tallyText(ch)} · green = boosted by gear</div>
     <div class="gstats">
-      ${stat('Health', s.maxHp, b.maxHp, fmt)}${stat('Armor', s.armor, b.armor, v => v + '%')}${stat('Dice', s.dice, b.dice)}${stat('Dmg / hit', s.damage, b.damage, fmt)}
+      ${stat('Health', s.maxHp, b.maxHp, fmt)}${stat('Armor', s.armor, b.armor, v => `${v} (${Math.round(armorCut(v) * 100)}%)`)}${stat('Dice', s.dice, b.dice)}${stat('Dmg / hit', s.damage, b.damage, fmt)}
       ${stat('Crit', s.critMult, b.critMult, v => '×' + v)}${stat('Cleave', s.cleave, b.cleave)}${stat('Energy / kill', s.energyPerKill, b.energyPerKill)}${stat('Energy / rnd', s.energyPerRound, b.energyPerRound)}
     </div>
     <div class="rule"><span class="gem"></span>Equipped<span class="gem"></span></div>

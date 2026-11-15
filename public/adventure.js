@@ -229,7 +229,7 @@ export const EIGHTH_GATE = {
         notes: 'The Kraken sits submerged in the Coil: it cannot be targeted yet. Grab rule: a hero who ends their move in a tentacle\'s reach gets it laid on them (set it engaged with them). When the last tentacle falls: Scene clear, then begin The Kraken.',
         intro: "You step through the gate onto the black ice. Under it, in the middle of the lake, something enormous turns over in its sleep, and the ice in the Coil bulges upward. Then the holes erupt. Three tentacles as thick as tree trunks burst into the air, coiling and searching, and slap down onto the ice around you." },
       { name: 'The Kraken', template: 'boss', chests: 1, minions: ['Frozen Dead'],
-        bosses: [F('The Kraken', ['sweep', 'enrage', 'horde', 'throes'], 'On a 5-6 at End round it dives and rises in another circle. At half health, 2 tentacles regrow.')],
+        bosses: [F('The Kraken', ['sweep', 'enrage', 'horde', 'throes', 'drown'], 'On a 5-6 at End round it dives and rises in another circle. At half health, 2 tentacles regrow.')],
         notes: 'Dive: each End round roll a d6. On 5-6 it sinks and rises in another circle: move the base and set it roaming (⇄), ending every engagement. At half health tap "Tentacles regrow" (2 tentacles, sized to the fight).',
         intro: "The last tentacle falls, and for a heartbeat there is nothing. Then the ice in the Coil explodes upward and the Kraken rises: a mountain of grey-green flesh, a beak like a ship's prow, and one huge eye that finds each of you in turn. It is the thing the seals were keeping in. It is the thing the dead were serving. And it is very, very awake.",
         beats: [

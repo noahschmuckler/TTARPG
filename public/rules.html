@@ -40,7 +40,7 @@
 <div class="wrap">
   <p class="updated">These rules match the app: the classes, powers, item sets and foe abilities below are drawn straight from the game itself.</p>
   <nav class="toc">
-    <a href="#round">The round</a><a href="#move">Moving</a><a href="#height">Height</a><a href="#attack">Attacking</a><a href="#powers">Powers &amp; position</a>
+    <a href="#round">The round</a><a href="#move">Moving</a><a href="#height">Height</a><a href="#attack">Attacking</a><a href="#runes">Runes</a><a href="#powers">Powers &amp; position</a>
     <a href="#breakaway">Breaking away</a><a href="#defense">Defending</a><a href="#foes">Foes</a><a href="#chasm">Slams &amp; falls</a><a href="#adventure">Adventures</a><a href="#board">Board</a><a href="#energy">Energy</a><a href="#loot">Loot &amp; sets</a><a href="#merchant">The Rakshasa</a><a href="#classes">Callings</a><a href="#abilities">Foe abilities</a>
   </nav>
 
@@ -49,10 +49,19 @@
     <li><b>Heroes act</b>, in any order. Each hero gets <b>a move and one action</b>, in any order, and the move can be split around the action: step in, strike, step back out.</li>
     <li>The app keeps count: once you've attacked or used a power, your attack button and powers grey out until the GM ends the round. Wares are free and don't count. If the table agrees you should act again (a misclick, a ruling), the GM can give you another action from Headquarters.</li>
     <li><b>Enemy phase.</b> The GM moves the foes, then taps <i>Enemy phase</i>. Every hero with foes on them rolls defense on their phone.</li>
-    <li><b>End round.</b> Everyone gains energy, Pins wear off, and foes with round abilities (Summoner, Regenerate) act.</li>
+    <li><b>End round.</b> Everyone gains energy, Pins and Runebrands wear off, wards fade by half, and foes with round abilities (Summoner, Regenerate, Chill) act.</li>
   </ol>
   <p><b>Actions:</b> <i>Attack</i>, use a <i>Power</i>, or <i>Sprint</i> (move again instead of acting).</p>
+  <p><b>Surge:</b> once per round, after you've used your action, you may spend <b>60 energy</b> to take another one. The ⚡ Surge button appears on your phone.</p>
   <p><b>Attack powers:</b> a power whose text starts <i>"Make an attack with…"</i> (Thousand Cuts, Lantern Volley, Emberburst, and Leaping Strike, which leaps first) is part of your attack: unleash it, then roll, all as your one action. Every other power is your whole action; any "+dice on your next attack" it gives carries to a later turn.</p>
+
+  <h2 id="runes">The Runepriest's runes</h2>
+  <ul>
+    <li><b>Runebrand:</b> every foe the Runepriest damages is branded (ᛟ) until End round. Any other hero attacking a branded foe ticks <i>Branded target</i> for <b>+1 die</b>.</li>
+    <li><b>Reactions</b> happen any time, even on someone else's turn, and don't use his action. Each costs energy and works once per round:
+      <b>Rune of Turning</b> (20): an ally rolling defence rerolls every foe die that hit, once, and only the second roll counts. <b>Rune of Mending</b> (25): heal an ally below a third of their health by 15%. <b>Rune of Haste</b> (30): an ally's next attack rolls +1 die.</li>
+    <li>His wards are <b>rune wards</b>, which sit on top of any other ward.</li>
+  </ul>
 
   <h2 id="move">Moving</h2>
   <ul>
@@ -105,11 +114,14 @@
 
   <h2 id="defense">Defending</h2>
   <ul>
-    <li>In the enemy phase you roll the foes' dice for them, <b>one die per enemy attack</b>, and they roll like heroes. Each die showing <b>4+</b> is a blow that lands; with <b>30%+ armor</b>, only <b>5+</b> lands.</li>
+    <li>In the enemy phase you roll the foes' dice for them, <b>one die per enemy attack</b>, and they roll like heroes. Each die showing <b>4+</b> is a blow that lands; with an <b>armour rating of 30 or more</b>, only <b>5+</b> lands.</li>
     <li>Every <b>6</b> is a <b>crit</b>: minions hit for ×1.5, elites ×2, bosses ×2.5.</li>
     <li><b>Surrounded:</b> with 3 or more foes on you, you roll <b>+1 die</b>.</li>
     <li>A foe on <b>higher ground</b>: tick it on the defense prompt for <b>+1 die</b>.</li>
-    <li>Blows add up; your armor % is subtracted, then any <b>ward</b> soaks the rest.</li>
+    <li><b>Armour is a rating with diminishing returns</b> (like League of Legends): it stops <b>rating ÷ (rating + 100)</b> of each blow. 30 armour stops 23%, 63 stops 39%, 100 stops half, 200 two thirds. You can never become immune, so every point still helps but less than the last. Your phone shows the rating and the share it stops.</li>
+    <li><b>Crits pierce half your armour:</b> a 6 is worked out against half your rating. Foes with <b>Armour-breaker</b> ignore another 20 points.</li>
+    <li><b>Wards</b> soak whatever gets past armour. You can hold <b>two</b>: a normal <b>ward</b> (Iron Bulwark, Blink, Thunderclap, wares…) and a <b>rune ward</b> from the Runepriest (Warding Circle, Rune of Recall). Neither stacks with its own kind: a new ward only replaces the old one if it's bigger. The rune ward is used up first. Both <b>fade by half at End round</b>.</li>
+    <li>Example: Iron Bulwark (600) plus Warding Circle (300) is 900. Casting Bulwark again tops the ward back up to 600; it doesn't make 1,200.</li>
   </ul>
 
   <h2 id="chasm">Slams, falls &amp; climbing out</h2>
@@ -150,8 +162,11 @@
 
   <h2 id="energy">Energy</h2>
   <ul>
-    <li>Gained for every kill (more for elites and bosses) and at every End round.</li>
-    <li>Spent on powers. A power glows on your phone when you can afford it.</li>
+    <li>Spent on powers, Surges and the Runepriest's reactions. A power glows on your phone when you can afford it.</li>
+    <li><b>At End round</b> you gain your Energy per Round, but only <b>half of it while you're at half your max or above</b>. Spending keeps it flowing.</li>
+    <li><b>Energy per Round from gear tapers:</b> the first +15 above your calling's base counts in full, the next +15 counts half, anything past +30 a quarter. (A +38 from gear counts as +24.)</li>
+    <li><b>Kills:</b> elites and bosses always pay in full. Minion kills taper within a round: the 1st pays full, the 2nd and 3rd half, the rest a quarter. The count resets at End round.</li>
+    <li>Some foes drain energy: <b>Energy Leech</b> (10 a phase), <b>Drown</b> (25 when 2+ of its blows land), <b>Chill</b> (10 at End round).</li>
   </ul>
 
   <h2 id="loot">Loot &amp; item sets</h2>

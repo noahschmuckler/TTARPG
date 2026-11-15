@@ -221,10 +221,10 @@
 <body>
 <div class="wrap" id="app"><p class="center dim" style="margin-top:40vh">Opening the ledger…</p></div>
 <script type="module">
-import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, FOE_ABILITIES, SETS, HIDDEN_DICE, derive, engagedWith, strikeLeft, powersFor, reachText, fmt, activeSynergies, tallyOf, actedThisRound } from './engine.js';
+import { CLASSES, SLOTS, SLOT_LABEL, STAT_INFO, RARITIES, ENEMY_TYPES, FOE_ABILITIES, SETS, HIDDEN_DICE, derive, engagedWith, strikeLeft, powersFor, reachText, fmt, activeSynergies, tallyOf, actedThisRound, armorCut, wardOf, SURGE_COST } from './engine.js';
 import { BOONS, CONSUMABLES, SELL_VALUE, boonPrice, boonLocked, scoreHand, handName } from './merchant.js';
 import { cardSVG, cardBackSVG, consumableSVG } from './art.js';
-let seenDefense = null, defenseOpen = false, slamOpen = false;
+let seenDefense = null, defenseOpen = false, slamOpen = false, redrawDefense = null;
 import { $, h, esc, params, connect, toast, burst, sheet, itemHTML, setsHTML, boardMapSVG, heroIcon } from './ui.js';
 
 const room = (params.get('room') || '').toUpperCase();
@@ -415,7 +415,7 @@ function chooser() {
     $('#cl').innerHTML = Object.entries(CLASSES).map(([k, C]) => `
       <button class="plate cls-card ${k === cls ? 'on' : ''}" data-cls="${k}">
         <div class="row"><div class="cn grow">${C.glyph} ${C.name}</div><span class="faint" style="font-size:13px">${C.role}</span></div>
-        <div class="ab">Move ${C.base.move}″ · ${C.base.reach ? `range ${C.base.reach}″` : 'melee'} · Health ${fmt(C.base.maxHp)} · Armor ${C.base.armor}% · <b style="color:var(--brass)">${C.base.dice} dice</b> · Hit ${fmt(C.base.damage)}</div>
+        <div class="ab">Move ${C.base.move}″ · ${C.base.reach ? `range ${C.base.reach}″` : 'melee'} · Health ${fmt(C.base.maxHp)} · Armor ${C.base.armor} · <b style="color:var(--brass)">${C.base.dice} dice</b> · Hit ${fmt(C.base.damage)}</div>
         ${k === cls ? `<div class="ab">${C.abilities.map(a => `<b>${a.name}</b>: ${a.text}`).join('<br>')}</div>` : ''}
       </button>`).join('');
   };
@@ -455,11 +455,13 @@ function skeleton() {
     <div id="wares"></div>
     <div id="defbox"></div>
     <button class="btn solid attack" id="atk"></button>
+    <div id="surgebox"></div>
     <div id="foes"></div>
     <div id="boardbox"></div>
     <div id="party"></div>
     <div class="rule"><span class="gem"></span>Powers<span class="gem"></span></div>
     <div class="powers" id="powers"></div>
+    <div id="reactbox"></div>
     <div class="rule"><span class="gem"></span>Gear<span class="gem"></span></div>
     <div class="gear" id="gear"></div>
     <div class="bag" id="bag"></div>
@@ -477,6 +479,8 @@ function skeleton() {
   app.onclick = e => {
     const t = e.target;
     if (t.closest('#atk')) return S.characters[me]?.pit ? climbSheet() : attackSheet();
+    if (t.closest('#surge')) { if (confirm(`Spend ${SURGE_COST} energy to act again this round?`)) act({ type: 'surge', charId: me }).catch(() => {}); return; }
+    const rx = t.closest('[data-react]'); if (rx) return reactSheet(rx.dataset.react);
     if (t.closest('#defend')) return defenseSheet();
     const mt = t.closest('[data-mate]');
     if (mt) return mateSheet(mt.dataset.mate);
@@ -524,8 +528,9 @@ function render() {
   $('#hpv').textContent = fmt(ch.hp);
   $('#hpm').textContent = `/ ${fmt(s.maxHp)}`;
   $('#hpw').classList.toggle('down', ch.hp <= 0);
-  $('#ward').classList.toggle('hidden', !ch.ward);
-  $('#ward').textContent = `⛨ ${fmt(ch.ward)}`;
+  $('#ward').classList.toggle('hidden', !wardOf(ch));
+  $('#ward').textContent = `⛨ ${fmt(wardOf(ch))}${ch.rune ? ` (ᛟ${fmt(ch.rune)})` : ''}`;
+  $('#ward').title = 'Ward: soaks damage after armour. ᛟ = rune ward, used up first. Both halve at End round.';
   $('#enl').style.height = `${(ch.energy / s.maxEnergy) * 100}%`;
   $('#env').textContent = fmt(ch.energy);
   $('#enm').textContent = `/ ${fmt(s.maxEnergy)}`;
@@ -558,7 +563,7 @@ function render() {
   const otherMinions = new Map();
   for (const e of all) if (e.type === 'minion' && e.target !== me) { const k = e.target || ''; otherMinions.set(k, [...(otherMinions.get(k) || []), e]); }
   const bigFoe = b => `<div class="plate bigfoe" data-spend="${b.id}" data-big="1" style="margin-top:10px">
-      <div class="row"><div class="nm grow">${esc(b.name)}${b.pinned ? ' <span class="pinbadge">📌 Pinned</span>' : ''}</div><span class="faint" style="font-size:13px">${b.target === me ? 'on you' : b.target ? 'on ' + esc(S.characters[b.target]?.name || '?') : 'roaming'}</span></div>
+      <div class="row"><div class="nm grow">${esc(b.name)}${b.pinned ? ' <span class="pinbadge">📌 Pinned</span>' : ''}${b.branded ? ' <span class="pinbadge" style="color:#c8b6ff">ᛟ Branded</span>' : ''}</div><span class="faint" style="font-size:13px">${b.target === me ? 'on you' : b.target ? 'on ' + esc(S.characters[b.target]?.name || '?') : 'roaming'}</span></div>
       <div class="bar foe" style="margin-top:8px"><i style="width:${(b.hp / b.maxHp) * 100}%"></i><span>${fmt(b.hp)} / ${fmt(b.maxHp)}</span></div>
       <div class="faint" style="font-size:13px;margin-top:6px">⛨ ${b.armor || 0}% armor · ⚔ ${b.attacks || 1} attack${(b.attacks || 1) > 1 ? 's' : ''} × ${fmt(b.damage)}${b.ability ? `<br><span style="color:#ffcfa8">✦ ${esc(b.ability)}</span>` : ''}</div>
       ${(b.abilities || []).length ? `<div class="fabs">${b.abilities.map(k => { const A = FOE_ABILITIES[k], on = (b.fired || []).includes(k); return `<div class="fab ${on ? 'fired' : ''}"><b>${A.icon} ${esc(A.name)}${on ? ` · ${esc(A.tag || 'active')}` : ''}</b> <span>${esc(A.text)}</span></div>`; }).join('')}</div>` : ''}</div>`;
@@ -575,6 +580,14 @@ function render() {
     ${otherMinions.size ? `<div class="others">${[...otherMinions].map(([t, list]) => `<button class="ogrp" data-spend="${list[0].id}"><span class="minion">☠</span><span>${list.length > 1 ? `${list.length}× ` : ''}${esc(list[0].name)}${list.length > 1 && list.some(x => x.name !== list[0].name) ? ' & co' : ''}<br><small>${t ? 'on ' + esc(S.characters[t]?.name || '?') : 'roaming'}</small></span></button>`).join('')}</div>` : ''}
     ${!all.length ? `<p class="faint center" style="margin:0">No foes tracked. After rolling, use “Slay one on the table” for each minion you cut down.</p>` : ''}`;
 
+  const canSurge = acted && acted !== 'attackPower' && ch.hp > 0 && ch.surged !== S.round && !strikeLeft(ch);
+  $('#surgebox').innerHTML = canSurge ? `<button class="btn aether block" id="surge" ${ch.energy >= SURGE_COST ? '' : 'disabled'} style="margin-top:8px">⚡ Surge · ${SURGE_COST} energy: act again${ch.energy < SURGE_COST ? ` <span class="sub">(${ch.energy}/${SURGE_COST})</span>` : ''}</button>` : '';
+  const RX = CLASSES[ch.cls]?.reactions || [];
+  const rxSpent = k => ch.reacted?.round === S.round && ch.reacted.keys.includes(k);
+  $('#reactbox').innerHTML = RX.length ? `<div class="rule"><span class="gem"></span>Reactions · any time, no action<span class="gem"></span></div>
+    <div class="powers">${RX.map(r => { const ok = ch.energy >= r.cost && ch.hp > 0 && !rxSpent(r.key) && reactTargets(r).length;
+      return `<button class="plate power ${ok ? 'ready' : ''}" data-react="${r.key}"><div class="row"><div class="grow"><div class="pn">ᛟ ${esc(r.name)}${rxSpent(r.key) ? ' <span class="ptag">used this round</span>' : ''}</div><div class="pt">${esc(r.text)}</div>${!rxSpent(r.key) && !reactTargets(r).length ? `<div class="faint" style="font-size:12px;margin-top:3px">${r.need === 'defending' ? 'No ally is rolling defence right now.' : r.need === 'low' ? 'No ally is below a third of their health.' : 'No ally to help.'}</div>` : ''}</div><div class="cost">${r.cost}</div></div></button>`; }).join('')}</div>` : '';
+  if (redrawDefense) redrawDefense();
   $('#powers').innerHTML = powersFor(ch).map(a => {
     const ready = ch.energy >= a.cost && ch.hp > 0 && !acted && !ch.pit;
     const tag = a.set ? `<div class="pset" style="color:${SETS[a.set].color}">✦ ${esc(SETS[a.set].name)} · ${a.pieces} piece${a.pieces > 1 ? 's' : ''}${a.boosted?.length ? ' · ⟡ ' + esc(a.boosted.join(', ')) : ''}</div>` : '';
@@ -586,7 +599,7 @@ function render() {
   const mates = S.order.filter(id => id !== me).map(id => S.characters[id]).filter(Boolean);
   $('#party').innerHTML = mates.length ? `<div class="rule"><span class="gem"></span>Party<span class="gem"></span></div>` + mates.map(c => {
     const m = derive(c).maxHp;
-    return `<div class="mate${c.hp <= 0 ? ' down' : ''}" data-mate="${c.id}" role="button"><div class="row" style="gap:8px"><span class="mn grow">${heroIcon(c, CLASSES[c.cls]?.glyph || '', 26)} ${esc(c.name)}</span>${c.ward ? `<span class="mw">⛨ ${fmt(c.ward)}</span>` : ''}<span class="faint" style="font-size:12px">${(t => `${t.boss ? `♛${t.boss} ` : ""}${t.elite ? `⚔${t.elite} ` : ""}☠${t.minion}`)(tallyOf(c))} · ⚡${fmt(c.energy)}</span><span class="mgear">Gear ›</span></div><div class="bar hp"><i style="width:${Math.max(0, Math.min(100, c.hp / m * 100))}%"></i><span>${c.hp <= 0 ? 'DOWN' : `${fmt(c.hp)} / ${fmt(m)}`}</span></div></div>`;
+    return `<div class="mate${c.hp <= 0 ? ' down' : ''}" data-mate="${c.id}" role="button"><div class="row" style="gap:8px"><span class="mn grow">${heroIcon(c, CLASSES[c.cls]?.glyph || '', 26)} ${esc(c.name)}</span>${wardOf(c) ? `<span class="mw">⛨ ${fmt(wardOf(c))}</span>` : ''}<span class="faint" style="font-size:12px">${(t => `${t.boss ? `♛${t.boss} ` : ""}${t.elite ? `⚔${t.elite} ` : ""}☠${t.minion}`)(tallyOf(c))} · ⚡${fmt(c.energy)}</span><span class="mgear">Gear ›</span></div><div class="bar hp"><i style="width:${Math.max(0, Math.min(100, c.hp / m * 100))}%"></i><span>${c.hp <= 0 ? 'DOWN' : `${fmt(c.hp)} / ${fmt(m)}`}</span></div></div>`;
   }).join('') : '';
   const open = $('#boardbox details')?.open;
   $('#boardbox').innerHTML = S.board?.tokens?.length ? `<details class="plate" style="margin-top:14px;padding:10px 12px" ${open ? 'open' : ''}><summary class="display" style="cursor:pointer;letter-spacing:.2em;font-size:14px;color:var(--brass)">🗺 Board map <span class="faint" style="font-size:12px;letter-spacing:.06em">· snapped ${new Date(S.board.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></summary><div style="margin-top:8px">${boardMapSVG(S, { highlight: me })}</div></details>` : '';
@@ -597,7 +610,7 @@ function render() {
   }).join('') + `<div class="slot" style="border-style:dashed"><span class="sl">Satchel</span><span class="num" style="font-size:22px;color:var(--brass)">${ch.bag.length}</span></div>`;
   $('#bag').innerHTML = ch.bag.length ? ch.bag.map(it => `<button data-bag="${it.id}">${itemHTML(it)}</button>`).join('') : '';
 
-  const rows = [['Move', `${s.move}″`], ['Reach', reachText(s.reach)], ['Health', fmt(s.maxHp)], ['Armor', `${s.armor}%`], ['Attack dice', s.dice], ['Damage / hit', fmt(s.damage)], ['Crit (on 6)', `×${s.critMult}`], ['Cleave', s.cleave], ['Energy / kill', s.energyPerKill], ['Energy / round', s.energyPerRound]];
+  const rows = [['Move', `${s.move}″`], ['Reach', reachText(s.reach)], ['Health', fmt(s.maxHp)], ['Armor', `${s.armor} (stops ${Math.round(armorCut(s.armor) * 100)}%)`], ['Attack dice', s.dice], ['Damage / hit', fmt(s.damage)], ['Crit (on 6)', `×${s.critMult}`], ['Cleave', s.cleave], ['Energy / kill', s.energyPerKill], ['Energy / round', s.energyPerRound]];
   $('#stats').innerHTML = rows.map(([k, v]) => `<div><span class="dim">${k}</span><b>${v}</b></div>`).join('');
   drawMerchant(ch);
   drawCrown(ch);
@@ -615,7 +628,7 @@ function mateBody(id) {
   return `<h2>${heroIcon(ch, C.glyph, 56)} ${esc(ch.name)}</h2>
     <div class="faint" style="font-family:var(--display);letter-spacing:.14em;text-transform:uppercase;font-size:12px">${C.name} · ${tallyLine(ch)} · green = boosted by gear</div>
     <div class="gstats">
-      ${stat('Health', s.maxHp, b.maxHp, fmt)}${stat('Armor', s.armor, b.armor, v => v + '%')}${stat('Dice', s.dice, b.dice)}${stat('Dmg / hit', s.damage, b.damage, fmt)}
+      ${stat('Health', s.maxHp, b.maxHp, fmt)}${stat('Armor', s.armor, b.armor, v => `${v} (${Math.round(armorCut(v) * 100)}%)`)}${stat('Dice', s.dice, b.dice)}${stat('Dmg / hit', s.damage, b.damage, fmt)}
       ${stat('Crit', s.critMult, b.critMult, v => '×' + v)}${stat('Cleave', s.cleave, b.cleave)}${stat('Energy / kill', s.energyPerKill, b.energyPerKill)}${stat('Energy / rnd', s.energyPerRound, b.energyPerRound)}
     </div>
     <div class="rule"><span class="gem"></span>Equipped<span class="gem"></span></div>
@@ -668,6 +681,24 @@ function climbSheet() {
   });
 }
 
+// The Runepriest's reactions: which allies each can reach right now.
+function reactTargets(r) {
+  return S.order.filter(id => id !== me).map(id => S.characters[id]).filter(c => c && !c.away && c.hp > 0 &&
+    (r.need === 'defending' ? !!S.defense?.[c.id] : r.need === 'low' ? c.hp < derive(c).maxHp / 3 : true));
+}
+function reactSheet(key) {
+  const ch = S.characters[me], r = (CLASSES[ch.cls]?.reactions || []).find(x => x.key === key);
+  if (!r) return;
+  const list = reactTargets(r);
+  if (ch.reacted?.round === S.round && ch.reacted.keys.includes(key)) return toast(`${r.name} is spent until End round`);
+  if (ch.energy < r.cost) return toast(`${r.name} costs ${r.cost} energy`);
+  if (!list.length) return toast(r.need === 'defending' ? 'No ally is rolling defence' : r.need === 'low' ? 'No ally is below a third of their health' : 'No ally to help');
+  const { el, close } = sheet(`<h2>ᛟ ${esc(r.name)}</h2><p class="dim" style="font-size:17px;margin:4px 0 12px">${esc(r.text)}</p>
+    <div class="instr">On whom? <span class="faint">(${r.cost} energy · doesn't use your action)</span></div>
+    <div class="col" style="display:flex;flex-direction:column;gap:8px">${list.map(c => `<button class="btn block" data-ally="${c.id}">${esc(c.name)} <span class="sub">${fmt(c.hp)} / ${fmt(derive(c).maxHp)}</span></button>`).join('')}</div>`);
+  el.addEventListener('click', e => { const b = e.target.closest('[data-ally]'); if (!b) return; close(); act({ type: 'reaction', charId: me, key, allyId: b.dataset.ally }).catch(() => {}); });
+}
+
 function defenseSheet() {
   const D = S.defense?.[me];
   if (!D || defenseOpen) return;
@@ -677,8 +708,9 @@ function defenseSheet() {
   let highGround = false;
   const top = D.groups.reduce((m, g, i) => (g.damage > D.groups[m].damage ? i : m), 0);
   const need = 7 - (D.landOn || 3);                 // foes roll like heroes: 4+ hits, 5+ against heavy armour; 6s crit
-  const { el, close } = sheet('<div id="ds"></div>', { onClose: () => { defenseOpen = false; } });
+  const { el, close } = sheet('<div id="ds"></div>', { onClose: () => { defenseOpen = false; redrawDefense = null; } });
   const draw = () => {
+    const turning = S.defense?.[me]?.turning;
     const raw = Math.round(D.groups.reduce((t, g, i) => t + (landed[i] || 0) * g.damage + crits[i] * g.damage * ((g.crit || 1.5) - 1), 0));
     const ready = landed.every(v => v !== null);
     const dice = i => D.groups[i].dice + (highGround && i === top ? 1 : 0);
@@ -686,6 +718,7 @@ function defenseSheet() {
       <h2 style="color:#ff9ca4">${D.breakaway ? 'Free blows!' : 'Foes attack!'}</h2>
       ${D.breakaway ? '<p class="dim" style="margin:2px 0">You break away: each foe you leave gets one free blow.</p>' : ''}
       ${D.surrounded ? '<p style="margin:4px 0;color:#ffb27d">⚠ Surrounded: +1 die against you.</p>' : ''}
+      ${turning ? '<p style="margin:6px 0;padding:6px 10px;border:1px solid #6b5aa8;background:#1d1830;color:#d8c8ff">ᛟ <b>Rune of Turning!</b> Roll every die that hit again, once. Only the second roll counts.</p>' : ''}
       <button class="tog ${highGround ? 'on' : ''}" data-hg="1" style="margin-top:6px">▲ A foe strikes from higher ground <b>+1</b></button>
       <p class="dim" style="margin:4px 0 0;font-size:17px">Roll the foe's dice for it. Every die showing <b style="color:var(--ink)">${need}+</b> is a blow that lands, and every <b style="color:var(--ink)">6</b> is a crit.${need === 5 ? ' <span style="color:var(--brass)">Your heavy armor turns aside 4s.</span>' : ''}</p>
       ${D.groups.map((g, i) => `<div class="grp"><div class="row"><span class="gn grow">${g.count > 1 ? g.count + ' × ' : ''}${esc(g.name)}${g.type === 'minion' && g.count > 1 ? 's' : ''}</span><span class="faint" style="font-size:13px">${fmt(g.damage)} per blow · crit ×${g.crit || 1.5}</span></div>
@@ -698,6 +731,7 @@ function defenseSheet() {
       <button class="btn ${ready && !raw ? 'aether' : 'danger'} block attack" id="take" ${ready ? '' : 'disabled'}>${!ready ? 'Count the dice' : raw ? 'Take the blows' : 'Unscathed!'}</button>`;
   };
   draw();
+  redrawDefense = () => { if (S.defense?.[me]?.turning && !el.querySelector('#ds').innerHTML.includes('Rune of Turning')) draw(); };
   el.addEventListener('click', e => {
     if (e.target.closest('[data-hg]')) { highGround = !highGround; if (!highGround && landed[top] > D.groups[top].dice) { landed[top] = D.groups[top].dice; crits[top] = Math.min(crits[top], landed[top]); } return draw(); }
     const c = e.target.closest('[data-cg]');
@@ -712,12 +746,13 @@ function defenseSheet() {
 function attackSheet() {
   const ch = S.characters[me], s = derive(ch);
   if (ch.hp <= 0) return;
-  let hits = null, sixes = 0, high = false, flank = false;
+  let hits = null, sixes = 0, high = false, flank = false, brand = false;
+  const brandable = ch.cls !== 'runepriest' && Object.values(S.enemies).some(e => e.branded);
   const hiding = ch.hidden ? HIDDEN_DICE : 0;
   const leapt = ch.buffs?.label === 'Leaping Strike' && actedThisRound(S, ch) === 'attackPower';
   const { el, close } = sheet('<div id="as"></div>');
   const draw = () => {
-    const pool = s.pool + hiding + (high ? 1 : 0) + (flank ? 1 : 0);
+    const pool = s.pool + hiding + (high ? 1 : 0) + (flank ? 1 : 0) + (brand && brandable ? 1 : 0);
     if (hits > pool) hits = pool;
     el.querySelector('#as').innerHTML = `
       <h2>Attack</h2>
@@ -725,6 +760,7 @@ function attackSheet() {
       <div class="toggles">
         <button class="tog ${high ? 'on' : ''}" data-tog="high">${leapt ? '▲ Leapt down from height' : '▲ High ground'} <b>+1</b></button>
         <button class="tog ${flank ? 'on' : ''}" data-tog="flank">⇆ Flanking <b>+1</b></button>
+        ${brandable ? `<button class="tog ${brand ? 'on' : ''}" data-tog="brand">ᛟ Branded target <b>+1</b></button>` : ''}
         ${hiding ? `<span class="tog on fixed">◐ From hiding <b>+${hiding}</b></span>` : ''}
       </div>
       <div class="instr">Roll <b>${pool}</b> dice. How many show <b>4+</b>?</div>
@@ -736,10 +772,10 @@ function attackSheet() {
   };
   draw();
   el.addEventListener('click', e => {
-    const tg = e.target.closest('[data-tog]'); if (tg) { if (tg.dataset.tog === 'high') high = !high; else flank = !flank; return draw(); }
+    const tg = e.target.closest('[data-tog]'); if (tg) { if (tg.dataset.tog === 'high') high = !high; else if (tg.dataset.tog === 'brand') brand = !brand; else flank = !flank; return draw(); }
     const hb = e.target.closest('[data-h]'); if (hb) { hits = Number(hb.dataset.h); sixes = Math.min(sixes, hits); return draw(); }
     const sb = e.target.closest('[data-s]'); if (sb) { sixes = Number(sb.dataset.s); return draw(); }
-    if (e.target.closest('#strike')) { close(); act({ type: 'attack', charId: me, hits, sixes, bonus: (high ? 1 : 0) + (flank ? 1 : 0) }).catch(() => {}); }
+    if (e.target.closest('#strike')) { close(); act({ type: 'attack', charId: me, hits, sixes, bonus: (high ? 1 : 0) + (flank ? 1 : 0), brand: brand && brandable }).catch(() => {}); }
   });
 }
 

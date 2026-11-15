@@ -11,7 +11,7 @@ export const BOONS = {
   energy: { name: 'Deep Breath', text: '+15 max energy', stats: { maxEnergy: 15 }, cost: 2 },
   hunger: { name: 'Hunger', text: '+2 energy per kill', stats: { energyPerKill: 2 }, cost: 2 },
   pulse: { name: 'Steady Pulse', text: '+3 energy per round', stats: { energyPerRound: 3 }, cost: 3 },
-  hide: { name: 'Iron Skin', text: '+3% armor', stats: { armor: 3 }, cost: 3 },
+  hide: { name: 'Iron Skin', text: '+3 armour', stats: { armor: 3 }, cost: 3 },
   cruelty: { name: 'Cruelty', text: '+½ crit damage', stats: { critMult: 0.5 }, cost: 5 },
   reaper: { name: "Reaper's Arc", text: '+1 cleave', stats: { cleave: 1 }, cost: 6 },
   eye: { name: "The Tiger's Eye", text: '+1 die on every attack', stats: { dice: 1 }, cost: 10, once: true },

@@ -36,11 +36,18 @@ export const CLASSES = {
   },
   runepriest: {
     name: 'Runepriest', role: 'Forge-cleric', glyph: 'ᛟ',
-    base: { maxHp: 1400, armor: 20, dice: 2, damage: 300, energyPerKill: 6, energyPerRound: 18, maxEnergy: 100, critMult: 2, cleave: 0, move: 5, reach: 6 },
+    base: { maxHp: 1400, armor: 20, dice: 3, damage: 400, energyPerKill: 6, energyPerRound: 18, maxEnergy: 100, critMult: 2, cleave: 0, move: 5, reach: 6 },
     abilities: [
-      { key: 'recall', name: 'Rune of Recall', cost: 30, tags: ['move', 'ally'], text: 'Swap places with an ally within 10″. Neither of you suffers free blows, foes turn on whoever now stands before them, and you both gain a 300 ward.', target: { allies: 'within 10″', exactly: 1 }, effects: [{ kind: 'swap', ward: 300 }] },
-      { key: 'circle', name: 'Warding Circle', cost: 45, tags: ['zone', 'ally'], text: 'Draw a 2″ circle around you: you and every ally inside gain a 300 ward and heal 10%. Foes can\'t step into it until End round. Tap the allies inside.', target: { allies: 'inside the circle', optional: true }, effects: [{ kind: 'allyWard', amount: 300, heal: 10 }] },
-      { key: 'hammer', name: 'Hammer of the Deep', cost: 40, tags: ['push', 'pin'], text: 'Strike one foe within 6″: it takes 2 hits, is knocked 3″ straight back and is Pinned until End round. Push it, then tap it.', target: { foes: 'one foe within 6″', max: 1 }, effects: [{ kind: 'areaHit', hits: 2 }, { kind: 'push', inches: 3 }, { kind: 'pin' }] },
+      { key: 'recall', name: 'Rune of Recall', cost: 30, tags: ['move', 'ally'], text: 'Swap places with an ally within 10″. Neither of you suffers free blows, foes turn on whoever now stands before them, and you both gain a 300 rune ward.', target: { allies: 'within 10″', exactly: 1 }, effects: [{ kind: 'swap', ward: 300 }] },
+      { key: 'circle', name: 'Warding Circle', cost: 45, tags: ['zone', 'ally'], text: 'Draw a 2″ circle around you: you and every ally inside gain a 300 rune ward and heal 10%. Foes can\'t step into it until End round. Tap the allies inside.', target: { allies: 'inside the circle', optional: true }, effects: [{ kind: 'allyWard', amount: 300, heal: 10, rune: true }] },
+      { key: 'hammer', name: 'Hammer of the Deep', cost: 40, tags: ['push', 'pin'], text: 'Strike one foe within 6″: it takes 3 hits, is knocked 3″ straight back and is Pinned until End round. Push it, then tap it.', target: { foes: 'one foe within 6″', max: 1 }, effects: [{ kind: 'areaHit', hits: 3 }, { kind: 'push', inches: 3 }, { kind: 'pin' }] },
+    ],
+    // Runebrand (passive): every foe he damages is branded until End round; other heroes attack it with +1 die.
+    // Reactions: outside his turn, without using his action, each once per round, paid from energy.
+    reactions: [
+      { key: 'turning', name: 'Rune of Turning', cost: 20, need: 'defending', text: 'An ally who is rolling defence rerolls every foe die that hit, once. Only the second roll counts.' },
+      { key: 'mending', name: 'Rune of Mending', cost: 25, need: 'low', text: 'Heal an ally below a third of their health by 15% of their max health.' },
+      { key: 'haste', name: 'Rune of Haste', cost: 30, text: "An ally's next attack rolls +1 die." },
     ],
   },
   ranger: {
@@ -87,7 +94,7 @@ export const SLOT_LABEL = { weapon: 'Weapon', helm: 'Helm', armor: 'Armor', glov
 
 export const STAT_INFO = {
   maxHp: { label: 'Max Health', fmt: v => `+${fmt(v)}` },
-  armor: { label: 'Armor', fmt: v => `+${v}%` },
+  armor: { label: 'Armor', fmt: v => `+${v}` },
   damage: { label: 'Damage per Hit', fmt: v => `+${fmt(v)}` },
   energyPerKill: { label: 'Energy per Kill', fmt: v => `+${v}` },
   energyPerRound: { label: 'Energy per Round', fmt: v => `+${v}` },
@@ -98,7 +105,7 @@ export const STAT_INFO = {
 };
 
 const AFFIX_RANGE = {
-  maxHp: [80, 420], armor: [2, 7], damage: [40, 260], energyPerKill: [1, 4],
+  maxHp: [80, 420], armor: [3, 10], damage: [40, 260], energyPerKill: [1, 4],
   energyPerRound: [2, 8], maxEnergy: [10, 30], critMult: [1, 4], // critMult in quarters
 };
 const SLOT_PRIMARY = {
@@ -289,6 +296,15 @@ export function synergyText(sy) {
   return parts.join('. ') + '.';
 }
 
+// Armour rating → share of each blow it stops: rating / (rating + 100). 100 halves damage; never immune.
+export const armorCut = r => (r > 0 ? r / (r + 100) : 0);
+export const ARMOR_BREAK = 20;     // Armour-breaker foes ignore this many points
+// Energy per Round above the class base: the first 15 count fully, the next 15 half, the rest a quarter.
+export const taperRegen = x => Math.min(x, 15) + 0.5 * Math.min(Math.max(x - 15, 0), 15) + 0.25 * Math.max(x - 30, 0);
+// Minion kills in one round: the 1st pays full energy, the 2nd and 3rd half, later ones a quarter.
+export const killTaper = k => (k <= 1 ? 1 : k <= 3 ? 0.5 : 0.25);
+export const SURGE_COST = 60;
+
 export function derive(ch) {
   const C = CLASSES[ch.cls] || CLASSES.ironclad;
   const s = { ...C.base };
@@ -298,13 +314,15 @@ export function derive(ch) {
   for (const [k, n] of Object.entries(counts)) for (const b of SETS[k].bonuses) if (n >= b.n) add(b.stats);
   for (const sy of activeSynergies(ch, counts)) if (sy.stats) add(sy.stats);
   for (const [k, v] of Object.entries(ch.boons || {})) s[k] = (s[k] || 0) + v; // the Rakshasa's permanent boons
-  s.armor = Math.min(s.armor, 75);
+  s.armorCut = armorCut(s.armor);           // armour is a rating with diminishing returns (no hard cap)
+  const extra = s.energyPerRound - C.base.energyPerRound;   // regen from gear, sets and boons tapers off
+  if (extra > 0) s.energyPerRound = C.base.energyPerRound + Math.floor(taperRegen(extra));
   s.pool = s.dice + (ch.buffs?.bonusDice || 0);
   return s;
 }
 
 // Defense: the hero rolls one die per enemy attack; low rolls are blows that land.
-// Heavy armor (30%+) narrows that window from 1–3 to 1–2.
+// Heavy armour (a rating of 30+) narrows that window from 1–3 to 1–2.
 export const landOn = s => (s.armor >= 30 ? 2 : 3);   // how many faces land: 4+ (3 faces), or 5+ against heavy armour (2)
 export const hitOn = n => 7 - n;                        // the lowest face that hits
 // Foes roll like heroes: 4+ hits (5+ against heavy armour), and every 6 is a crit.
@@ -323,6 +341,9 @@ export const FOE_ABILITIES = {
   leech: { name: 'Energy Leech', icon: 'ϟ', when: 'phase', text: 'Enemy phase: every hero it attacks loses 10 energy.' },
   thickhide: { name: 'Thick Hide', icon: '⛊', when: 'passive', text: '6s never crit it.' },
   slam: { name: 'Slam', icon: '⤞', when: 'phase', text: 'Enemy phase: if any of its blows land, the hero is hurled 3″ straight away from it. Into a wall, a foe or an ally: one more blow of damage. Over an edge: they fall into the chasm.' },
+  sunder: { name: 'Armour-breaker', icon: '⚒', when: 'phase', text: `Its blows ignore ${20} points of armour.` },
+  drown: { name: 'Drown', icon: '≋', when: 'phase', text: 'Enemy phase: if 2 or more of its blows land on a hero, that hero loses 25 energy.' },
+  chill: { name: 'Chill', icon: '❄', when: 'round', text: 'Every End round: each hero it is fighting loses 10 energy.' },
   throes: { name: 'Death Throes', icon: '✹', when: 'death', text: 'On death: explodes for 300 damage to every hero (armor applies).' },
 };
 export const foeHas = (e, k) => (e.abilities || []).includes(k);
@@ -472,6 +493,11 @@ function foesRoundEnd(state, ev, rng) {
       ev.push(...spawnMinionsFor(state, 2, targets, rng));
       foeAnnounce(state, e, 'summoner', ev, `2 minions answer the call.`);
     }
+    if (foeHas(e, 'chill') && e.target && state.characters[e.target]) {
+      const c = state.characters[e.target], lost = Math.min(c.energy, 10);
+      c.energy -= lost;
+      if (lost) foeAnnounce(state, e, 'chill', ev, `${c.name} loses ${lost} energy.`);
+    }
   }
 }
 
@@ -485,7 +511,7 @@ function defenseGroupsFrom(list, dice = e => e.attacks || ENEMY_TYPES[e.type]?.a
   const groups = new Map();
   for (const e of list) {
     const key = e.type === 'minion' ? `m:${e.name}:${e.damage}` : e.id;
-    const g = groups.get(key) || { name: e.name, type: e.type, count: 0, damage: e.damage, dice: 0, crit: e.critMult || FOE_CRIT[e.type] || 1.5, ...(foeHas(e, 'slam') ? { slam: true } : {}) };
+    const g = groups.get(key) || { name: e.name, type: e.type, count: 0, damage: e.damage, dice: 0, crit: e.critMult || FOE_CRIT[e.type] || 1.5, ...(foeHas(e, 'slam') ? { slam: true } : {}), ...(foeHas(e, 'sunder') ? { sunder: true } : {}), ...(foeHas(e, 'drown') ? { drown: true } : {}) };
     g.count += 1;
     g.dice += dice(e);
     groups.set(key, g);
@@ -535,13 +561,31 @@ function gainEnergy(ch, amt) {
   return ch.energy - before;
 }
 
-function hurt(ch, amount, ignoreArmor = false) {
+// Energy for kills: elites and bosses always pay in full; minion kills taper within a round.
+function killEnergy(state, ch, type, n = 1) {
   const s = derive(ch);
-  const blocked = ignoreArmor ? 0 : Math.round(amount * s.armor / 100);
+  if (type && type !== 'minion') return gainEnergy(ch, s.energyPerKill * (ENEMY_TYPES[type]?.energyMult || 1));
+  if (ch.kr?.round !== state.round) ch.kr = { round: state.round, n: 0 };
+  let total = 0;
+  for (let i = 0; i < n; i++) { ch.kr.n += 1; total += Math.floor(s.energyPerKill * killTaper(ch.kr.n)); }
+  return gainEnergy(ch, total);
+}
+
+// Two ward layers: a rune ward (the Runepriest's) and a plain ward. Neither stacks with itself:
+// a new ward only replaces the old one when it is bigger.
+function addWard(c, amount, rune = false) {
+  if (rune) c.rune = Math.max(c.rune || 0, amount);
+  else c.ward = Math.max(c.ward || 0, amount);
+}
+export const wardOf = c => (c.ward || 0) + (c.rune || 0);
+
+// `blockedBy` lets the defence roll work out armour blow by blow (crits pierce, Armour-breakers ignore some).
+function hurt(ch, amount, ignoreArmor = false, blockedBy = null) {
+  const s = derive(ch);
+  const blocked = ignoreArmor ? 0 : blockedBy != null ? Math.round(blockedBy) : Math.round(amount * s.armorCut);
   let net = amount - blocked;
-  const warded = Math.min(ch.ward || 0, net);
-  ch.ward = (ch.ward || 0) - warded;
-  net -= warded;
+  let warded = 0;
+  for (const k of ['rune', 'ward']) { const w = Math.min(ch[k] || 0, net); ch[k] = (ch[k] || 0) - w; net -= w; warded += w; }
   ch.hp = Math.max(0, ch.hp - net);
   if (ch.hp <= 0) delete ch.strike;
   return { net, blocked, warded };
@@ -720,7 +764,8 @@ export function apply(state, a, rng = Math.random) {
         needAction(state, ch, 'attack');
         ch.acted = { round: state.round, kind: 'attack' };
         const s = derive(ch);
-        const bonus = Math.max(0, Math.min(Number(a.bonus) || 0, 2)); // high ground, flanking
+        const branded = a.brand && ch.cls !== 'runepriest' && Object.values(state.enemies).some(e => e.branded);
+        const bonus = Math.max(0, Math.min(Number(a.bonus) || 0, 2)) + (branded ? 1 : 0); // high ground, flanking, Runebrand
         const fromHiding = ch.hidden ? HIDDEN_DICE : 0;
         const pool = s.pool + bonus + fromHiding;
         const hits = Math.max(0, Math.min(Number(a.hits) || 0, pool));
@@ -745,7 +790,7 @@ export function apply(state, a, rng = Math.random) {
           if (st.minion) st.minion--; else if (st.hits) st.hits--; else st.crits--;
           if (e) delete state.enemies[e.id];
           credit(ch, 'minion');
-          const energy = gainEnergy(ch, s.energyPerKill);
+          const energy = killEnergy(state, ch, 'minion');
           ev.push({ type: 'kills', charId: ch.id, kills: 1, energy, left: strikeLeft(ch) });
           log(state, `${ch.name} slays ${e ? 'a ' + e.name : 'a minion'}. (+${energy} energy)`, 'kill');
         } else {
@@ -755,11 +800,12 @@ export function apply(state, a, rng = Math.random) {
           const raw = s.damage * (crit && !foeHas(e, 'thickhide') ? s.critMult : 1) * (st.mult || 1);
           const dmg = Math.round(raw * (1 - (e.armor || 0) / 100));
           e.hp = Math.max(0, e.hp - dmg);
+          if (ch.cls === 'runepriest') e.branded = true;   // Runebrand
           let energy = 0;
           if (e.hp <= 0) {
             delete state.enemies[e.id];
             credit(ch, e.type);
-            energy = gainEnergy(ch, s.energyPerKill * (ENEMY_TYPES[e.type]?.energyMult || 1));
+            energy = killEnergy(state, ch, e.type);
             log(state, `${ch.name} ${crit ? 'crits' : 'hits'} for ${fmt(dmg)} and fells ${e.name}! (+${energy} energy)`, 'kill');
           } else log(state, `${ch.name} ${crit ? 'crits' : 'hits'} ${e.name} for ${fmt(dmg)}.`, 'hit');
           ev.push({ type: 'strike', charId: ch.id, enemyId: e.id, enemyName: e.name, damage: dmg, crit, slain: e.hp <= 0, energy, left: strikeLeft(ch) });
@@ -799,7 +845,7 @@ export function apply(state, a, rng = Math.random) {
           ch.buffs.damageMult = Math.max(ch.buffs.damageMult || 1, f.damageMult || 1);
           ch.buffs.label = ab.name;
         } else if (f.kind === 'ward') {
-          for (const c of f.who === 'party' ? party : [ch]) c.ward = (c.ward || 0) + f.amount;
+          for (const c of f.who === 'party' ? party : [ch]) addWard(c, f.amount, f.rune);
         } else if (f.kind === 'heal') {
           for (const c of f.who === 'party' ? party : [ch]) {
             if (c.hp <= 0 && c.id !== ch.id) continue;
@@ -818,19 +864,20 @@ export function apply(state, a, rng = Math.random) {
           for (const e of foes) {
             if (!state.enemies[e.id]) continue;
             const hits = f.hits + (slammed.has(e.id) ? 1 : 0);
-            if (e.type === 'minion') { delete state.enemies[e.id]; slain++; credit(ch, 'minion'); gainEnergy(ch, s.energyPerKill); continue; }
+            if (e.type === 'minion') { delete state.enemies[e.id]; slain++; credit(ch, 'minion'); killEnergy(state, ch, 'minion'); continue; }
             const dmg = Math.round(hits * s.damage * (1 - (e.armor || 0) / 100));
             e.hp = Math.max(0, e.hp - dmg);
+            if (ch.cls === 'runepriest') e.branded = true;   // Runebrand
             ev.push({ type: 'strike', charId: ch.id, enemyId: e.id, enemyName: e.name, damage: dmg, crit: false, slain: e.hp <= 0, energy: 0, left: strikeLeft(ch) });
             if (e.hp <= 0) {
               delete state.enemies[e.id]; credit(ch, e.type); slain++;
-              gainEnergy(ch, s.energyPerKill * (ENEMY_TYPES[e.type]?.energyMult || 1));
+              killEnergy(state, ch, e.type);
               log(state, `${ch.name}'s ${ab.name} fells ${e.name}!`, 'kill');
               foeDied(state, e, ev);
             } else { log(state, `${ab.name} hits ${e.name} for ${fmt(dmg)}${slammed.has(e.id) ? ' (slammed!)' : ''}.`, 'hit'); foeDamaged(state, e, ev, rng); }
           }
           const table = Math.max(0, Math.min(Number(a.tableKills) || 0, 20)); // untracked minions caught on the table
-          if (table) { slain += table; credit(ch, 'minion', table); gainEnergy(ch, table * s.energyPerKill); }
+          if (table) { slain += table; credit(ch, 'minion', table); killEnergy(state, ch, 'minion', table); }
           if (slain) ev.push({ type: 'kills', charId: ch.id, kills: slain, energy: 0 });
           detail = ` — ${foes.length + table} caught${slain ? `, ${slain} slain` : ''}`;
         } else if (f.kind === 'pin') {
@@ -847,12 +894,12 @@ export function apply(state, a, rng = Math.random) {
           for (const e of Object.values(state.enemies)) {
             if (e.target === ch.id) e.target = ally.id; else if (e.target === ally.id) e.target = ch.id;
           }
-          ch.ward = (ch.ward || 0) + f.ward; ally.ward = (ally.ward || 0) + f.ward;
+          addWard(ch, f.ward, true); addWard(ally, f.ward, true);
           detail = ` — trading places with ${ally.name}`;
         } else if (f.kind === 'allyWard') {
           for (const c of [ch, ...allies]) {
             if (c.hp <= 0 && c.id !== ch.id) continue;
-            c.ward = (c.ward || 0) + f.amount;
+            addWard(c, f.amount, f.rune);
             const m = derive(c).maxHp;
             c.hp = Math.min(m, c.hp + Math.round(m * (f.heal || 0) / 100));
           }
@@ -1032,7 +1079,7 @@ export function apply(state, a, rng = Math.random) {
         const s = derive(ch), f = K.effect;
         if (f.kind === 'heal') { const before = ch.hp; ch.hp = Math.min(s.maxHp, Math.max(0, ch.hp) + Math.round(s.maxHp * f.pct / 100)); ev.push({ type: 'heal', charId: ch.id, amount: ch.hp - before }); }
         else if (f.kind === 'energy') gainEnergy(ch, f.amount);
-        else if (f.kind === 'ward') ch.ward = (ch.ward || 0) + f.amount;
+        else if (f.kind === 'ward') addWard(ch, f.amount);
         else if (f.kind === 'hide') ch.hidden = true;
         else if (f.kind === 'smite') { ch.strike = ch.strike || { hits: 0, crits: 0, minion: 0, mult: 1 }; ch.strike.minion = (ch.strike.minion || 0) + f.kills; }
         else if (f.kind === 'buff') { ch.buffs ||= {}; ch.buffs.bonusDice = (ch.buffs.bonusDice || 0) + f.bonusDice; ch.buffs.label = K.name; }
@@ -1157,6 +1204,49 @@ export function apply(state, a, rng = Math.random) {
         ev.push({ type: 'enemyPhase', targets });
         break;
       }
+      case 'surge': { // once per round: spend energy to act again
+        need();
+        if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
+        if (!actedThisRound(state, ch)) throw new Error('You still have your action');
+        if (ch.surged === state.round) throw new Error('Only one Surge per round');
+        if (ch.energy < SURGE_COST) throw new Error(`Surge costs ${SURGE_COST} energy`);
+        ch.energy -= SURGE_COST;
+        ch.surged = state.round;
+        delete ch.acted;
+        log(state, `⚡ ${ch.name} surges: another action!`, 'ability');
+        ev.push({ type: 'surge', charId: ch.id });
+        break;
+      }
+      case 'reaction': { // the Runepriest's runes: off-turn, no action, each once per round
+        need();
+        const R = (CLASSES[ch.cls]?.reactions || []).find(x => x.key === a.key);
+        if (!R) throw new Error('Unknown reaction');
+        if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
+        if (ch.reacted?.round === state.round && ch.reacted.keys.includes(R.key)) throw new Error(`${R.name} is spent until End round`);
+        if (ch.energy < R.cost) throw new Error(`${R.name} costs ${R.cost} energy`);
+        const ally = state.characters[a.allyId];
+        if (!ally || ally.id === ch.id || ally.away) throw new Error('Choose an ally');
+        const m = derive(ally).maxHp;
+        if (R.key === 'turning') {
+          const d = state.defense?.[ally.id];
+          if (!d) throw new Error(`${ally.name} isn't rolling defence`);
+          d.turning = true;
+        } else if (R.key === 'mending') {
+          if (ally.hp <= 0 || ally.hp >= m / 3) throw new Error(`${ally.name} must be below a third of their health`);
+          ally.hp = Math.min(m, ally.hp + Math.round(m * 0.15));
+        } else if (R.key === 'haste') {
+          ally.buffs ||= {};
+          ally.buffs.bonusDice = (ally.buffs.bonusDice || 0) + 1;
+          ally.buffs.label ||= 'Rune of Haste';
+        }
+        ch.energy -= R.cost;
+        ch.reacted = ch.reacted?.round === state.round ? ch.reacted : { round: state.round, keys: [] };
+        ch.reacted.keys.push(R.key);
+        const what = { turning: 'reroll every die that hit', mending: `heal ${fmt(Math.round(m * 0.15))}`, haste: '+1 die on the next attack' }[R.key];
+        log(state, `ᛟ ${ch.name}: ${R.name} on ${ally.name} (${what}).`, 'ability');
+        ev.push({ type: 'reaction', charId: ch.id, allyId: ally.id, key: R.key, name: R.name });
+        break;
+      }
       case 'defend': {
         need();
         const d = state.defense?.[ch.id];
@@ -1166,6 +1256,13 @@ export function apply(state, a, rng = Math.random) {
         const landed = d.groups.map((g, i) => Math.max(0, Math.min(Number(a.landed?.[i]) || 0, g.dice + (a.highGround && i === top ? 1 : 0))));
         const crits = d.groups.map((g, i) => Math.max(0, Math.min(Number(a.crits?.[i]) || 0, landed[i])));   // 6s: crit damage
         const raw = Math.round(d.groups.reduce((sum, g, i) => sum + landed[i] * g.damage + crits[i] * g.damage * ((g.crit || 1.5) - 1), 0));
+        // Armour blow by blow: crits pierce half the rating; Armour-breakers ignore ARMOR_BREAK points.
+        const R = derive(ch).armor;
+        const blockedBy = d.groups.reduce((sum, g, i) => {
+          const brk = g.sunder ? ARMOR_BREAK : 0;
+          const plain = (landed[i] - crits[i]) * g.damage, hard = crits[i] * g.damage * (g.crit || 1.5);
+          return sum + plain * armorCut(Math.max(0, R - brk)) + hard * armorCut(Math.max(0, R / 2 - brk));
+        }, 0);
         const critCount = crits.reduce((x, y) => x + y, 0);
         const blows = landed.reduce((x, y) => x + y, 0);
         delete state.defense[ch.id];
@@ -1174,8 +1271,14 @@ export function apply(state, a, rng = Math.random) {
           log(state, `${ch.name} turns aside every blow!`, 'heal');
           break;
         }
-        const r = hurt(ch, raw);
+        const r = hurt(ch, raw, false, blockedBy);
         ev.push({ type: 'hurt', charId: ch.id, ...r });
+        for (const [i, g] of d.groups.entries()) {
+          if (!g.drown || landed[i] < 2) continue;
+          const lost = Math.min(ch.energy, 25);
+          ch.energy -= lost;
+          if (lost) { log(state, `≋ ${g.name} drags ${ch.name} under: −${lost} energy.`, 'hurt'); ev.push({ type: 'foeAbility', key: 'drown', name: 'Drown', enemyName: g.name, text: `${ch.name} loses ${lost} energy.` }); }
+        }
         log(state, `${blows} blow${blows === 1 ? ' lands' : 's land'} on ${ch.name}${critCount ? ` (${critCount} crit${critCount > 1 ? 's' : ''}!)` : ''}: ${fmt(r.net)} damage${r.blocked ? ` (${fmt(r.blocked)} blocked)` : ''}${r.warded ? ` (${fmt(r.warded)} warded)` : ''}.${ch.hp <= 0 ? ' DOWN!' : ''}`, 'hurt');
         const slammer = d.groups.find((g, i) => g.slam && landed[i] > 0);
         if (slammer && ch.hp > 0) {
@@ -1248,9 +1351,11 @@ export function apply(state, a, rng = Math.random) {
         for (const id of state.order) {
           const c = state.characters[id];
           delete c.strike;
-          if (c.hp > 0) gainEnergy(c, derive(c).energyPerRound);
+          if (c.hp > 0) { const s = derive(c); gainEnergy(c, c.energy >= s.maxEnergy / 2 ? Math.floor(s.energyPerRound / 2) : s.energyPerRound); }
+          if (c.ward) c.ward = Math.floor(c.ward / 2);   // wards fade by half
+          if (c.rune) c.rune = Math.floor(c.rune / 2);
         }
-        for (const e of Object.values(state.enemies)) delete e.pinned;
+        for (const e of Object.values(state.enemies)) { delete e.pinned; delete e.branded; }
         state.round += 1;
         log(state, `— Round ${state.round} begins. Energy surges. —`, 'round');
         ev.push({ type: 'round', round: state.round });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { apply, newGame, derive, makeItem, RARITY_ORDER } from '../public/engine.js';
+import { apply, newGame, derive, makeItem, RARITY_ORDER, armorCut } from '../public/engine.js';
 import { RoomCore } from '../server/room.js';
 
 function setup() {
@@ -19,7 +19,7 @@ test('roll banks hits; tapping minions spends them for energy', () => {
   apply(s, { type: 'spend', charId: id, enemyId: 'table' });
   assert.equal(Object.keys(s.enemies).length, 3);
   assert.equal(s.characters[id].kills, 2);
-  assert.equal(s.characters[id].energy, 20 + 2 * 8);
+  assert.equal(s.characters[id].energy, 20 + 8 + 4); // 2nd minion kill in a round pays half
   assert.match(apply(s, { type: 'attack', charId: id, hits: 1 }).error, /remaining/);
   apply(s, { type: 'spend', charId: id, enemyId: m[1].id });
   assert.equal(s.characters[id].strike, undefined);
@@ -62,8 +62,8 @@ test('armor and ward on incoming damage', () => {
   const { s, id } = setup();
   s.characters[id].ward = 100;
   const r = apply(s, { type: 'hurt', charId: id, amount: 1000 });
-  assert.deepEqual([r.events[0].blocked, r.events[0].warded, r.events[0].net], [300, 100, 600]);
-  assert.equal(s.characters[id].hp, 1200);
+  assert.deepEqual([r.events[0].blocked, r.events[0].warded, r.events[0].net], [231, 100, 669]); // rating 30 stops 30/130
+  assert.equal(s.characters[id].hp, 1131);
 });
 
 test('items change derived stats; end round adds energy', () => {
@@ -104,8 +104,8 @@ test('enemy phase: grouped defense rolls, armor narrows landing window', () => {
   assert.equal(d.surrounded, true); // 5 foes on him: +1 die to the minion group
   assert.deepEqual(d.groups.map(g => [g.count, g.dice, g.damage]), [[4, 5, 60], [1, 3, 450]]);
   apply(s, { type: 'defend', charId: id, landed: [2, 1] });
-  // raw 2*60 + 450 = 570, 30% armor blocks 171
-  assert.equal(s.characters[id].hp, 1800 - 399);
+  // raw 2*60 + 450 = 570; armour rating 30 stops 30/130 of it (132)
+  assert.equal(s.characters[id].hp, 1800 - 438);
   assert.equal(s.defense[id], undefined);
 });
 
@@ -274,10 +274,10 @@ test('foe ability presets run automatically', () => {
   apply(s, { type: 'enemyPhase' });
   assert.ok(s.defense[b].groups.some(g => g.name === 'Thane'));
   assert.equal(s.characters[a].energy, 40); assert.equal(s.characters[b].energy, 40);
-  // death throes: 300 to every hero, armor applies (Ironclad 30% → 210, Arcanist 8% → 276)
+  // death throes: 300 to every hero, armour applies (Ironclad rating 30 → 231, Arcanist 8 → 278)
   const [ha, hb] = [s.characters[a].hp, s.characters[b].hp];
   apply(s, { type: 'damageEnemy', enemyId: boss.id, amount: 99999 });
-  assert.equal(ha - s.characters[a].hp, 210); assert.equal(hb - s.characters[b].hp, 276);
+  assert.equal(ha - s.characters[a].hp, 231); assert.equal(hb - s.characters[b].hp, 278);
 });
 
 test('movement: position bonuses, hiding, area powers with slams, pins, taunts', () => {
@@ -327,7 +327,7 @@ test('movement: position bonuses, hiding, area powers with slams, pins, taunts',
   assert.match(apply(s, { type: 'ability', charId: priest, key: 'recall' }).error, /ally/);
   apply(s, { type: 'ability', charId: priest, key: 'recall', allies: [iron] });
   assert.equal(brute.target, priest);
-  assert.equal(s.characters[iron].ward, 300);
+  assert.equal(s.characters[iron].rune, 300); // Rune of Recall gives a rune ward
   apply(s, { type: 'endRound' });
   assert.equal(brute.pinned, undefined);
   // Bulwark taunts
@@ -337,8 +337,9 @@ test('movement: position bonuses, hiding, area powers with slams, pins, taunts',
   // defending against a foe on higher ground: +1 die on the hardest-hitting group
   apply(s, { type: 'enemyPhase' });
   apply(s, { type: 'defend', charId: iron, landed: [3], highGround: true });
-  // 3 blows × 200 = 600, 30% armor → 420, all soaked by the 900 ward (600 Bulwark + 300 Recall)
-  assert.equal(s.characters[iron].ward, 900 - 420);
+  // 3 blows × 200 = 600; armour rating 30 stops 138 → 462. The Recall rune ward (300, halved to 150 at
+  // End round) goes first, the Bulwark ward (600) takes the other 312.
+  assert.deepEqual([s.characters[iron].rune, s.characters[iron].ward], [0, 600 - 312]);
 });
 
 import { markerRole, MARKER_RANGES } from '../public/engine.js';
@@ -628,7 +629,7 @@ test('slam: landed blows hurl the hero; impact costs a blow, the chasm costs a f
   // into a wall: one more blow, armour applies
   const hp = ch.hp, ward = ch.ward || 0;
   apply(s, { type: 'slamLanding', charId: id, where: 'impact' });
-  assert.equal(ch.hp + ward, hp - Math.round(500 * (1 - derive(ch).armor / 100)) + (ch.ward || 0));
+  assert.equal(ch.hp + ward, hp - Math.round(500 * (1 - armorCut(derive(ch).armor))) + (ch.ward || 0));
   // next round: slammed into the chasm
   apply(s, { type: 'endRound' });
   apply(s, { type: 'enemyPhase' });
@@ -724,6 +725,112 @@ test('foes roll like heroes: 6s crit for extra damage', () => {
   assert.equal(s.defense[id].groups[0].crit, 2);
   const ch = s.characters[id], before = ch.hp + (ch.ward || 0);
   apply(s, { type: 'defend', charId: id, landed: [2], crits: [1] });  // one plain blow + one crit: 200 + 400 before armour
-  const armor = derive(ch).armor;
-  assert.equal(before - (ch.hp + (ch.ward || 0)), Math.round(600 * (1 - armor / 100)));
+  const R = derive(ch).armor;   // the crit pierces half the armour rating
+  assert.equal(before - (ch.hp + (ch.ward || 0)), 600 - Math.round(200 * armorCut(R) + 400 * armorCut(R / 2)));
+});
+
+test('armour is a rating with diminishing returns; Armour-breakers ignore 20', () => {
+  assert.equal(armorCut(100), 0.5);
+  assert.equal(armorCut(0), 0);
+  assert.ok(armorCut(400) < 1);
+  const { s, id } = setup();
+  const ch = s.characters[id];
+  ch.gear.armor = { id: 'x', name: 'Slab', slot: 'armor', rarity: 'rare', stats: { armor: 70 } };   // rating 100: no hard cap
+  assert.equal(derive(ch).armor, 100);
+  apply(s, { type: 'spawn', etype: 'elite', name: 'Ogre', hp: 3000, armor: 0, attacks: 1, damage: 1000, abilities: ['sunder'], target: id });
+  apply(s, { type: 'enemyPhase' });
+  ch.hp = derive(ch).maxHp; const hp = ch.hp;
+  apply(s, { type: 'defend', charId: id, landed: [1] });
+  assert.equal(hp - ch.hp, 1000 - Math.round(1000 * armorCut(80)));   // 100 - 20 points
+});
+
+test('wards: two layers, no stacking, rune first, both fade at End round', () => {
+  const s = newGame('W');
+  const iron = apply(s, { type: 'createCharacter', name: 'I', cls: 'ironclad' }).result.charId;
+  const pr = apply(s, { type: 'createCharacter', name: 'P', cls: 'runepriest' }).result.charId;
+  const I = s.characters[iron], P = s.characters[pr];
+  I.energy = P.energy = 100;
+  apply(s, { type: 'ability', charId: iron, key: 'bulwark' });
+  apply(s, { type: 'ability', charId: pr, key: 'circle', allies: [iron] });
+  assert.deepEqual([I.ward, I.rune], [600, 300]);
+  apply(s, { type: 'freeAction', charId: iron }); I.energy = 100;
+  apply(s, { type: 'ability', charId: iron, key: 'bulwark' });
+  assert.equal(I.ward, 600, 'a second Bulwark does not stack');
+  I.hp = 1800;
+  const r = apply(s, { type: 'hurt', charId: iron, amount: 650, ignoreArmor: true });
+  apply(s, { type: 'endRound' });
+  assert.deepEqual([I.rune, I.ward], [0, 125]);   // 300 rune gone first, ward 600 − 350 = 250, then halved
+});
+
+test('energy tapers: kill energy within a round, regen above half, gear regen', () => {
+  const { s, id } = setup();
+  const ch = s.characters[id];
+  apply(s, { type: 'spawn', etype: 'minion', count: 6, target: id });
+  ch.energy = 0;
+  apply(s, { type: 'attack', charId: id, hits: 3, sixes: 0 });
+  for (let i = 0; i < 3; i++) apply(s, { type: 'spend', charId: id, enemyId: 'table' });
+  apply(s, { type: 'ability', charId: id, key: 'set:none' });
+  assert.equal(ch.energy, 8 + 4 + 4);   // 1st full, 2nd and 3rd half
+  ch.energy = 60;   // above half of 100: regen 10 → 5
+  apply(s, { type: 'endRound' });
+  assert.equal(ch.energy, 65);
+  ch.energy = 10;
+  apply(s, { type: 'endRound' });
+  assert.equal(ch.energy, 20);
+  ch.gear.boots = { id: 'b', name: 'Boots', slot: 'boots', rarity: 'rare', stats: { energyPerRound: 38 } };
+  assert.equal(derive(ch).energyPerRound, 10 + 24);   // 15 + 7.5 + 2 = 24.5 → 24
+});
+
+test('surge: once per round, 60 energy, a second action', () => {
+  const { s, id } = setup();
+  const ch = s.characters[id];
+  assert.match(apply(s, { type: 'surge', charId: id }).error, /still have/);
+  apply(s, { type: 'attack', charId: id, hits: 0 });
+  ch.energy = 50;
+  assert.match(apply(s, { type: 'surge', charId: id }).error, /60/);
+  ch.energy = 100;
+  apply(s, { type: 'surge', charId: id });
+  assert.equal(ch.energy, 40);
+  assert.equal(apply(s, { type: 'attack', charId: id, hits: 0 }).error, undefined);
+  ch.energy = 100;
+  assert.match(apply(s, { type: 'surge', charId: id }).error, /one Surge/);
+});
+
+test('runepriest: harder hits, Runebrand, reactions; Drown and Chill drain energy', () => {
+  const s = newGame('R');
+  const iron = apply(s, { type: 'createCharacter', name: 'I', cls: 'ironclad' }).result.charId;
+  const pr = apply(s, { type: 'createCharacter', name: 'P', cls: 'runepriest' }).result.charId;
+  const I = s.characters[iron], P = s.characters[pr];
+  assert.deepEqual([derive(P).dice, derive(P).damage], [3, 400]);
+  apply(s, { type: 'spawn', etype: 'elite', name: 'Brute', hp: 9000, armor: 0, attacks: 2, damage: 200, abilities: ['drown', 'chill'], target: iron });
+  const brute = Object.values(s.enemies)[0];
+  P.energy = 100;
+  apply(s, { type: 'ability', charId: pr, key: 'hammer', targets: [brute.id] });
+  assert.equal(brute.hp, 9000 - 3 * 400);
+  assert.equal(brute.branded, true);
+  apply(s, { type: 'attack', charId: iron, hits: 0, brand: true });
+  assert.equal(I.acted.kind, 'attack');
+  // the pool grew by one for the brand: 6 hits fit in 3 dice + 1? no: hits are capped by pool
+  apply(s, { type: 'freeAction', charId: iron });
+  apply(s, { type: 'attack', charId: iron, hits: 9, brand: true });
+  assert.equal(I.strike.hits, 4);   // 3 dice + 1 for the brand
+  apply(s, { type: 'endAttack', charId: iron });
+  // reactions
+  apply(s, { type: 'reaction', charId: pr, key: 'haste', allyId: iron });
+  assert.equal(I.buffs.bonusDice, 1);
+  assert.match(apply(s, { type: 'reaction', charId: pr, key: 'haste', allyId: iron }).error, /spent/);
+  assert.match(apply(s, { type: 'reaction', charId: pr, key: 'mending', allyId: iron }).error, /third/);
+  I.hp = 500;
+  apply(s, { type: 'reaction', charId: pr, key: 'mending', allyId: iron });
+  assert.equal(I.hp, 500 + 270);
+  I.energy = 50;
+  apply(s, { type: 'enemyPhase' });
+  P.energy = 100;
+  apply(s, { type: 'reaction', charId: pr, key: 'turning', allyId: iron });
+  assert.equal(s.defense[iron].turning, true);
+  apply(s, { type: 'defend', charId: iron, landed: [2] });
+  assert.equal(I.energy, 25, 'Drown: 2 blows landed');
+  apply(s, { type: 'endRound' });
+  assert.equal(brute.branded, undefined);
+  assert.ok(I.energy < 25 + 10, 'Chill drains at End round');
 });
