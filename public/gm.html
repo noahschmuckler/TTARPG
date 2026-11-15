@@ -16,6 +16,31 @@
   .rnd b { color: var(--brass-hi); font-size: 26px; vertical-align: -3px; margin-left: 4px; }
   .layout { display: grid; grid-template-columns: 1fr 360px; gap: 18px; padding: 16px; align-items: start; }
   @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+  .viewtog { display: flex; gap: 6px; margin-bottom: 10px; }
+  .viewtog .tog { padding: 6px 12px; border: 1px solid var(--line); background: var(--obsidian); color: var(--ink-dim); font-family: var(--display); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 13px; }
+  .viewtog .tog.on { background: #2c2514; border-color: var(--brass); color: var(--ink); }
+  .heroes.ov { display: block; }
+  .ovwrap { overflow-x: auto; }
+  .ovgrid { display: grid; grid-template-columns: 74px repeat(var(--n), minmax(190px, 1fr)); gap: 4px; min-width: calc(74px + var(--n) * 194px); }
+  .ovh { background: rgba(20,16,11,.92); border: 1px solid var(--line); border-top: 3px solid var(--brass); padding: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .ovh.away { opacity: .45; } .ovh.down { border-top-color: #a33; }
+  .ovn { display: flex; gap: 8px; align-items: center; text-align: left; background: none; border: 0; padding: 0; color: var(--ink); cursor: pointer; }
+  .ovn b { display: block; font-family: var(--carved); font-size: 17px; color: var(--brass-hi); } .ovn .faint { font-size: 12px; }
+  .ovh .bar { margin: 0; }
+  .ovs { display: flex; flex-wrap: wrap; gap: 3px 10px; font-size: 13px; }
+  .ovfoe { font-size: 12px; color: #ff9ca4; }
+  .ovsets { display: flex; flex-wrap: wrap; gap: 4px; }
+  .sdot { font-size: 11px; padding: 1px 6px; border: 1px solid var(--sc); color: var(--sc); border-radius: 9px; }
+  .syn { font-size: 11px; padding: 1px 6px; background: #2a2140; color: #d8c8ff; border-radius: 9px; }
+  .ovbtns { display: flex; gap: 4px; margin-top: 2px; } .ovbtns .mini { text-decoration: none; }
+  .ovl { font-family: var(--display); letter-spacing: .1em; text-transform: uppercase; font-size: 11px; color: var(--ink-faint); align-self: center; text-align: right; padding-right: 4px; }
+  .ovc { text-align: left; background: rgba(20,16,11,.85); border: 1px solid var(--line); border-left: 3px solid var(--rc, var(--line)); padding: 5px 7px; color: var(--ink); cursor: pointer; min-height: 40px; }
+  .ovc .in { display: block; font-size: 13px; font-weight: 700; color: var(--rc); } .ovc .il { display: block; font-size: 11px; color: var(--ink-dim); }
+  .ovc.empty { color: var(--ink-faint); cursor: default; display: flex; align-items: center; }
+  .ovbag { background: rgba(20,16,11,.6); border: 1px dashed var(--line); padding: 5px 7px; display: flex; flex-wrap: wrap; gap: 3px 8px; font-size: 12px; }
+  .ovbag button { background: none; border: 0; padding: 0; cursor: pointer; font-size: 12px; }
+  .ovsyn { margin-top: 12px; } .ovsyn summary { cursor: pointer; font-family: var(--display); letter-spacing: .1em; text-transform: uppercase; font-size: 13px; color: var(--brass-hi); }
+  .ovsp { padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; } .ovsp.on b { color: #d8c8ff; }
   .heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: 14px; }
   @media (max-width: 400px) { .heroes { grid-template-columns: 1fr; } }
   .hc { padding: 14px; }
@@ -101,7 +126,8 @@
 <body>
 <div id="root"></div>
 <script type="module">
-import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES, tallyOf, actedThisRound } from './engine.js';
+import { CLASSES, ENEMY_TYPES, FOE_ABILITIES, reachText, SLOTS, SLOT_LABEL, SCALE_DEFAULT_ROUNDS, partyDamagePerRound, scaledHealth, derive, engagedWith, strikeLeft, fmt, RARITY_ORDER, RARITIES, tallyOf, actedThisRound, statsText, setCounts, activeSynergies, synergyText } from './engine.js';
+import { SETS, SYNERGIES } from './sets.js';
 import { TEMPLATES, DIFFICULTY, partyPower, planScene, flatIndex, waveText } from './adventure.js';
 const beatsSent = new Set();
 import { $, h, esc, params, connect, toast, sheet, qrSVG, itemHTML, setsHTML, heroIcon } from './ui.js';
@@ -152,7 +178,9 @@ function render() {
   preserve(() => {
     if (!$('#main')) shell();
     $('#rndv').textContent = S.round;
-    $('#heroes').innerHTML = S.order.length ? S.order.map(id => heroCard(S.characters[id])).join('') :
+    $('#viewtog').innerHTML = S.order.length ? `<button class="tog ${hqView === 'overview' ? 'on' : ''}" data-a="hqView" data-v="overview">▦ Party overview</button><button class="tog ${hqView === 'cards' ? 'on' : ''}" data-a="hqView" data-v="cards">☰ Hero cards</button>` : '';
+    $('#heroes').classList.toggle('ov', hqView === 'overview' && S.order.length > 0);
+    $('#heroes').innerHTML = S.order.length ? (hqView === 'overview' ? partyOverview() : S.order.map(id => heroCard(S.characters[id])).join('')) :
       `<div class="plate dim empty"><div class="carved" style="font-size:22px;color:var(--brass-hi)">No heroes yet</div><p class="dim">Show the join code to your players. Each forges a hero on their phone.</p><button class="btn solid" data-a="qr">Show join code</button></div>`;
     $('#spawn').innerHTML = spawnPanel();
     scalePreview();
@@ -193,7 +221,7 @@ function shell() {
     <div class="advbar" id="advbar"></div>
     <div class="turnbar" id="turnbar"></div>
     <div class="layout" id="main">
-      <div class="heroes" id="heroes"></div>
+      <div style="min-width:0"><div class="viewtog" id="viewtog"></div><div class="heroes" id="heroes"></div></div>
       <div class="side">
         <div class="plate"><h3>Summon foes</h3><div id="spawn"></div></div>
         <div class="plate dim"><h3>The Rakshasa</h3><div id="rak"></div></div>
@@ -314,6 +342,49 @@ async function restoreBackup(file) {
 
 function bar(cls, v, max, label) {
   return `<div class="bar ${cls}"><i style="width:${max ? Math.min(100, v / max * 100) : 0}%"></i><span>${label}</span></div>`;
+}
+
+// ---------------------------------------------------------------- party overview (after VTTARPG's party gear screen)
+let hqView = (() => { try { return localStorage.getItem('dl.hqView') || 'overview'; } catch { return 'overview'; } })();
+function partyOverview() {
+  const ids = [...S.order.filter(id => !S.characters[id].away), ...S.order.filter(id => S.characters[id].away)];
+  const heroes = ids.map(id => S.characters[id]);
+  const st = Object.fromEntries(turnState().heroes.map(x => [x.ch.id, x.st]));
+  const LBL = { ready: ['ready', 'ready'], attack: ['done', '⚔ attacked'], power: ['done', '✦ power used'], climb: ['done', '🧗 climbed'], rolling: ['busy', '✦ rolling'], spending: ['busy', '⚔ spending hits'], defending: ['alert', '⏳ defending'], slammed: ['alert', '⤞ slammed'], pit: ['busy', '🕳 in the chasm'], down: ['off', '✝ down'] };
+  const head = heroes.map(ch => {
+    const C = CLASSES[ch.cls], s = derive(ch), counts = setCounts(ch), syns = activeSynergies(ch, counts);
+    const foes = engagedWith(S, ch.id), mins = foes.filter(f => f.type === 'minion').length, bigs = foes.filter(f => f.type !== 'minion');
+    const t = ch.away ? ['off', '💤 away'] : LBL[st[ch.id]] || ['', ''];
+    const left = strikeLeft(ch), T = tallyOf(ch);
+    return `<div class="ovh ${ch.away ? 'away' : ''} ${ch.hp <= 0 ? 'down' : ''}">
+      <button class="ovn" data-a="gear" data-id="${ch.id}" title="Gear, stats and satchel">${heroIcon(ch, C.glyph, 30)}<span><b>${esc(ch.name)}</b><span class="faint">${C.name}</span></span></button>
+      <div class="row" style="gap:6px;flex-wrap:wrap"><span class="tchip ${t[0]}" style="cursor:default">${t[1]}</span>${ch.hidden ? '<span class="ovtag" style="color:#c8b6ff">◐ hidden</span>' : ''}</div>
+      ${bar('hp', ch.hp, s.maxHp, ch.hp <= 0 ? 'DOWN' : `${fmt(ch.hp)} / ${fmt(s.maxHp)}`)}
+      ${bar('en', ch.energy, s.maxEnergy, `⚡ ${ch.energy} / ${s.maxEnergy}`)}
+      <div class="ovs"><span title="Armour">⛨ ${s.armor}%</span>${ch.ward ? `<span title="Ward" style="color:#9fd3ff">🛡 ${fmt(ch.ward)}</span>` : ''}<span title="Damage per hit × dice">⚔ ${fmt(s.damage)} × ${s.dice}d6</span>${s.critMult !== 2 ? `<span>crit ×${s.critMult}</span>` : ''}${s.cleave ? `<span>cleave ${s.cleave}</span>` : ''}<span>👣 ${s.move}″ · ${reachText(s.reach)}</span></div>
+      <div class="ovs faint"><span>☠ ${T.minion || 0}</span><span>◆ ${T.elite || 0}</span><span>♛ ${T.boss || 0}</span>${ch.favour ? `<span style="color:var(--brass-hi)">⟡ ${ch.favour} Favour</span>` : ''}</div>
+      ${foes.length ? `<div class="ovfoe">On them: ${mins ? `☠×${mins}` : ''}${mins && bigs.length ? ' · ' : ''}${bigs.map(b => `${esc(b.name)} ${fmt(b.hp)}`).join(' · ')}</div>` : ''}
+      ${left ? `<div style="font-size:12px;color:var(--brass-hi)">⚔ ${left} hit${left === 1 ? '' : 's'} to spend</div>` : ''}
+      ${ch.buffs?.label ? `<div style="font-size:12px;color:#aef7ee">⚡ ${esc(ch.buffs.label)} primed</div>` : ''}
+      <div class="ovsets">${Object.entries(counts).map(([k, n]) => `<span class="sdot" style="--sc:${SETS[k].color}" title="${esc(SETS[k].name)}: ${n} worn">${esc(SETS[k].name.split(' ')[0])} ${n}</span>`).join('')}${syns.map(sy => `<span class="syn" title="${esc(synergyText(sy))}">⟡ ${esc(sy.name)}</span>`).join('')}</div>
+      <div class="ovbtns"><a class="mini" href="play.html?room=${room}&as=${ch.id}" target="_blank" title="Open this hero's phone view">↗</a><button class="mini" data-a="edit" data-id="${ch.id}" title="Edit">✎</button><button class="mini" data-a="away" data-id="${ch.id}" title="${ch.away ? 'Back at the table' : 'Sitting out'}">${ch.away ? '🪑' : '💤'}</button><button class="mini" data-a="pit" data-id="${ch.id}" title="${ch.pit ? 'Pull out of the chasm' : 'Into the chasm'}">${ch.pit ? '🧗' : '🕳'}</button>${S.defense?.[ch.id] ? `<button class="mini" data-a="cancelDef" data-id="${ch.id}" title="Cancel this hero's defense roll">Skip def</button>` : ''}</div>
+    </div>`;
+  }).join('');
+  const cell = (ch, it) => it ? `<button class="ovc" data-a="gear" data-id="${ch.id}" style="--rc:${it.set ? SETS[it.set].color : `var(--r-${it.rarity})`}"><span class="in">${esc(it.name)}</span><span class="il">${esc(statsText(it.stats))}</span></button>` : '<div class="ovc empty">—</div>';
+  const rows = SLOTS.map(sl => `<div class="ovl">${SLOT_LABEL[sl]}</div>${heroes.map(ch => cell(ch, ch.gear[sl])).join('')}`).join('');
+  const bag = `<div class="ovl">Satchel</div>${heroes.map(ch => `<div class="ovbag">${ch.bag.length ? ch.bag.map(it => `<button class="rname r-${it.rarity}" data-a="gear" data-id="${ch.id}" style="${it.set ? `--rc:${SETS[it.set].color}` : ''}" title="${esc(statsText(it.stats))}">${esc(it.name)}</button>`).join('') : '<span class="faint">empty</span>'}</div>`).join('')}`;
+  // synergy tracker: which combinations the party is close to
+  const pool = {}, has = {};
+  for (const ch of heroes) for (const it of [...Object.values(ch.gear), ...ch.bag]) if (it?.set) { pool[it.set] = (pool[it.set] || 0) + 1; has[it.set] = 1; }
+  const prog = SYNERGIES.filter(sy => Object.keys(sy.needs).some(k => has[k])).map(sy => {
+    const per = heroes.filter(c => !c.away).map(ch => { const c = setCounts(ch); return { ch, missing: Object.entries(sy.needs).reduce((m, [k, q]) => m + Math.max(0, q - (c[k] || 0)), 0) }; });
+    const on = per.filter(x => !x.missing).map(x => x.ch.name), best = per.filter(x => x.missing).sort((a, b) => a.missing - b.missing)[0];
+    const enough = Object.entries(sy.needs).every(([k, q]) => (pool[k] || 0) >= q);
+    const needs = Object.entries(sy.needs).map(([k, q]) => `<span class="sdot" style="--sc:${SETS[k].color}">${esc(SETS[k].name)} ×${q}</span>`).join(' + ');
+    return { on: on.length, miss: best?.missing ?? 0, html: `<div class="ovsp ${on.length ? 'on' : ''}"><b>⟡ ${esc(sy.name)}</b> ${needs} <span class="faint" style="font-size:12px">${esc(synergyText(sy))}</span><div style="font-size:13px">${on.length ? `<span style="color:var(--good,#7ed67e)">active on ${esc(on.join(', '))}</span>` : best ? `<span class="dim">${esc(best.ch.name)} is ${best.missing} piece${best.missing > 1 ? 's' : ''} away${enough ? '; the party holds enough pieces' : ''}</span>` : ''}</div></div>` };
+  }).sort((a, b) => b.on - a.on || a.miss - b.miss).map(x => x.html).join('');
+  return `<div class="ovwrap"><div class="ovgrid" style="--n:${heroes.length}"><div></div>${head}${rows}${bag}</div></div>
+    ${prog ? `<details class="plate dim ovsyn" open><summary>Synergies within reach <span class="faint" style="font-size:12px">· a synergy needs both sets on the same hero</span></summary>${prog}</details>` : ''}`;
 }
 
 function heroCard(ch) {
@@ -438,6 +509,7 @@ function onClick(e) {
     case 'enemyPhase': return act({ type: 'enemyPhase' });
     case 'cancelDef': return act({ type: 'cancelDefense', charId: id });
     case 'moveM': return moveSheet(id || null);
+    case 'hqView': hqView = b.dataset.v; try { localStorage.setItem('dl.hqView', hqView); } catch {} return render();
     case 'undo': return act({ type: 'undo' });
     case 'save': return saveBackup();
     case 'sceneBegin': return act({ type: 'sceneBegin' });
