@@ -28,7 +28,9 @@
   .ovn b { display: block; font-family: var(--carved); font-size: 17px; color: var(--brass-hi); } .ovn .faint { font-size: 12px; }
   .ovh .bar { margin: 0; }
   .ovs { display: flex; flex-wrap: wrap; gap: 3px 10px; font-size: 13px; }
-  .ovfoe { font-size: 12px; color: #ff9ca4; }
+  .ovfoe { font-size: 12px; color: #ff9ca4; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .ovchip { display: inline-flex; align-items: center; gap: 3px; border: 1px solid #6e3818; background: #1f130b; padding: 1px 2px 1px 6px; color: #ffcfa8; }
+  .ovchip button { background: #2b1a10; border: 1px solid #6e3818; color: #ffcfa8; font-size: 12px; padding: 0 5px; cursor: pointer; }
   .ovsets { display: flex; flex-wrap: wrap; gap: 4px; }
   .sdot { font-size: 11px; padding: 1px 6px; border: 1px solid var(--sc); color: var(--sc); border-radius: 9px; }
   .syn { font-size: 11px; padding: 1px 6px; background: #2a2140; color: #d8c8ff; border-radius: 9px; }
@@ -363,7 +365,7 @@ function partyOverview() {
       ${bar('en', ch.energy, s.maxEnergy, `⚡ ${ch.energy} / ${s.maxEnergy}`)}
       <div class="ovs"><span title="Armour">⛨ ${s.armor}%</span>${ch.ward ? `<span title="Ward" style="color:#9fd3ff">🛡 ${fmt(ch.ward)}</span>` : ''}<span title="Damage per hit × dice">⚔ ${fmt(s.damage)} × ${s.dice}d6</span>${s.critMult !== 2 ? `<span>crit ×${s.critMult}</span>` : ''}${s.cleave ? `<span>cleave ${s.cleave}</span>` : ''}<span>👣 ${s.move}″ · ${reachText(s.reach)}</span></div>
       <div class="ovs faint"><span>☠ ${T.minion || 0}</span><span>◆ ${T.elite || 0}</span><span>♛ ${T.boss || 0}</span>${ch.favour ? `<span style="color:var(--brass-hi)">⟡ ${ch.favour} Favour</span>` : ''}</div>
-      ${foes.length ? `<div class="ovfoe">On them: ${mins ? `☠×${mins}` : ''}${mins && bigs.length ? ' · ' : ''}${bigs.map(b => `${esc(b.name)} ${fmt(b.hp)}`).join(' · ')}</div>` : ''}
+      ${foes.length ? `<div class="ovfoe">On them: ${mins ? `<span class="ovchip">☠×${mins}<button data-a="moveM" data-id="${ch.id}" title="Move these minions to another hero, or set them roaming">⇄</button><button data-a="rmMinion" data-id="${ch.id}" title="Remove one (killed off the app)">−</button><button data-a="clearOn" data-id="${ch.id}" title="Remove them all">✕</button></span>` : ''}${bigs.map(b => `<span class="ovchip">${esc(b.name)} ${fmt(b.hp)}<button data-a="unengage" data-e="${b.id}" title="Set it roaming: no longer fighting ${esc(ch.name)}">⇢ roam</button></span>`).join('')}</div>` : ''}
       ${left ? `<div style="font-size:12px;color:var(--brass-hi)">⚔ ${left} hit${left === 1 ? '' : 's'} to spend</div>` : ''}
       ${ch.buffs?.label ? `<div style="font-size:12px;color:#aef7ee">⚡ ${esc(ch.buffs.label)} primed</div>` : ''}
       <div class="ovsets">${Object.entries(counts).map(([k, n]) => `<span class="sdot" style="--sc:${SETS[k].color}" title="${esc(SETS[k].name)}: ${n} worn">${esc(SETS[k].name.split(' ')[0])} ${n}</span>`).join('')}${syns.map(sy => `<span class="syn" title="${esc(synergyText(sy))}">⟡ ${esc(sy.name)}</span>`).join('')}</div>
@@ -544,6 +546,7 @@ function onClick(e) {
     case 'rmMinion': { const m = engagedWith(S, id).find(f => f.type === 'minion'); if (m) act({ type: 'removeEnemy', enemyId: m.id }); return; }
     case 'clearOn': return act({ type: 'clearEnemies', target: id });
     case 'rmFoe': return act({ type: 'removeEnemy', enemyId: b.dataset.e });
+    case 'unengage': return act({ type: 'moveEnemy', enemyId: b.dataset.e, target: null });
     case 'rescale': return act({ type: 'rescaleEnemy', enemyId: b.dataset.e });
     case 'abToggle': {
       document.querySelectorAll('[data-cfg]').forEach(i => spawnCfg[i.dataset.cfg] = i.value);
