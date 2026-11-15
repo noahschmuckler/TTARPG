@@ -99,6 +99,20 @@ export function planScene(adv, a, s, anchor) {
   return { pressure: p, template: T.label, minions: minionTotal, waves: out.filter(w => w.spawns.length) };
 }
 
+// Foes a narration beat brings in mid-scene, sized like the scene's own (same act anchor and pressure).
+export function planBeat(adv, a, s, anchor, beat, heroes) {
+  const out = [];
+  if (beat.elites?.length) {
+    // size them alongside the scene's own big foes, so they share the threat instead of taking all of it
+    const sc = adv.acts[a].scenes[s];
+    const tmp = { ...adv, acts: adv.acts.map((act, ai) => ai !== a ? act : { ...act, scenes: act.scenes.map((x, si) => si !== s ? x : { ...x, template: 'story', elites: [...(sc.elites || []), ...beat.elites], bosses: sc.bosses || [], minions: [] }) }) };
+    const all = planScene(tmp, a, s, anchor).waves[0]?.spawns || [];
+    out.push(...all.filter(x => x.etype === 'elite').slice(-beat.elites.reduce((t, f) => t + Math.max(1, f.count || 1), 0)));
+  }
+  if (beat.minions) out.push({ type: 'spawn', etype: 'minion', count: beat.minions.perHero * Math.max(1, heroes), name: beat.minions.name });
+  return out;
+}
+
 // Readable one-line summary of a planned wave.
 export const waveText = w => w.spawns.map(x => `${x.count > 1 ? x.count + ' ' : ''}${x.name}${x.etype !== 'minion' ? '' : x.count > 1 ? 's' : ''}`).join(', ');
 
@@ -123,7 +137,10 @@ export function cleanAdventure(a, abilityKeys) {
       elites: (sc.elites || []).slice(0, 6).map(f => cleanFoe(f, abilityKeys)),
       bosses: (sc.bosses || []).slice(0, 3).map(f => cleanFoe(f, abilityKeys)),
       intro: str(sc.intro, 1500), outro: str(sc.outro, 1500), notes: str(sc.notes, 400),
-      beats: (sc.beats || []).slice(0, 8).map(b => ({ label: str(b.label || 'Beat', 30), text: str(b.text, 1500) })).filter(b => b.text),
+      beats: (sc.beats || []).slice(0, 8).map(b => ({ label: str(b.label || 'Beat', 30), text: str(b.text, 1500),
+        ...(b.elites?.length ? { elites: b.elites.slice(0, 6).map(f => cleanFoe(f, abilityKeys)) } : {}),
+        ...(b.minions?.name ? { minions: { name: str(b.minions.name, 30), perHero: Math.max(1, Math.min(Number(b.minions.perHero) || 1, 4)) } } : {}),
+        ...(b.repeat ? { repeat: true } : {}) })).filter(b => b.text || b.elites || b.minions),
     })),
   })).filter(act => act.scenes.length);
   if (!acts.length) throw new Error('Add at least one act with a scene');
@@ -183,9 +200,31 @@ export const EIGHTH_GATE = {
         beats: [{"label": "The Clot feeds", "text": "More zombies shamble in through the north gate, slack-jawed and swaying. A surge of spores rolls off the mushrooms in a glittering wave and breaks over the Clot. Its white threads lash out like fishing lines, hook the two nearest zombies and reel them in. They fold into its mass with a wet crunch, and the wounds you've cut into it knit closed over them. The Clot is bigger than it was. As long as those mushrooms keep breathing, it'll keep doing that."}, {"label": "Mushroom 1 pops", "text": "The mushroom splits with a sound like a wet drum and collapses in a puff of dead grey dust. The haze over the Clot thins, and one strand of its white webbing goes slack. The Clot shudders, as if it felt that."}, {"label": "Mushroom 2 pops", "text": "A second mushroom bursts. The spore stream is a trickle now. Where the Clot's wounds were knitting, they stop, and weep instead."}, {"label": "Last mushroom", "text": "The last mushroom ruptures and the glittering haze simply stops. The Clot's white threads blacken and curl like burnt hair. Bodies at its edges begin to slump away from it, and its wounds stay open. It can't heal any more, and it knows it. It screams with every mouth it has."}, {"label": "The Horde", "text": "The Clot convulses and splits along a seam. Zombies tumble out of it by the armful, half-formed and furious, and throw themselves at you."}] },
     ] },
     { name: 'Act III · The Peak', scenes: [
-      { name: 'The Climb', template: 'skirmish', chests: 1, minions: ['Frozen Dead'], notes: 'Last campfire: heal, and a stall visit.' },
-      { name: 'The Seals', template: 'elitepack', chests: 1, minions: ['Frozen Dead'], elites: [F('Green Slaad', ['sweep'], 'Holds Seal I'), F('Skelespider', ['leech'], 'Holds Seal II'), F('Relentless Killer', ['enrage', 'stoneskin'], 'Holds Seal III')] },
-      { name: 'The Kraken', template: 'boss', chests: 1, minions: ['Frozen Dead'], elites: [F('Tentacle', ['leech'], 'Lay it down on a hero in reach: grabbed.', { count: 4, size: 0.4, attacks: 1 })], bosses: [F('The Kraken', ['sweep', 'enrage', 'horde', 'throes'], 'On a 5-6 at End round it dives and rises in another circle.')],
+      { name: 'The Last Campfire', template: 'story', chests: 0,
+        notes: 'Full heal: tap Full on each hero card. Open the Rakshasa\'s stall if you like. Then begin The Seals.',
+        intro: "The tunnel ends in a blast of white. You climb out onto the mountain's shoulder, where the wind screams over a field of blue ice, and someone has left a fire burning in a ring of black stones. Above you the ice rises in terraces toward a great gate of carved green stone set into the peak. Three glowing seals hold it shut. Below the seals, the ice is cracked, and red light seeps from the cracks like blood under skin. For now, nothing moves. Warm your hands. It won't last." },
+      { name: 'The Seals', template: 'elitepack', chests: 1, minions: ['Frozen Dead'],
+        elites: [F('Green Slaad', ['sweep'], 'Holds Seal I'), F('Skelespider', ['leech'], 'Holds Seal II'), F('Relentless Killer', ['enrage', 'stoneskin'], 'Holds Seal III')],
+        notes: 'While any seal holds: tap "The dead leak" at every End round (1 Frozen Dead per hero). Send a seal beat as each guard falls. When all three fall: Scene clear, then full heal before the gate.',
+        intro: "The seals blaze as you step onto the field. Three guardians turn to face you: a hulking green slaad croaking at Seal I, a skeletal spider unfolding beside Seal II, and at Seal III a still, patient figure that has never once in its long life stopped walking toward its prey. Under your boots, the red cracks split wider, and something cold and grey begins to climb out.",
+        beats: [
+          { label: 'The dead leak', repeat: true, minions: { name: 'Frozen Dead', perHero: 1 }, text: "The red cracks pulse, and the frozen dead claw their way up through the ice, one for each of you." },
+          { label: 'Seal I breaks', text: "Seal I shatters with a sound like a bell cracking. High on the gate, a carved stone eyelid lifts, just a sliver. Something behind it is watching now." },
+          { label: 'Seal II breaks', text: "Seal II goes out like a snuffed candle. The stone eye on the gate opens wider, and the cracks under your feet stop bleeding red and start to glow a cold, sick green." },
+          { label: 'Seal III breaks', text: "The last seal dies. The eye on the gate opens fully, and the whole mountain shudders. The gate grinds apart, and beyond it lies a vast sheet of black ice pocked with round holes, like a frozen lake that has been breathing. The cracks stop leaking. In the sudden silence, you have a moment. Take it." },
+        ] },
+      { name: 'The Tentacles', template: 'elitepack', chests: 0, minions: ['Frozen Dead'],
+        elites: [F('Tentacle', ['leech'], 'Reach: a 7″ × 4″ L. End your move in it and it is laid on you: grabbed (Break Away to leave).', { count: 3, size: 0.5, attacks: 1 })],
+        notes: 'The Kraken sits submerged in the Coil: it cannot be targeted yet. Grab rule: a hero who ends their move in a tentacle\'s reach gets it laid on them (set it engaged with them). When the last tentacle falls: Scene clear, then begin The Kraken.',
+        intro: "You step through the gate onto the black ice. Under it, in the middle of the lake, something enormous turns over in its sleep, and the ice in the Coil bulges upward. Then the holes erupt. Three tentacles as thick as tree trunks burst into the air, coiling and searching, and slap down onto the ice around you." },
+      { name: 'The Kraken', template: 'boss', chests: 1, minions: ['Frozen Dead'],
+        bosses: [F('The Kraken', ['sweep', 'enrage', 'horde', 'throes'], 'On a 5-6 at End round it dives and rises in another circle. At half health, 2 tentacles regrow.')],
+        notes: 'Dive: each End round roll a d6. On 5-6 it sinks and rises in another circle: move the base and set it roaming (⇄), ending every engagement. At half health tap "Tentacles regrow" (2 tentacles, sized to the fight).',
+        intro: "The last tentacle falls, and for a heartbeat there is nothing. Then the ice in the Coil explodes upward and the Kraken rises: a mountain of grey-green flesh, a beak like a ship's prow, and one huge eye that finds each of you in turn. It is the thing the seals were keeping in. It is the thing the dead were serving. And it is very, very awake.",
+        beats: [
+          { label: 'It dives', repeat: true, text: "The Kraken sinks straight down through the ice as if it were water. The lake goes still... and then another circle bursts open as it rises somewhere else." },
+          { label: 'Tentacles regrow', elites: [F('Tentacle', ['leech'], 'Reach: a 7″ × 4″ L. End your move in it and it is laid on you: grabbed.', { count: 2, size: 0.5, attacks: 1 })], text: "Black ichor pours from the Kraken's wounds and freezes into new limbs. Two fresh tentacles tear up through the holes beside it, still steaming." },
+        ],
         outro: 'The Kraken\'s last tentacle goes slack, and the great carved eye in the gate slowly closes. Behind the gate a staircase of dark polished wood winds downward, and from far below comes the scratch of a thousand pens. At the top of the stair, on a crate he definitely did not have a minute ago, sits the Rakshasa, holding a contract tied with red ribbon. "Lovely work, that. Now. Who here can read fine print?"' },
     ] },
     { name: 'Act IV · The Ledger Hall', scenes: [

@@ -3,7 +3,7 @@
 // and by the browser (for derived stats and display). No DOM, no I/O.
 
 import { SETS, SYNERGIES, CLASS_SETS } from './sets.js';
-import { TEMPLATES, DIFFICULTY, cleanAdventure, partyPower, planScene, flatIndex, waveText } from './adventure.js';
+import { TEMPLATES, DIFFICULTY, cleanAdventure, partyPower, planScene, planBeat, flatIndex, waveText } from './adventure.js';
 import { SELL_VALUE, BOONS, CONSUMABLES, LINES, pick as pickLine, boonPrice, boonLocked, newDeck, scoreHand, handName, compareHands, houseSwaps } from './merchant.js';
 export { SETS, SYNERGIES, CLASS_SETS };
 
@@ -643,7 +643,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['setPit', 'adventureSet', 'adventureClear', 'adventureDifficulty', 'sceneSelect', 'adventureReanchor', 'sceneBegin', 'sceneClear', 'freeAction', 'merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
+const GM_ONLY = new Set(['sceneBeat', 'setPit', 'adventureSet', 'adventureClear', 'adventureDifficulty', 'sceneSelect', 'adventureReanchor', 'sceneBegin', 'sceneClear', 'freeAction', 'merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -934,6 +934,17 @@ export function apply(state, a, rng = Math.random) {
         adv.running = { act, scene, began: state.round, pressure: plan.pressure, waves: later.map(w => ({ due: state.round + w.at, spawns: w.spawns })) };
         log(state, `📜 ${adv.acts[act].name} · ${sc.name} begins (${TEMPLATES[sc.template].label}, pressure ${plan.pressure}).`, 'narrate');
         if (sc.intro) { log(state, `${sc.name}: ${sc.intro}`, 'narrate'); ev.push({ type: 'narrate', title: sc.name, text: sc.intro }); }
+        break;
+      }
+      case 'sceneBeat': { // a narration beat of the running scene: tell it, and bring in its foes, sized to the scene
+        const adv = needAdventure(state);
+        const r = adv.running;
+        if (!r) throw new Error('No scene is running');
+        const sc = adv.acts[r.act].scenes[r.scene], bt = sc.beats?.[a.i];
+        if (!bt) throw new Error('No such beat');
+        const heroes = state.order.filter(id => state.characters[id].hp > 0).length;
+        for (const sp of planBeat(adv, r.act, r.scene, adv.anchors[r.act] || partyPower(state, derive, partyDamagePerRound), bt, heroes)) spawnFoes(state, sp, ev, rng);
+        if (bt.text) { log(state, `${bt.label}: ${bt.text}`, 'narrate'); ev.push({ type: 'narrate', title: bt.label, text: bt.text }); }
         break;
       }
       case 'sceneClear': {

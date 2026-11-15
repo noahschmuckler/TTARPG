@@ -654,3 +654,26 @@ test('slam: landed blows hurl the hero; impact costs a blow, the chasm costs a f
   apply(s, { type: 'setPit', charId: id, inPit: false });
   assert.equal(ch.pit, undefined);
 });
+
+test('scene beats narrate and can bring in sized foes, per hero or named', async () => {
+  const { EIGHTH_GATE } = await import('../public/adventure.js');
+  const s = newGame('BEAT');
+  for (const c of ['ironclad', 'ranger', 'runepriest']) apply(s, { type: 'createCharacter', name: c, cls: c });
+  apply(s, { type: 'adventureSet', adventure: EIGHTH_GATE });
+  assert.match(apply(s, { type: 'sceneBeat', i: 0 }).error, /No scene/);
+  apply(s, { type: 'sceneSelect', act: 2, scene: 1 });   // The Seals
+  apply(s, { type: 'sceneBegin' });
+  const dead = () => Object.values(s.enemies).filter(e => e.name === 'Frozen Dead').length;
+  const n0 = dead();
+  apply(s, { type: 'sceneBeat', i: 0 });                    // the dead leak: 1 per hero
+  assert.equal(dead(), n0 + 3);
+  apply(s, { type: 'sceneClear' }); apply(s, { type: 'clearEnemies' });
+  apply(s, { type: 'sceneSelect', act: 2, scene: 3 });   // The Kraken
+  apply(s, { type: 'sceneBegin' });
+  const kraken = Object.values(s.enemies).find(e => e.name === 'The Kraken');
+  assert.ok(kraken && !Object.values(s.enemies).some(e => e.name === 'Tentacle'), 'tentacles come in their own scene');
+  apply(s, { type: 'sceneBeat', i: 1 });                    // tentacles regrow
+  const t = Object.values(s.enemies).filter(e => e.name === 'Tentacle');
+  assert.equal(t.length, 2);
+  assert.ok(t[0].hp >= 1000 && t[0].attacks === 1 && t[0].abilities.includes('leech'));
+});
