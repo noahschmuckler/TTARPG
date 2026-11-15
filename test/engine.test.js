@@ -538,7 +538,7 @@ test('one action per round: attacks and powers lock until End round; attack powe
   assert.equal(apply(s, { type: 'useConsumable', charId: id, id: s.characters[id].consumables[0].id }).error, undefined);
   // End round refreshes
   apply(s, { type: 'endRound' });
-  assert.equal(apply(s, { type: 'ability', charId: id, key: 'leap' }).error, undefined);   // a non-attack power is the whole action
+  assert.equal(apply(s, { type: 'ability', charId: id, key: 'bulwark' }).error, undefined);   // a non-attack power is the whole action
   assert.match(apply(s, { type: 'attack', charId: id, hits: 1 }).error, /already acted/);
   // the GM can grant another action
   apply(s, { type: 'freeAction', charId: id });
@@ -704,4 +704,15 @@ test('away heroes are not counted; staged scene foes wake on their End round', a
   apply(s, { type: 'clearEnemies', target: ids[0] });
   const r = apply(s, { type: 'enemyPhase' });
   assert.ok(!s.defense?.[ids[3]]);
+});
+
+test('Leaping Strike is a move-and-strike power: leap, then attack with +2 dice, one action', () => {
+  const { s, id } = setup();
+  s.characters[id].energy = 100;
+  assert.equal(apply(s, { type: 'ability', charId: id, key: 'leap' }).error, undefined);
+  assert.equal(s.characters[id].acted.kind, 'attackPower');
+  assert.equal(derive(s.characters[id]).pool, 5);                          // 3 dice + 2 from the leap
+  assert.equal(apply(s, { type: 'attack', charId: id, hits: 5 }).error, undefined);
+  apply(s, { type: 'endAttack', charId: id });
+  assert.match(apply(s, { type: 'attack', charId: id, hits: 1 }).error, /already acted/);
 });

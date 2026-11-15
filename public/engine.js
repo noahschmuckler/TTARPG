@@ -29,7 +29,7 @@ export const CLASSES = {
     name: 'Ironclad', role: 'Shieldwall warrior', glyph: '⛨',
     base: { maxHp: 1800, armor: 30, dice: 3, damage: 420, energyPerKill: 8, energyPerRound: 10, maxEnergy: 100, critMult: 2, cleave: 0, move: 5, reach: 0 },
     abilities: [
-      { key: 'leap', name: 'Leaping Strike', cost: 30, tags: ['move'], text: 'Leap up to 4″, even 3″ up onto a platform, ignoring free blows. +2 dice on your next attack.', effects: [{ kind: 'buff', bonusDice: 2 }] },
+      { key: 'leap', name: 'Leaping Strike', cost: 30, tags: ['move'], strike: true, text: 'Leap up to 4″, even 3″ up onto a platform, ignoring free blows, and strike as you land: make an attack with +2 dice, all as one action.', effects: [{ kind: 'buff', bonusDice: 2 }] },
       { key: 'quake', name: 'Earthsplitter', cost: 55, tags: ['push', 'area'], text: 'Slam the ground: every foe within 2″ of you takes a hit and is pushed 3″ straight away from you. Push them on the table, then tap every foe it hit.', target: { foes: 'within 2″ of you' }, effects: [{ kind: 'areaHit', hits: 1 }, { kind: 'push', inches: 3 }] },
       { key: 'bulwark', name: 'Iron Bulwark', cost: 40, tags: ['taunt'], text: 'Gain a 600 ward and roar: every foe within 3″ must come to you. Move them next to you, then tap them; they now fight you.', target: { foes: 'within 3″ of you', optional: true }, effects: [{ kind: 'ward', amount: 600, who: 'self' }, { kind: 'taunt' }] },
     ],
@@ -210,6 +210,7 @@ function mergeEffects(base, add) {
 const ACTION_TAGS = new Set(['move', 'teleport', 'stealth', 'pin', 'push', 'pull', 'area', 'zone', 'height', 'ally']);
 const ACTION_KINDS = new Set(['areaHit', 'push', 'pull', 'pin', 'swap', 'allyWard', 'smite', 'taunt', 'hide', 'move']);
 export function isAttackPower(a) {
+  if (a.strike) return true;   // move-and-strike powers: move, then attack, as one action
   const effects = a.effects || [a.effect];
   return effects.some(e => e?.kind === 'buff') && !effects.some(e => ACTION_KINDS.has(e?.kind)) && !(a.tags || []).some(t => ACTION_TAGS.has(t));
 }
