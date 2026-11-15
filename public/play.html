@@ -146,6 +146,9 @@
   .tog { padding: 8px 12px; border: 1px solid var(--line); background: var(--obsidian); font-family: var(--display); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 14px; color: var(--ink-dim); }
   .tog b { color: var(--brass-hi); }
   .tog.on { background: #2c2514; border-color: var(--brass); color: var(--ink); }
+  .undopill { position: fixed; left: 12px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 40; max-width: min(78vw, 360px); display: flex; gap: 8px; align-items: baseline; padding: 10px 14px; border: 1px solid var(--brass); background: rgba(27,23,18,.94); color: var(--brass-hi); font-family: var(--display); font-weight: 700; letter-spacing: .06em; font-size: 15px; box-shadow: 0 4px 14px rgba(0,0,0,.6); }
+  .undopill span { font-family: var(--body, inherit); font-weight: 400; letter-spacing: 0; font-size: 13px; color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .undopill.hidden { display: none; }
   .tog.on.slam { background: #3b1a0c; border-color: #ff8a3d; color: #ffd2b0; }
   .crashq { margin-top: 12px; padding: 8px 10px; border: 1px solid #6e3818; background: #1a0f08; }
   .tog.fixed { background: #1d1830; border-color: #6b5aa8; color: #c8b6ff; }
@@ -311,6 +314,24 @@ async function scanSheet() {
     raf = requestAnimationFrame(tick);
   };
   tick();
+}
+
+// Undo: shown only while this hero's own action is still the newest thing that happened in the room.
+function undoPill() {
+  let b = document.getElementById('undoMine');
+  if (!b) {
+    b = h(`<button id="undoMine" class="undopill hidden"></button>`);
+    b.addEventListener('click', () => {
+      const L = S.lastAct;
+      if (!L || L.by !== me || L.rev !== S.rev) return;
+      if (!confirm(`Take back: ${L.label}?`)) return;
+      act({ type: 'undoMine', charId: me }).then(() => toast('Taken back')).catch(() => {});
+    });
+    document.body.appendChild(b);
+  }
+  const L = S.lastAct, mine = L && L.by === me && L.rev === S.rev;
+  b.classList.toggle('hidden', !mine);
+  if (mine) b.innerHTML = `↶ Undo <span>${esc(L.label)}</span>`;
 }
 
 // Foe ability alerts can arrive in bunches (e.g. Enrage + Call the Horde): show them one after another.
@@ -509,6 +530,7 @@ function render() {
   $('#env').textContent = fmt(ch.energy);
   $('#enm').textContent = `/ ${fmt(s.maxEnergy)}`;
 
+  undoPill();
   $('#buff').innerHTML = ch.buffs.label ? `<div class="plate buff">⚡ ${esc(ch.buffs.label)} primed${ch.buffs.bonusDice ? ` · +${ch.buffs.bonusDice} dice` : ''}${ch.buffs.damageMult > 1 ? ` · ×${ch.buffs.damageMult} damage` : ''}</div>` : '';
   const D = S.defense?.[me];
   $('#defbox').innerHTML = D ? `<button class="btn danger defend" id="defend">⚔ Foes attack! Roll defense</button>` : '';

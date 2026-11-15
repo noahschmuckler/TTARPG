@@ -3,6 +3,7 @@
 import { apply, isGmOnly, newGame } from '../public/engine.js';
 
 const UNDO_DEPTH = 40;
+const UNDO_LABEL = { equip: 'an equip', unequip: 'an unequip', give: 'a gift', trade: 'a trade', move: 'a move', hide: 'hiding', reveal: 'stepping out of hiding' };
 
 export class RoomCore {
   constructor(data) {
@@ -40,8 +41,21 @@ export class RoomCore {
       const rev = this.state.rev;
       this.state = JSON.parse(prev);
       this.state.rev = rev + 1;
+      this.state.lastAct = null;
       this.state.log.unshift({ t: Date.now(), text: '↶ The GM turned back time.', kind: 'info' });
       return { changed: true, broadcast: [{ t: 'state', state: this.state }] };
+    }
+    if (a.type === 'undoMine') { // a player takes back their own last action, only while it is still the newest change
+      const L = this.state.lastAct;
+      if (!a.charId || !L || L.by !== a.charId || L.rev !== this.state.rev) return { reply: { t: 'error', msg: 'Something else has happened since: ask the GM to undo', rid: msg.rid } };
+      const prev = this.history.shift();
+      if (!prev) return { reply: { t: 'error', msg: 'Nothing to undo', rid: msg.rid } };
+      const rev = this.state.rev, name = this.state.characters[a.charId]?.name || 'A hero';
+      this.state = JSON.parse(prev);
+      this.state.rev = rev + 1;
+      this.state.lastAct = null; // one step: no chain of undos
+      this.state.log.unshift({ t: Date.now(), text: `↶ ${name} took back: ${L.label}`, kind: 'info' });
+      return { changed: true, broadcast: [{ t: 'state', state: this.state }], reply: { t: 'ok', rid: msg.rid, result: null } };
     }
     if (a.type === 'restore') { // GM loads a saved snapshot (Headquarters → Restore backup)
       if (sess.role !== 'gm') return { reply: { t: 'error', msg: 'GM only', rid: msg.rid } };
@@ -54,6 +68,7 @@ export class RoomCore {
       this.state = JSON.parse(JSON.stringify(st));
       this.state.code = code; // a backup can be loaded into any room
       this.state.rev = rev + 1;
+      this.state.lastAct = null;
       this.state.log.unshift({ t: Date.now(), text: '⟲ The GM restored a saved game.', kind: 'info' });
       return { changed: true, broadcast: [{ t: 'state', state: this.state }], reply: { t: 'ok', rid: msg.rid, result: null } };
     }
@@ -68,11 +83,17 @@ export class RoomCore {
     if (isGmOnly(a.type) && sess.role !== 'gm') return { reply: { t: 'error', msg: 'Only the GM can do that' } };
 
     const snapshot = JSON.stringify(this.state);
+    const top = this.state.log[0];
     const r = apply(this.state, a);
     if (r.error) return { reply: { t: 'error', msg: r.error, rid: msg.rid } };
     this.history.unshift(snapshot);
     if (this.history.length > UNDO_DEPTH) this.history.length = UNDO_DEPTH;
     this.state.rev += 1;
+    // Who made this change, so that player (and only while nothing has happened since) can take it back.
+    const by = sess.role === 'player' && a.charId && this.state.characters[a.charId] ? a.charId : null;
+    const k = top ? this.state.log.indexOf(top) : this.state.log.length; // new entries sit before the old top
+    const fresh = k > 0 ? this.state.log[k - 1].text : k < 0 ? this.state.log[0]?.text : '';
+    this.state.lastAct = by ? { by, type: a.type, label: String(fresh || UNDO_LABEL[a.type] || a.type).slice(0, 120), rev: this.state.rev } : null;
     const out = [{ t: 'state', state: this.state }];
     if (r.events.length) out.push({ t: 'events', events: r.events });
     return { changed: true, broadcast: out, reply: { t: 'ok', rid: msg.rid, result: r.result || null } };
