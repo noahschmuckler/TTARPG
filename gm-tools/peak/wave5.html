@@ -1,0 +1,25 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#1b1712}</style></head><body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" width="1040" height="1060"></svg>
+<script>window.PLINTHS = { slaad: 'SEAL I BROKEN', spider: '(spider is down by the rock)', killer: 'AWAKE · 23,500' };</script>
+<script src="board.js"></script>
+<script>
+const b = drawPeak(document.getElementById('s'), [
+  { t: 'M', kind: 'melee', c: 4.5, r: 33.4 },
+  { t: 'M', kind: 'melee', c: 12, r: 35.4 },
+  { t: 'R', kind: 'ranged', c: 9.5, r: 20.3 },
+], 'The Seals · round 23 · the Relentless Killer wakes', 'Only the 3 new dead are drawn. The Killer stands up on its plinth (bottom centre).');
+let y = b.ly + 10; const t = (s, size = 14, fill = '#f3e6cc', bold) => { b.el('text', { x: b.LX, y, 'font-size': size, fill, 'font-family': 'Georgia', 'font-weight': bold ? 'bold' : 'normal' }, s); y += size + 8; };
+t('Placing the leak', 16, '#ffe9a8', true);
+t('crack B: 1 melee (by Gonk)');
+t('crack D: 1 melee');
+t('crack A: 1 archer (toward the plinth)');
+y += 8; t('On the board', 16, '#ffe9a8', true);
+t('Relentless Killer: 23,500, 2×170');
+t('    Enrage + Stoneskin at half health');
+t('Skelespider: 19,276 (by the rock)');
+t('6 Frozen Dead');
+y += 8; t('Every End round', 16, '#ffe9a8', true);
+t('the leak (3) until Seals II and III');
+t('    are both broken');
+t('No more guards to wake');
+</script></body></html>
