@@ -451,7 +451,7 @@ function foeDied(state, e, ev) {
   const hit = [];
   for (const id of state.order) {
     const c = state.characters[id];
-    if (c.hp <= 0) continue;
+    if (c.hp <= 0 || c.away) continue; // heroes sitting out are not on the table
     const r = hurt(c, 300);
     ev.push({ type: 'hurt', charId: c.id, ...r });
     hit.push(`${c.name} −${fmt(r.net)}`);
