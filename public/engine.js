@@ -305,7 +305,10 @@ export function derive(ch) {
 
 // Defense: the hero rolls one die per enemy attack; low rolls are blows that land.
 // Heavy armor (30%+) narrows that window from 1–3 to 1–2.
-export const landOn = s => (s.armor >= 30 ? 2 : 3);
+export const landOn = s => (s.armor >= 30 ? 2 : 3);   // how many faces land: 4+ (3 faces), or 5+ against heavy armour (2)
+export const hitOn = n => 7 - n;                        // the lowest face that hits
+// Foes roll like heroes: 4+ hits (5+ against heavy armour), and every 6 is a crit.
+export const FOE_CRIT = { minion: 1.5, elite: 2, boss: 2.5 };
 
 // ---------------------------------------------------------------- foe abilities
 // Presets the app runs by itself. `when`: half (once, at ≤50% health), round
@@ -482,7 +485,7 @@ function defenseGroupsFrom(list, dice = e => e.attacks || ENEMY_TYPES[e.type]?.a
   const groups = new Map();
   for (const e of list) {
     const key = e.type === 'minion' ? `m:${e.name}:${e.damage}` : e.id;
-    const g = groups.get(key) || { name: e.name, type: e.type, count: 0, damage: e.damage, dice: 0, ...(foeHas(e, 'slam') ? { slam: true } : {}) };
+    const g = groups.get(key) || { name: e.name, type: e.type, count: 0, damage: e.damage, dice: 0, crit: e.critMult || FOE_CRIT[e.type] || 1.5, ...(foeHas(e, 'slam') ? { slam: true } : {}) };
     g.count += 1;
     g.dice += dice(e);
     groups.set(key, g);
@@ -1161,7 +1164,9 @@ export function apply(state, a, rng = Math.random) {
         // A foe striking from higher ground adds a die to the hardest-hitting group.
         const top = d.groups.reduce((m, g, i) => (g.damage > d.groups[m].damage ? i : m), 0);
         const landed = d.groups.map((g, i) => Math.max(0, Math.min(Number(a.landed?.[i]) || 0, g.dice + (a.highGround && i === top ? 1 : 0))));
-        const raw = d.groups.reduce((sum, g, i) => sum + landed[i] * g.damage, 0);
+        const crits = d.groups.map((g, i) => Math.max(0, Math.min(Number(a.crits?.[i]) || 0, landed[i])));   // 6s: crit damage
+        const raw = Math.round(d.groups.reduce((sum, g, i) => sum + landed[i] * g.damage + crits[i] * g.damage * ((g.crit || 1.5) - 1), 0));
+        const critCount = crits.reduce((x, y) => x + y, 0);
         const blows = landed.reduce((x, y) => x + y, 0);
         delete state.defense[ch.id];
         if (!blows) {
@@ -1171,7 +1176,7 @@ export function apply(state, a, rng = Math.random) {
         }
         const r = hurt(ch, raw);
         ev.push({ type: 'hurt', charId: ch.id, ...r });
-        log(state, `${blows} blow${blows === 1 ? ' lands' : 's land'} on ${ch.name}: ${fmt(r.net)} damage${r.blocked ? ` (${fmt(r.blocked)} blocked)` : ''}${r.warded ? ` (${fmt(r.warded)} warded)` : ''}.${ch.hp <= 0 ? ' DOWN!' : ''}`, 'hurt');
+        log(state, `${blows} blow${blows === 1 ? ' lands' : 's land'} on ${ch.name}${critCount ? ` (${critCount} crit${critCount > 1 ? 's' : ''}!)` : ''}: ${fmt(r.net)} damage${r.blocked ? ` (${fmt(r.blocked)} blocked)` : ''}${r.warded ? ` (${fmt(r.warded)} warded)` : ''}.${ch.hp <= 0 ? ' DOWN!' : ''}`, 'hurt');
         const slammer = d.groups.find((g, i) => g.slam && landed[i] > 0);
         if (slammer && ch.hp > 0) {
           state.slammed ||= {};

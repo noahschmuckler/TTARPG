@@ -716,3 +716,14 @@ test('Leaping Strike is a move-and-strike power: leap, then attack with +2 dice,
   apply(s, { type: 'endAttack', charId: id });
   assert.match(apply(s, { type: 'attack', charId: id, hits: 1 }).error, /already acted/);
 });
+
+test('foes roll like heroes: 6s crit for extra damage', () => {
+  const { s, id } = setup();
+  apply(s, { type: 'spawn', etype: 'elite', name: 'Brute', hp: 3000, armor: 0, attacks: 2, damage: 200, target: id });
+  apply(s, { type: 'enemyPhase' });
+  assert.equal(s.defense[id].groups[0].crit, 2);
+  const ch = s.characters[id], before = ch.hp + (ch.ward || 0);
+  apply(s, { type: 'defend', charId: id, landed: [2], crits: [1] });  // one plain blow + one crit: 200 + 400 before armour
+  const armor = derive(ch).armor;
+  assert.equal(before - (ch.hp + (ch.ward || 0)), Math.round(600 * (1 - armor / 100)));
+});

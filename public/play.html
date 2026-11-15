@@ -585,13 +585,13 @@ function defenseSheet() {
   if (!D || defenseOpen) return;
   defenseOpen = true;
   if (navigator.vibrate) navigator.vibrate([80, 50, 80]);
-  const landed = D.groups.map(() => null);
+  const landed = D.groups.map(() => null), crits = D.groups.map(() => 0);
   let highGround = false;
   const top = D.groups.reduce((m, g, i) => (g.damage > D.groups[m].damage ? i : m), 0);
-  const range = D.landOn === 2 ? '1 or 2' : '1, 2 or 3';
+  const need = 7 - (D.landOn || 3);                 // foes roll like heroes: 4+ hits, 5+ against heavy armour; 6s crit
   const { el, close } = sheet('<div id="ds"></div>', { onClose: () => { defenseOpen = false; } });
   const draw = () => {
-    const raw = D.groups.reduce((t, g, i) => t + (landed[i] || 0) * g.damage, 0);
+    const raw = Math.round(D.groups.reduce((t, g, i) => t + (landed[i] || 0) * g.damage + crits[i] * g.damage * ((g.crit || 1.5) - 1), 0));
     const ready = landed.every(v => v !== null);
     const dice = i => D.groups[i].dice + (highGround && i === top ? 1 : 0);
     el.querySelector('#ds').innerHTML = `
@@ -599,20 +599,24 @@ function defenseSheet() {
       ${D.breakaway ? '<p class="dim" style="margin:2px 0">You break away: each foe you leave gets one free blow.</p>' : ''}
       ${D.surrounded ? '<p style="margin:4px 0;color:#ffb27d">⚠ Surrounded: +1 die against you.</p>' : ''}
       <button class="tog ${highGround ? 'on' : ''}" data-hg="1" style="margin-top:6px">▲ A foe strikes from higher ground <b>+1</b></button>
-      <p class="dim" style="margin:4px 0 0;font-size:17px">Roll one die per attack. Every die showing <b style="color:var(--ink)">${range}</b> is a blow that lands.${D.landOn === 2 ? ' <span style="color:var(--brass)">Your heavy armor turns aside 3s.</span>' : ''}</p>
-      ${D.groups.map((g, i) => `<div class="grp"><div class="row"><span class="gn grow">${g.count > 1 ? g.count + ' × ' : ''}${esc(g.name)}${g.type === 'minion' && g.count > 1 ? 's' : ''}</span><span class="faint" style="font-size:13px">${fmt(g.damage)} per blow</span></div>
-        <div class="instr" style="margin:8px 0">Roll <b>${dice(i)}</b> ${dice(i) === 1 ? 'die' : 'dice'}. How many show ${range}?</div>
-        <div class="pick">${Array.from({ length: dice(i) + 1 }, (_, n) => `<button class="${landed[i] === n ? 'on' : ''}" data-g="${i}" data-n="${n}">${n}</button>`).join('')}</div></div>`).join('')}
+      <p class="dim" style="margin:4px 0 0;font-size:17px">Roll the foe's dice for it. Every die showing <b style="color:var(--ink)">${need}+</b> is a blow that lands, and every <b style="color:var(--ink)">6</b> is a crit.${need === 5 ? ' <span style="color:var(--brass)">Your heavy armor turns aside 4s.</span>' : ''}</p>
+      ${D.groups.map((g, i) => `<div class="grp"><div class="row"><span class="gn grow">${g.count > 1 ? g.count + ' × ' : ''}${esc(g.name)}${g.type === 'minion' && g.count > 1 ? 's' : ''}</span><span class="faint" style="font-size:13px">${fmt(g.damage)} per blow · crit ×${g.crit || 1.5}</span></div>
+        <div class="instr" style="margin:8px 0">Roll <b>${dice(i)}</b> ${dice(i) === 1 ? 'die' : 'dice'}. How many show <b>${need}+</b>?</div>
+        <div class="pick">${Array.from({ length: dice(i) + 1 }, (_, n) => `<button class="${landed[i] === n ? 'on' : ''}" data-g="${i}" data-n="${n}">${n}</button>`).join('')}</div>
+        ${landed[i] > 0 ? `<div class="instr" style="margin:8px 0">Of those, how many are <b>6</b>s? <span class="faint" style="font-size:14px">crit: ${fmt(Math.round(g.damage * (g.crit || 1.5)))} each</span></div>
+        <div class="pick">${Array.from({ length: landed[i] + 1 }, (_, n) => `<button class="${crits[i] === n ? 'on' : ''}" data-cg="${i}" data-n="${n}">${n}</button>`).join('')}</div>` : ''}</div>`).join('')}
       ${ready ? `<div class="incoming">${raw ? `Incoming ${fmt(raw)} before armor` : 'Every blow turned aside!'}</div>` : ''}
       <div style="height:14px"></div>
-      <button class="btn ${ready && !raw ? 'aether' : 'danger'} block attack" id="take" ${ready ? '' : 'disabled'}>${!ready ? 'Count your dice' : raw ? 'Take the blows' : 'Unscathed!'}</button>`;
+      <button class="btn ${ready && !raw ? 'aether' : 'danger'} block attack" id="take" ${ready ? '' : 'disabled'}>${!ready ? 'Count the dice' : raw ? 'Take the blows' : 'Unscathed!'}</button>`;
   };
   draw();
   el.addEventListener('click', e => {
-    if (e.target.closest('[data-hg]')) { highGround = !highGround; if (!highGround && landed[top] > D.groups[top].dice) landed[top] = D.groups[top].dice; return draw(); }
+    if (e.target.closest('[data-hg]')) { highGround = !highGround; if (!highGround && landed[top] > D.groups[top].dice) { landed[top] = D.groups[top].dice; crits[top] = Math.min(crits[top], landed[top]); } return draw(); }
+    const c = e.target.closest('[data-cg]');
+    if (c) { crits[Number(c.dataset.cg)] = Number(c.dataset.n); return draw(); }
     const b = e.target.closest('[data-g]');
-    if (b) { landed[Number(b.dataset.g)] = Number(b.dataset.n); return draw(); }
-    if (e.target.closest('#take')) { close(); act({ type: 'defend', charId: me, landed, highGround }).catch(() => {}); }
+    if (b) { const i = Number(b.dataset.g); landed[i] = Number(b.dataset.n); crits[i] = Math.min(crits[i], landed[i]); return draw(); }
+    if (e.target.closest('#take')) { close(); act({ type: 'defend', charId: me, landed, crits, highGround }).catch(() => {}); }
   });
 }
 
