@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#1b1712}</style></head><body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" width="1040" height="1060"></svg>
+<script>window.PLINTHS = { slaad: 'awake · 6,952 left', spider: 'AWAKE · 23,500 · leech', killer: 'asleep: wakes End rd 22' };</script>
+<script src="board.js"></script>
+<script>
+const b = drawPeak(document.getElementById('s'), [
+  { t: 'M', kind: 'melee', c: 4.5, r: 33.4 },
+  { t: 'M', kind: 'melee', c: 12, r: 35.4 },
+  { t: 'R', kind: 'ranged', c: 19.5, r: 31.2 },
+], 'The Seals · round 21 · 3 new Frozen Dead', 'Only the 3 new ones are drawn. Leave the other 6 where they ended last round. The Skelespider is awake.');
+let y = b.ly + 10; const t = (s, size = 14, fill = '#f3e6cc', bold) => { b.el('text', { x: b.LX, y, 'font-size': size, fill, 'font-family': 'Georgia', 'font-weight': bold ? 'bold' : 'normal' }, s); y += size + 8; };
+t('Placing the leak', 16, '#ffe9a8', true);
+t('crack B: 1 melee (by Steve)');
+t('crack D: 1 melee');
+t('crack C: 1 archer');
+y += 8; t('On the board', 16, '#ffe9a8', true);
+t('Green Slaad: 6,952 left (on Gonk)');
+t('Skelespider: 23,500, 2 blows of 170');
+t('    Energy Leech: −10 energy for');
+t('    each hero it attacks');
+t('9 Frozen Dead in all');
+t('    one on Lyle, one archer on Gonk');
+y += 8; t('Coming', 16, '#ffe9a8', true);
+t('End rd 21: the leak again (3)');
+t('End rd 22: Relentless Killer wakes');
+t('Seal I breaks when the Slaad dies');
+</script></body></html>
