@@ -250,6 +250,69 @@ function tryClaim() {
   act({ type: 'claimLoot', charId: me, card }).catch(() => {});
 }
 
+// Scan a treasure card's QR with the phone camera. Uses the browser's BarcodeDetector where it exists
+// (Android Chrome), else the bundled jsQR (iPhone Safari). The QR holds play.html?room=XXXX&claim=CODE.
+let jsqrLoad = null;
+const loadJsQR = () => jsqrLoad ||= new Promise((res, rej) => {
+  if (window.jsQR) return res(window.jsQR);
+  const sc = document.createElement('script'); sc.src = 'vendor/jsQR.js';
+  sc.onload = () => res(window.jsQR); sc.onerror = () => { jsqrLoad = null; rej(new Error('Could not load the QR reader')); };
+  document.head.appendChild(sc);
+});
+function readClaim(text) {
+  text = String(text || '').trim();
+  try { const u = new URL(text); const c = u.searchParams.get('claim'); if (c) return { card: c.toUpperCase(), room: (u.searchParams.get('room') || '').toUpperCase() }; } catch {}
+  return /^[A-Z0-9]{6}$/i.test(text) ? { card: text.toUpperCase(), room: '' } : null;
+}
+async function scanSheet() {
+  if (!navigator.mediaDevices?.getUserMedia) return toast('This browser cannot use the camera: type the code instead');
+  let stream, done = false, raf = 0;
+  const { el, close } = sheet(`<h2 class="center">Scan a treasure card</h2>
+    <div style="position:relative;background:#000;aspect-ratio:1;overflow:hidden;border:1px solid var(--brass)">
+      <video id="scanVid" playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
+      <div style="position:absolute;inset:18%;border:3px solid rgba(243,217,142,.85);border-radius:6px;box-shadow:0 0 0 999px rgba(0,0,0,.35)"></div></div>
+    <p class="dim center" id="scanMsg" style="font-size:15px;margin:10px 0 0">Starting the camera…</p>`,
+    { onClose: () => { done = true; cancelAnimationFrame(raf); stream?.getTracks().forEach(t => t.stop()); } });
+  const msg = m => { const p = el.querySelector('#scanMsg'); if (p) p.textContent = m; };
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+  } catch (e) { msg('No camera access. Allow the camera for this site, or type the code.'); return; }
+  if (done) { stream.getTracks().forEach(t => t.stop()); return; }
+  const v = el.querySelector('#scanVid');
+  v.srcObject = stream; await v.play().catch(() => {});
+  let detect;
+  if ('BarcodeDetector' in window) {
+    try { const bd = new BarcodeDetector({ formats: ['qr_code'] }); detect = async () => (await bd.detect(v))[0]?.rawValue; } catch {}
+  }
+  if (!detect) {
+    try { const jsQR = await loadJsQR(); const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+      detect = async () => { const w = v.videoWidth, h = v.videoHeight; if (!w) return null; const k = Math.min(1, 640 / Math.max(w, h));
+        cv.width = Math.round(w * k); cv.height = Math.round(h * k); cx.drawImage(v, 0, 0, cv.width, cv.height);
+        return jsQR(cx.getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height, { inversionAttempts: 'dontInvert' })?.data; };
+    } catch (e) { msg(e.message); return; }
+  }
+  msg('Point it at the QR on the card.');
+  let busy = false, last = '';
+  const tick = async () => {
+    if (done) return;
+    if (!busy) {
+      busy = true;
+      try {
+        const text = await detect();
+        const c = text && readClaim(text);
+        if (text && !c && text !== last) { last = text; msg('That QR is not a treasure card.'); }
+        if (c) {
+          if (c.room && c.room !== room) { if (text !== last) { last = text; msg(`That card is for room ${c.room}, not ${room}.`); } }
+          else { done = true; navigator.vibrate?.(60); close(); act({ type: 'claimLoot', charId: me, card: c.card }).catch(() => {}); return; }
+        }
+      } catch {}
+      busy = false;
+    }
+    raf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
 // Foe ability alerts can arrive in bunches (e.g. Enrage + Call the Horde): show them one after another.
 const alerts = [];
 let alerting = false;
@@ -381,7 +444,7 @@ function skeleton() {
     <div class="bag" id="bag"></div>
     <div class="rule"><span class="gem"></span>Sets &amp; Synergies<span class="gem"></span></div>
     <div id="sets"></div>
-    <div class="row" style="margin-top:10px"><input class="field grow" id="claimCode" placeholder="Treasure code" maxlength="6" style="text-transform:uppercase"><button class="btn sm" id="claimBtn">Claim</button></div>
+    <div class="row" style="margin-top:10px"><input class="field grow" id="claimCode" placeholder="Treasure code" maxlength="6" style="text-transform:uppercase"><button class="btn sm" id="claimBtn">Claim</button><button class="btn sm solid" id="scanBtn">📷 Scan</button></div>
     <div class="rule"><span class="gem"></span>Attributes<span class="gem"></span></div>
     <div class="stats" id="stats"></div>
     <div class="rule"><span class="gem"></span>Chronicle<span class="gem"></span></div>
@@ -414,6 +477,7 @@ function skeleton() {
     const b = t.closest('[data-bag]');
     if (b) return bagSheet(b.dataset.bag);
     if (t.closest('#claimBtn')) { const v = $('#claimCode').value.trim(); if (v) act({ type: 'claimLoot', charId: me, card: v }).then(() => $('#claimCode').value = '').catch(() => {}); return; }
+    if (t.closest('#scanBtn')) return scanSheet();
     if (t.closest('#openStall')) return stallSheet();
     const wr = t.closest('[data-ware]');
     if (wr) return wareSheet(wr.dataset.ware);

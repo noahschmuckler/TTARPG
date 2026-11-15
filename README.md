@@ -4,7 +4,7 @@ Phone-first hero sheets and a GM headquarters for a tabletop dungeon crawl playe
 
 - **Players** scan a QR code, forge a hero, and play from their phone: health and energy orbs, an Attack button that tells them how many d6 to roll, tappable minions, powers that glow when charged, and loot reveals.
 - **GM** (desktop or tablet) sees every hero live and can change anything: damage, healing, energy, summon foes onto a hero, hand out loot, end the round, undo.
-- **Loot cards**: print QR treasure cards, hide them on the board, and players scan them to claim the item.
+- **Loot cards**: print QR treasure cards, hide them on the board, and players scan them with the 📷 Scan button in their app (or type the code) to claim the item.
 
 ## Rules in one minute
 
