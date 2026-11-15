@@ -46,8 +46,8 @@ export function scenePressure(adv, a, s) {
 export function partyPower(state, derive, partyDamagePerRound) {
   const heroes = state.order.map(id => state.characters[id]).filter(Boolean);
   let hp = 0, kills = 0;
-  for (const ch of heroes) { const s = derive(ch); hp += s.maxHp; kills += s.dice * 0.5 + s.dice / 6 * (s.cleave || 0); }
-  return { dpr: partyDamagePerRound(state, 0), hp, kills: Math.round(kills * 10) / 10, heroes: heroes.length, round: state.round };
+  for (const ch of heroes.filter(c => !c.away)) { const s = derive(ch); hp += s.maxHp; kills += s.dice * 0.5 + s.dice / 6 * (s.cleave || 0); }
+  return { dpr: partyDamagePerRound(state, 0), hp, kills: Math.round(kills * 10) / 10, heroes: heroes.filter(c => !c.away).length, round: state.round };
 }
 
 const r10 = x => Math.round(x / 10) * 10;
@@ -82,7 +82,7 @@ export function planScene(adv, a, s, anchor) {
     const armor = f.armor ?? (boss ? 35 : 20);
     // armor cuts every hit, so size health against the damage that actually gets through
     const hp = Math.max(boss ? 4000 : 1000, r500((anchor.dpr || 3000) * (1 - armor / 100) * (boss ? BOSS_ROUNDS : ELITE_ROUNDS) * p * size));
-    return { type: 'spawn', etype: type, count: 1, name: f.name, hp, armor, attacks, damage, abilities: f.abilities || [], ability: f.ability || '' };
+    return { type: 'spawn', etype: type, count: 1, name: f.name, hp, armor, attacks, damage, abilities: f.abilities || [], ability: f.ability || '', at: f.at || 0, ...(f.wake ? { wake: f.wake } : {}) };
   };
   const minionNames = (sc.minions && sc.minions.length) ? sc.minions : ['Minion'];
   const minionSpawns = n => {
@@ -91,11 +91,18 @@ export function planScene(adv, a, s, anchor) {
     return Object.entries(by).map(([name, count]) => ({ type: 'spawn', etype: 'minion', count, name }));
   };
   const rest = minionTotal - first, later = waves - 1;
-  const out = [{ at: 0, spawns: [...bosses.map(b => big(b, 'boss')), ...elites.map(e => big(e, 'elite')), ...minionSpawns(first)] }];
+  const bigs = [...bosses.map(b => big(b, 'boss')), ...elites.map(e => big(e, 'elite'))];
+  const out = [{ at: 0, spawns: [...bigs.filter(b => !b.at), ...minionSpawns(first)] }];
   for (let w = 1; w <= later; w++) {
     const n = Math.floor(rest / later) + (w <= rest % later ? 1 : 0);
     if (n > 0) out.push({ at: w, spawns: minionSpawns(n) });
   }
+  for (const b of bigs.filter(b => b.at)) {           // staged foes: they arrive at a later End round
+    let w = out.find(x => x.at === b.at);
+    if (!w) { w = { at: b.at, spawns: [] }; out.push(w); }
+    w.spawns.unshift(b);
+  }
+  out.sort((x, y) => x.at - y.at);
   return { pressure: p, template: T.label, minions: minionTotal, waves: out.filter(w => w.spawns.length) };
 }
 
@@ -122,7 +129,7 @@ function cleanFoe(f, abilityKeys) {
   return {
     name: str(f.name || 'Foe', 40), count: Math.max(1, Math.min(Number(f.count) || 1, 8)), size: Math.max(0.2, Math.min(Number(f.size) || 1, 4)),
     abilities: (f.abilities || []).filter(k => abilityKeys.includes(k)), ability: str(f.ability, 140),
-    ...(f.attacks ? { attacks: Math.max(1, Math.min(Number(f.attacks), 6)) } : {}), ...(f.armor != null && f.armor !== '' ? { armor: Math.max(0, Math.min(Number(f.armor) || 0, 90)) } : {}),
+    ...(f.attacks ? { attacks: Math.max(1, Math.min(Number(f.attacks), 6)) } : {}), ...(f.at ? { at: Math.max(0, Math.min(Math.round(Number(f.at)) || 0, 12)) } : {}), ...(f.wake ? { wake: str(f.wake, 600) } : {}), ...(f.armor != null && f.armor !== '' ? { armor: Math.max(0, Math.min(Number(f.armor) || 0, 90)) } : {}),
   };
 }
 export function cleanAdventure(a, abilityKeys) {
@@ -161,13 +168,15 @@ export function parseFoes(text, abilities) {
     const abil = colon < 0 ? '' : head.slice(colon + 1);
     let count = 1, size = 1;
     name = name.replace(/\s+[x×](\d+)\b/i, (_, n) => { count = Number(n); return ''; });
-    name = name.replace(/\s+@\s*([\d.]+)/, (_, n) => { size = Number(n); return ''; }).trim();
+    let at = 0;
+    name = name.replace(/\s+@\s*([\d.]+)/, (_, n) => { size = Number(n); return ''; });
+    name = name.replace(/\s+\+(\d+)\b/, (_, n) => { at = Number(n); return ''; }).trim();
     const keys = abil.split(',').map(x => byName[x.trim().toLowerCase()]).filter(Boolean);
-    return { name: name || 'Foe', count, size, abilities: keys, ability };
+    return { name: name || 'Foe', count, size, abilities: keys, ability, ...(at ? { at } : {}) };
   });
 }
 export function formatFoes(list) {
-  return (list || []).map(f => `${f.name}${f.count > 1 ? ` x${f.count}` : ''}${f.size && f.size !== 1 ? ` @${f.size}` : ''}${f.abilities?.length ? ': ' + f.abilities.join(', ') : ''}${f.ability ? ' | ' + f.ability : ''}`).join('\n');
+  return (list || []).map(f => `${f.name}${f.count > 1 ? ` x${f.count}` : ''}${f.size && f.size !== 1 ? ` @${f.size}` : ''}${f.at ? ` +${f.at}` : ''}${f.abilities?.length ? ': ' + f.abilities.join(', ') : ''}${f.ability ? ' | ' + f.ability : ''}`).join('\n');
 }
 
 // Narration beats, one per line:  Label | text   (sent from Headquarters while the scene runs)
@@ -204,9 +213,11 @@ export const EIGHTH_GATE = {
         notes: 'Full heal: tap Full on each hero card. Open the Rakshasa\'s stall if you like. Then begin The Seals.',
         intro: "The tunnel ends in a blast of white. You climb out onto the mountain's shoulder, where the wind screams over a field of blue ice, and someone has left a fire burning in a ring of black stones. Above you the ice rises in terraces toward a great gate of carved green stone set into the peak. Three glowing seals hold it shut. Below the seals, the ice is cracked, and red light seeps from the cracks like blood under skin. For now, nothing moves. Warm your hands. It won't last." },
       { name: 'The Seals', template: 'elitepack', chests: 1, minions: ['Frozen Dead'],
-        elites: [F('Green Slaad', ['sweep'], 'Holds Seal I'), F('Skelespider', ['leech'], 'Holds Seal II'), F('Relentless Killer', ['enrage', 'stoneskin'], 'Holds Seal III')],
-        notes: 'While any seal holds: tap "The dead leak" at every End round (1 Frozen Dead per hero). Send a seal beat as each guard falls. When all three fall: Scene clear, then full heal before the gate.',
-        intro: "The seals blaze as you step onto the field. Three guardians turn to face you: a hulking green slaad croaking at Seal I, a skeletal spider unfolding beside Seal II, and at Seal III a still, patient figure that has never once in its long life stopped walking toward its prey. Under your boots, the red cracks split wider, and something cold and grey begins to climb out.",
+        elites: [F('Green Slaad', ['sweep'], 'Holds Seal I'),
+          F('Skelespider', ['leech'], 'Holds Seal II', { at: 2, wake: 'Seal II flares violet. On its frozen plinth the skeletal spider twitches, then unfolds leg by leg, and turns every one of its empty eye sockets toward you.' }),
+          F('Relentless Killer', ['enrage', 'stoneskin'], 'Holds Seal III', { at: 4, wake: 'Seal III blazes. The figure on the last plinth, still as a statue until now, takes one step down onto the ice. Then another. It does not hurry. It never has.' })],
+        notes: 'Guards wake in turn (automatic): the Slaad now, the Skelespider at End round 2, the Killer at End round 4. While any seal holds: tap "The dead leak" at every End round (1 Frozen Dead per hero). Send a seal beat as each guard falls. All three down: Scene clear, then full heal.',
+        intro: "The seals blaze as you step onto the field. Three guardians stand on frozen plinths, but only one is awake: a hulking green slaad at Seal I, croaking as it turns toward you. Beside Seal II a skeletal spider lies folded and still. At Seal III a figure waits like a statue. Under your boots, the red cracks split wider, and something cold and grey begins to climb out.",
         beats: [
           { label: 'The dead leak', repeat: true, minions: { name: 'Frozen Dead', perHero: 1 }, text: "The red cracks pulse, and the frozen dead claw their way up through the ice, one for each of you." },
           { label: 'Seal I breaks', text: "Seal I shatters with a sound like a bell cracking. High on the gate, a carved stone eyelid lifts, just a sliver. Something behind it is watching now." },

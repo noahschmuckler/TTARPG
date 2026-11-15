@@ -677,3 +677,31 @@ test('scene beats narrate and can bring in sized foes, per hero or named', async
   assert.equal(t.length, 2);
   assert.ok(t[0].hp >= 1000 && t[0].attacks === 1 && t[0].abilities.includes('leech'));
 });
+
+test('away heroes are not counted; staged scene foes wake on their End round', async () => {
+  const { EIGHTH_GATE, partyPower } = await import('../public/adventure.js');
+  const s = newGame('AWAY');
+  const ids = ['ironclad', 'ranger', 'runepriest', 'arcanist'].map(c => apply(s, { type: 'createCharacter', name: c, cls: c }).result.charId);
+  const four = partyPower(s, derive, (await import('../public/engine.js')).partyDamagePerRound);
+  apply(s, { type: 'setAway', charId: ids[3], away: true });
+  const three = partyPower(s, derive, (await import('../public/engine.js')).partyDamagePerRound);
+  assert.equal(three.heroes, 3);
+  assert.ok(three.dpr < four.dpr && three.hp < four.hp);
+  apply(s, { type: 'adventureSet', adventure: EIGHTH_GATE });
+  apply(s, { type: 'sceneSelect', act: 2, scene: 1 });
+  apply(s, { type: 'sceneBegin' });
+  const has = n => Object.values(s.enemies).some(e => e.name === n);
+  assert.ok(has('Green Slaad') && !has('Skelespider') && !has('Relentless Killer'));
+  apply(s, { type: 'sceneBeat', i: 0 });   // the dead leak: 3 heroes at the table
+  apply(s, { type: 'endRound' });
+  assert.ok(!has('Skelespider'));
+  apply(s, { type: 'endRound' });
+  assert.ok(has('Skelespider') && !has('Relentless Killer'));
+  apply(s, { type: 'endRound' }); apply(s, { type: 'endRound' });
+  assert.ok(has('Relentless Killer'));
+  // nobody attacks the absent hero
+  apply(s, { type: 'spawn', etype: 'minion', count: 2, target: ids[3] });
+  apply(s, { type: 'clearEnemies', target: ids[0] });
+  const r = apply(s, { type: 'enemyPhase' });
+  assert.ok(!s.defense?.[ids[3]]);
+});

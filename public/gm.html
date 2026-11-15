@@ -244,7 +244,7 @@ function advBar() {
 
 // Turn tracker: who has used their action, where the enemy phase stands, and whether the round can end.
 function turnState() {
-  const heroes = S.order.map(id => S.characters[id]).filter(Boolean).map(ch => {
+  const heroes = S.order.map(id => S.characters[id]).filter(c => c && !c.away).map(ch => {
     const acted = actedThisRound(S, ch), left = strikeLeft(ch);
     let st;
     if (ch.hp <= 0) st = 'down';
@@ -322,10 +322,11 @@ function heroCard(ch) {
   const minions = foes.filter(f => f.type === 'minion');
   const bigs = foes.filter(f => f.type !== 'minion');
   const id = ch.id;
-  return `<div class="plate hc ${ch.hp <= 0 ? 'down' : ''}">
+  return `<div class="plate hc ${ch.hp <= 0 ? 'down' : ''}" ${ch.away ? 'style="opacity:.45"' : ''}>${ch.away ? '<div class="sub" style="color:#9fc3ff;margin-bottom:4px">💤 Sitting out tonight: not counted for difficulty or the enemy phase</div>' : ''}
     <div class="row">
       <div class="grow"><div class="nm">${heroIcon(ch, C.glyph, 34)} ${esc(ch.name)}</div><div class="sub">${ch.marker != null ? `◰${ch.marker} · ` : ''}${C.name} · move ${s.move}″ · ${reachText(s.reach)} · ${s.dice} dice · ${fmt(s.damage)}/hit · ${s.armor}% armor · ${tallyText(ch)}</div>${ch.hidden ? '<div class="sub" style="color:#c8b6ff">◐ Hidden: skipped by the enemy phase</div>' : ''}${ch.pit ? `<div class="sub" style="color:#e8b07a">🕳 In the chasm${ch.pit.tries ? ` · ${ch.pit.tries} failed climb${ch.pit.tries > 1 ? 's' : ''}` : ''}: skipped by the enemy phase</div>` : ''}</div>
       <a class="icon" href="play.html?room=${room}&as=${id}" target="_blank" title="Open this hero's phone view">↗</a>
+      <button class="icon" data-a="away" data-id="${id}" title="${ch.away ? 'Back at the table' : 'Sitting out tonight: not counted for difficulty, never attacked'}">${ch.away ? '🪑' : '💤'}</button>
       <button class="icon" data-a="pit" data-id="${id}" title="${ch.pit ? 'Pull out of the chasm' : 'Drop into the chasm (fall damage)'}">${ch.pit ? '🧗' : '🕳'}</button>
       <button class="icon" data-a="edit" data-id="${id}" title="Edit">✎</button>
     </div>
@@ -440,6 +441,7 @@ function onClick(e) {
     case 'undo': return act({ type: 'undo' });
     case 'save': return saveBackup();
     case 'sceneBegin': return act({ type: 'sceneBegin' });
+    case 'away': { const c = S.characters[id]; if (c && confirm(c.away ? `Bring ${c.name} back to the table?` : `${c.name} sits out tonight? They won't count for difficulty and foes won't attack them.`)) act({ type: 'setAway', charId: id, away: !c.away }); return; }
     case 'pit': { const c = S.characters[id]; if (!c) return; if (c.pit ? confirm(`Pull ${c.name} out of the chasm?`) : confirm(`Drop ${c.name} into the chasm? They take fall damage and must climb out.`)) act({ type: 'setPit', charId: id, inPit: !c.pit }); return; }
     case 'beat': {
       const adv = S.adventure, r = adv?.running; if (!r) return;

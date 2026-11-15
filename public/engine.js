@@ -370,6 +370,7 @@ function adventureWaves(state, ev, rng) {
   for (const w of due) {
     for (const sp of w.spawns) spawnFoes(state, sp, ev, rng);
     log(state, `📜 Reinforcements: ${waveText(w)}!`, 'spawn');
+    for (const sp of w.spawns) if (sp.wake) { log(state, `${sp.name}: ${sp.wake}`, 'narrate'); ev.push({ type: 'narrate', title: `${sp.name} wakes`, text: sp.wake }); }
   }
 }
 function needAction(state, ch, kind) {
@@ -433,7 +434,7 @@ function foeDamaged(state, e, ev, rng) {
     if (key === 'enrage') { e.attacks = (e.attacks || 1) + 1; e.damage = Math.round(e.damage * 1.5); foeAnnounce(state, e, key, ev, `Now ${e.attacks} attacks of ${fmt(e.damage)}.`); }
     if (key === 'stoneskin') { e.armor = Math.min(75, (e.armor || 0) + 20); foeAnnounce(state, e, key, ev, `Armor rises to ${e.armor}%.`); }
     if (key === 'horde') {
-      const heroes = state.order.filter(id => state.characters[id].hp > 0);
+      const heroes = state.order.filter(id => state.characters[id].hp > 0 && !state.characters[id].away);
       ev.push(...spawnMinionsFor(state, heroes.length * 2, heroes, rng));
       foeAnnounce(state, e, key, ev, `${heroes.length * 2} minions rush the heroes!`);
     }
@@ -463,7 +464,7 @@ function foesRoundEnd(state, ev, rng) {
       foeAnnounce(state, e, 'regen', ev, `Heals ${fmt(amt)} (${fmt(e.hp)} / ${fmt(e.maxHp)}).`);
     }
     if (foeHas(e, 'summoner')) {
-      const targets = e.target ? [e.target] : state.order;
+      const targets = e.target ? [e.target] : state.order.filter(id => !state.characters[id].away);
       ev.push(...spawnMinionsFor(state, 2, targets, rng));
       foeAnnounce(state, e, 'summoner', ev, `2 minions answer the call.`);
     }
@@ -495,6 +496,7 @@ export const POWER_FACTOR = 1.2;
 export function partyDamagePerRound(state, armor = 0) {
   let total = 0;
   for (const id of state.order) {
+    if (state.characters[id].away) continue;   // not at the table tonight
     const s = derive(state.characters[id]);
     total += s.dice * s.damage * (2 / 6 + s.critMult / 6);
   }
@@ -643,7 +645,7 @@ export function newCharacter(name, cls, rng = Math.random) {
   return ch;
 }
 
-const GM_ONLY = new Set(['sceneBeat', 'setPit', 'adventureSet', 'adventureClear', 'adventureDifficulty', 'sceneSelect', 'adventureReanchor', 'sceneBegin', 'sceneClear', 'freeAction', 'merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
+const GM_ONLY = new Set(['setAway', 'sceneBeat', 'setPit', 'adventureSet', 'adventureClear', 'adventureDifficulty', 'sceneSelect', 'adventureReanchor', 'sceneBegin', 'sceneClear', 'freeAction', 'merchant', 'grantConsumable', 'crownDeal', 'crownReveal', 'crownEnd', 'narrate', 'moveMinions', 'enemyPhase', 'cancelDefense', 'hurt', 'heal', 'energy', 'spawn', 'removeEnemy', 'moveEnemy', 'damageEnemy', 'endRound', 'giveLoot', 'makeLootCards', 'clearLootCards', 'planCampaign', 'voidCard', 'editCharacter', 'removeCharacter', 'clearEnemies', 'enemyStrike', 'editEnemy', 'rescaleEnemy', 'boardSync', 'boardSize']);
 export const isGmOnly = type => GM_ONLY.has(type);
 
 // Apply one action. Mutates `state`. Returns { events, error, result }.
@@ -942,7 +944,7 @@ export function apply(state, a, rng = Math.random) {
         if (!r) throw new Error('No scene is running');
         const sc = adv.acts[r.act].scenes[r.scene], bt = sc.beats?.[a.i];
         if (!bt) throw new Error('No such beat');
-        const heroes = state.order.filter(id => state.characters[id].hp > 0).length;
+        const heroes = state.order.filter(id => state.characters[id].hp > 0 && !state.characters[id].away).length;
         for (const sp of planBeat(adv, r.act, r.scene, adv.anchors[r.act] || partyPower(state, derive, partyDamagePerRound), bt, heroes)) spawnFoes(state, sp, ev, rng);
         if (bt.text) { log(state, `${bt.label}: ${bt.text}`, 'narrate'); ev.push({ type: 'narrate', title: bt.label, text: bt.text }); }
         break;
@@ -1130,7 +1132,7 @@ export function apply(state, a, rng = Math.random) {
         const targets = [];
         for (const id of state.order) {
           const c = state.characters[id];
-          if (c.hp <= 0 || c.hidden || c.pit) continue;
+          if (c.hp <= 0 || c.hidden || c.pit || c.away) continue;
           const groups = defenseGroups(state, c);
           if (!groups.length) continue;
           // Surrounded: 3+ foes on you → one extra die against you (added to the most numerous group).
@@ -1200,6 +1202,13 @@ export function apply(state, a, rng = Math.random) {
         const total = roll + (ch.pit.tries || 0) + (a.help ? 1 : 0);
         if (total >= CLIMB_TARGET) { delete ch.pit; log(state, `🧗 ${ch.name} hauls themselves out of the chasm!`, 'heal'); ev.push({ type: 'climbed', charId: ch.id, out: true }); }
         else { ch.pit.tries = (ch.pit.tries || 0) + 1; log(state, `🧗 ${ch.name} slips back down (${total} of ${CLIMB_TARGET}). Next try +${ch.pit.tries}.`, 'info'); ev.push({ type: 'climbed', charId: ch.id, out: false }); }
+        break;
+      }
+      case 'setAway': { // GM: a player can't make it tonight. Their hero sits out: not counted for difficulty, never attacked.
+        need();
+        if (a.away) { ch.away = true; for (const e of Object.values(state.enemies)) if (e.target === ch.id) e.target = null; if (state.defense) delete state.defense[ch.id]; }
+        else delete ch.away;
+        log(state, a.away ? `${ch.name} sits this one out.` : `${ch.name} is back at the table.`, 'info');
         break;
       }
       case 'setPit': { // GM: put a hero in the chasm (fall included) or pull them out
@@ -1370,7 +1379,7 @@ export function planCampaign(state, a, rng = Math.random) {
   if (!scenes.length) throw new Error('Add at least one scene');
   const per = { ...CACHE_DEFAULTS, ...(a.per || {}) };
   for (const k of Object.keys(per)) per[k] = Math.max(1, Math.min(Number(per[k]) || CACHE_DEFAULTS[k], 6));
-  const classes = (a.classes?.length ? a.classes : state.order.map(id => state.characters[id].cls)).filter(c => CLASSES[c]);
+  const classes = (a.classes?.length ? a.classes : state.order.filter(id => !state.characters[id].away).map(id => state.characters[id].cls)).filter(c => CLASSES[c]);
   const party = Math.max(1, classes.length || 4);
 
   // 1. pick featured sets: GM-pinned sets first, then each hero's favourite, their second picks, then the rest
