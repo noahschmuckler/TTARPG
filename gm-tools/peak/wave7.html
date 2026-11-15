@@ -1,0 +1,34 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#1b1712}</style></head><body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" width="1040" height="1060"></svg>
+<script>window.PLINTHS = { slaad: '(Seal I broken)', spider: 'empty', killer: 'empty' };</script>
+<script src="board.js"></script>
+<script>
+const b = drawPeak(document.getElementById('s'), [
+  { t: 'SP', kind: 'boss', c: 10, r: 24.6, reach: 6 },
+  { t: 'K', kind: 'boss', c: 8.6, r: 32.4 },
+  { t: 'R', kind: 'ranged', c: 11, r: 21.4 },
+  { t: 'M', kind: 'melee', c: 3, r: 33.6 },
+  { t: 'M', kind: 'melee', c: 18.5, r: 31.4 },
+  { t: 'R', kind: 'ranged', c: 7, r: 19.6 },
+], 'The Seals · round 25 · 3 new Frozen Dead', 'Yellow rings: new from the leak. Grey: already on the board. The heroes stay where they are.');
+const NS='http://www.w3.org/2000/svg', svg=document.getElementById('s');
+const ring=(c,r,col,dash)=>{const e=document.createElementNS(NS,'circle');e.setAttribute('cx',b.X(c));e.setAttribute('cy',b.Y(r));e.setAttribute('r',17);e.setAttribute('fill','none');e.setAttribute('stroke',col);e.setAttribute('stroke-width',3);if(dash)e.setAttribute('stroke-dasharray','4 3');svg.appendChild(e)};
+ring(3,33.6,'#ffd84a'); ring(18.5,31.4,'#ffd84a'); ring(7,19.6,'#ffd84a');
+ring(10,24.6,'#ddd',1); ring(8.6,32.4,'#ddd',1); ring(11,21.4,'#ddd',1);
+let y = b.ly + 10; const t = (s, size = 14, fill = '#f3e6cc', bold) => { b.el('text', { x: b.LX, y, 'font-size': size, fill, 'font-family': 'Georgia', 'font-weight': bold ? 'bold' : 'normal' }, s); y += size + 8; };
+t('New from the leak (yellow)', 16, '#ffe9a8', true);
+t('crack B: 1 melee');
+t('crack C: 1 melee');
+t('by the far-left dark cube: 1 archer');
+y += 8; t('Already on the board (grey)', 16, '#ffe9a8', true);
+t('SP  Skelespider 10,948: pin worn off,');
+t('    webs reach 6″ (ring)');
+t('K   Relentless Killer 20,932, by Gonk');
+t('R   last round\'s archer: it steps');
+t('    1 square in, within 6″ of Lyle');
+y += 8; t('Remember', 16, '#ffe9a8', true);
+t('Foes now roll 4+ to hit (5+ against');
+t('    Gonk and Steve), 6s crit');
+t('Skelespider dies: Seal II, card TMRMFU');
+t('Killer dies: Seal III, card WFPC7T');
+</script></body></html>
