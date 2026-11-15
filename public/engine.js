@@ -968,7 +968,7 @@ export function apply(state, a, rng = Math.random) {
       // ------------------------------------------------ the Rakshasa's stall
       case 'merchant': { // GM opens or closes the stall
         const open = !!a.open;
-        const line = pickLine(open ? LINES.open : LINES.close, rng);
+        const line = String(a.line || '').trim().slice(0, 300) || pickLine(open ? LINES.open : LINES.close, rng); // the GM may script his line
         state.merchant = { open, line };
         log(state, open ? `🪔 The Rakshasa unrolls his rug. "${line}"` : `🪔 The Rakshasa rolls up his rug. "${line}"`, 'narrate');
         ev.push({ type: 'merchant', open, line });
