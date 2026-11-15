@@ -146,6 +146,8 @@
   .tog { padding: 8px 12px; border: 1px solid var(--line); background: var(--obsidian); font-family: var(--display); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 14px; color: var(--ink-dim); }
   .tog b { color: var(--brass-hi); }
   .tog.on { background: #2c2514; border-color: var(--brass); color: var(--ink); }
+  .tog.on.slam { background: #3b1a0c; border-color: #ff8a3d; color: #ffd2b0; }
+  .crashq { margin-top: 12px; padding: 8px 10px; border: 1px solid #6e3818; background: #1a0f08; }
   .tog.fixed { background: #1d1830; border-color: #6b5aa8; color: #c8b6ff; }
   .tgrp { margin-top: 8px; }
   .tgrp .tl { font-family: var(--display); letter-spacing: .14em; text-transform: uppercase; font-size: 11px; color: var(--ink-faint); margin-bottom: 4px; }
@@ -659,7 +661,7 @@ function powerSheet(key) {
   const a = powersFor(ch).find(x => x.key === key);
   if (!a) return;
   const T = a.target || null;
-  const canSlam = a.effects.some(f => f.kind === 'push' || f.kind === 'pull');
+  const canSlam = a.effects.some(f => f.kind === 'push' || f.kind === 'pull') && a.effects.some(f => f.kind === 'areaHit');
   const counts = a.effects.some(f => f.kind === 'areaHit');
   const picked = new Map(); // enemyId -> 'hit' | 'slam'
   const allies = new Set();
@@ -672,24 +674,37 @@ function powerSheet(key) {
     return groups.map(([label, list]) => `<div class="tgrp"><div class="tl">${label}</div><div class="tlist">${list.map(e => {
       const st = picked.get(e.id) || '';
       return e.type === 'minion'
-        ? `<button class="minion tsel ${st}" data-pick="${e.id}">${st === 'slam' ? '✸' : '☠'}</button>`
-        : `<button class="bigsel ${st}" data-pick="${e.id}">${esc(e.name)}${st === 'slam' ? ' ✸ slammed' : ''}</button>`;
+        ? `<button class="minion tsel ${st}" data-pick="${e.id}">☠</button>`
+        : `<button class="bigsel ${st}" data-pick="${e.id}">${esc(e.name)}${st === 'slam' ? ' ✸' : ''}</button>`;
     }).join('')}</div></div>`).join('');
   };
+  // Pushed foes that survive the hit: ask outright whether each one crashed (+1 hit), so it is never forgotten.
+  const crashFoes = () => canSlam ? [...picked.keys()].map(id => S.enemies[id]).filter(e => e && e.type !== 'minion') : [];
+  const crashQ = () => {
+    const list = crashFoes();
+    if (!list.length) return '';
+    return `<div class="crashq"><div class="instr" style="font-size:16px;color:#ffb27d">✸ Push them now. Did it crash into a <b>wall</b>, a <b>foe</b> or a <b>ledge</b>? <span class="faint">(+1 hit)</span></div>
+      ${list.map(e => { const v = picked.get(e.id); return `<div class="row" style="gap:8px;margin:6px 0;align-items:center"><span style="flex:1;font-size:16px">${esc(e.name)}</span>
+        <button class="tog ${v === 'hit' && answered.has(e.id) ? 'on' : ''}" data-crash="${e.id}" data-v="no">No</button>
+        <button class="tog ${v === 'slam' ? 'on slam' : ''}" data-crash="${e.id}" data-v="yes">✸ Crashed</button></div>`; }).join('')}</div>`;
+  };
+  const answered = new Set();
   const draw = () => {
     const used = actedThisRound(S, ch) || (ch.pit ? 'pit' : null);
     const ok = ch.energy >= a.cost && ch.hp > 0 && !used;
     const max = T?.max || 99;
     const allyOk = !T?.allies || !T.exactly || allies.size === T.exactly;
+    const crashOk = crashFoes().every(e => answered.has(e.id));
     const nFoes = picked.size + table;
     el.querySelector('#ps').innerHTML = `<h2>${esc(a.name)}</h2><p class="dim" style="font-size:17px;margin:4px 0 10px">${esc(a.text)}</p>
-      ${T?.foes ? `<div class="instr" style="font-size:16px">Tap every foe ${esc(T.foes)}${T.max ? ` (up to ${T.max})` : ''}.${canSlam ? ' <span style="color:#ffb27d">Tap again if it was slammed into a wall, a foe or off a ledge (+1 hit).</span>' : ''}</div>
+      ${T?.foes ? `<div class="instr" style="font-size:16px">Tap every foe ${esc(T.foes)}${T.max ? ` (up to ${T.max})` : ''}.</div>
         ${tokens()}
         ${counts ? `<div class="row" style="margin-top:8px;gap:8px"><span class="dim" style="font-size:14px">Untracked minions caught on the table:</span><button class="mini" data-table="-1">−</button><b class="num">${table}</b><button class="mini" data-table="1">+</button></div>` : ''}` : ''}
+      ${crashQ()}
       ${T?.allies ? `<div class="instr" style="font-size:16px">Choose ${T.exactly === 1 ? 'the ally' : 'allies'} ${esc(T.allies)}:</div>
         <div class="row" style="flex-wrap:wrap;gap:8px">${S.order.filter(id => id !== me).map(id => `<button class="tog ${allies.has(id) ? 'on' : ''}" data-ally="${id}">${esc(S.characters[id].name)}</button>`).join('') || '<span class="faint">No allies in the game.</span>'}</div>` : ''}
       <p class="num" style="font-size:20px;margin:14px 0 8px;color:${ok ? 'var(--aether)' : 'var(--ink-faint)'}">Costs ${a.cost} energy · you have ${ch.energy}</p>
-      <button class="btn aether block attack" id="use" ${ok && allyOk ? '' : 'disabled'}>${used === 'pit' ? 'Climb out of the chasm first' : used ? 'Action used this round' : !ok ? 'Not enough energy' : !allyOk ? 'Choose an ally' : T?.foes && !nFoes && !T.optional ? 'Unleash (no foes caught)' : a.attack ? 'Unleash & attack' : 'Unleash'}</button>
+      <button class="btn aether block attack" id="use" ${ok && allyOk && crashOk ? '' : 'disabled'}>${used === 'pit' ? 'Climb out of the chasm first' : used ? 'Action used this round' : !ok ? 'Not enough energy' : !allyOk ? 'Choose an ally' : !crashOk ? 'Answer: did it crash?' : T?.foes && !nFoes && !T.optional ? 'Unleash (no foes caught)' : a.attack ? 'Unleash & attack' : 'Unleash'}</button>
       ${a.attack ? '<p class="faint center" style="font-size:13px;margin:6px 0 0">An attack power: the attack roll opens next, all as one action.</p>' : ''}`;
     el.dataset.max = max;
   };
@@ -699,10 +714,11 @@ function powerSheet(key) {
     if (pk) {
       const id = pk.dataset.pick, cur = picked.get(id);
       if (!cur) { if (picked.size >= (T.max || 99)) return toast(`Up to ${T.max}`); picked.set(id, 'hit'); }
-      else if (cur === 'hit' && canSlam) picked.set(id, 'slam');
-      else picked.delete(id);
+      else { picked.delete(id); answered.delete(id); }
       return draw();
     }
+    const cr = e.target.closest('[data-crash]');
+    if (cr) { const id = cr.dataset.crash; picked.set(id, cr.dataset.v === 'yes' ? 'slam' : 'hit'); answered.add(id); return draw(); }
     const tb = e.target.closest('[data-table]'); if (tb) { table = Math.max(0, table + Number(tb.dataset.table)); return draw(); }
     const al = e.target.closest('[data-ally]');
     if (al) { const id = al.dataset.ally; if (allies.has(id)) allies.delete(id); else { if (T.exactly === 1) allies.clear(); allies.add(id); } return draw(); }
