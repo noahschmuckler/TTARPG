@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#1b1712}</style></head><body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" width="1040" height="1060"></svg>
+<script>window.PLINTHS = { slaad: 'awake · 18,840', spider: 'asleep: wakes End rd 20', killer: 'asleep: wakes End rd 22' };</script>
+<script src="board.js"></script>
+<script>
+const b = drawPeak(document.getElementById('s'), [
+  { t: 'M', kind: 'melee', c: 3, r: 31.6 }, { t: 'M', kind: 'melee', c: 5.5, r: 31.6 },
+  { t: 'M', kind: 'melee', c: 9.6, r: 33.6 }, { t: 'M', kind: 'melee', c: 14, r: 33.6 },
+  { t: 'M', kind: 'melee', c: 18, r: 31.3 }, { t: 'R', kind: 'ranged', c: 21.5, r: 31.2 },
+  { t: 'R', kind: 'ranged', c: 9.6, r: 20.3 }, { t: 'R', kind: 'ranged', c: 14.6, r: 20.3 },
+], 'The Seals · round 20 · 8 new Frozen Dead', '5 arrived on their own + 3 from the leak: 5 melee, 3 archers. The archer already shooting Lyle stays where it is.');
+let y = b.ly + 10; const t = (s, size = 14, fill = '#f3e6cc', bold) => { b.el('text', { x: b.LX, y, 'font-size': size, fill, 'font-family': 'Georgia', 'font-weight': bold ? 'bold' : 'normal' }, s); y += size + 8; };
+t('Placing them', 16, '#ffe9a8', true);
+t('crack B: 2 melee');
+t('crack D: 2 melee');
+t('crack C: 1 melee + 1 archer');
+t('crack A: 2 archers');
+t('(plus last round\'s archer, on Lyle)');
+y += 8; t('On the board', 16, '#ffe9a8', true);
+t('Green Slaad 18,840 / 23,500');
+t('    (the hammer\'s pin has worn off)');
+t('9 Frozen Dead');
+y += 8; t('End of this round', 16, '#ffe9a8', true);
+t('Skelespider wakes (automatic)');
+t('+ the leak: 3 more dead');
+t('End of round 22: Relentless Killer');
+</script></body></html>
