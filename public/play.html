@@ -748,6 +748,7 @@ function attackSheet() {
   if (ch.hp <= 0) return;
   let hits = null, sixes = 0, high = false, flank = false, brand = false;
   const brandable = ch.cls !== 'runepriest' && Object.values(S.enemies).some(e => e.branded);
+  const face = ch.buffs?.faceBonus || 0;   // Emberburst: +1 to every die
   const hiding = ch.hidden ? HIDDEN_DICE : 0;
   const leapt = ch.buffs?.label === 'Leaping Strike' && actedThisRound(S, ch) === 'attackPower';
   const { el, close } = sheet('<div id="as"></div>');
@@ -763,9 +764,10 @@ function attackSheet() {
         ${brandable ? `<button class="tog ${brand ? 'on' : ''}" data-tog="brand">ᛟ Branded target <b>+1</b></button>` : ''}
         ${hiding ? `<span class="tog on fixed">◐ From hiding <b>+${hiding}</b></span>` : ''}
       </div>
-      <div class="instr">Roll <b>${pool}</b> dice. How many show <b>4+</b>?</div>
+      ${face ? `<p style="margin:4px 0;color:#ffb27d">${esc(ch.buffs.label || 'Your power')}: <b>+${face}</b> to every die.</p>` : ''}
+      <div class="instr">Roll <b>${pool}</b> dice. How many show <b>${4 - face}+</b>?</div>
       <div class="pick">${Array.from({ length: pool + 1 }, (_, i) => `<button class="${hits === i ? 'on' : ''}" data-h="${i}">${i}</button>`).join('')}</div>
-      ${hits > 0 ? `<div class="instr">Of those, how many are <b>6</b>? <span class="faint" style="font-size:14px">crits strike elites & bosses for ×${s.critMult}${s.cleave ? ` · each also grants ${s.cleave} free minion kill` : ''}</span></div>
+      ${hits > 0 ? `<div class="instr">Of those, how many are <b>${face ? `${6 - face}+` : '6'}</b>? <span class="faint" style="font-size:14px">crits strike elites & bosses for ×${+(s.critMult + (ch.buffs.critAdd || 0)).toFixed(2)}${s.cleave ? ` · each also grants ${s.cleave} free minion kill` : ''}</span></div>
         <div class="pick">${Array.from({ length: hits + 1 }, (_, i) => `<button class="${sixes === i ? 'on' : ''}" data-s="${i}">${i}</button>`).join('')}</div>` : ''}
       <div style="height:16px"></div>
       <button class="btn solid block attack" id="strike" ${hits === null ? 'disabled' : ''}>${hits === null ? 'Count your dice' : hits === 0 ? 'A miss' : `Ready ${hits} hit${hits > 1 ? 's' : ''}`}</button>`;
@@ -848,7 +850,7 @@ function powerSheet(key) {
     if (e.target.closest('#use')) {
       close();
       act({ type: 'ability', charId: me, key, targets: [...picked.keys()], slammed: [...picked].filter(([, v]) => v === 'slam').map(([k]) => k), allies: [...allies], tableKills: table })
-        .then(() => { if (a.attack && !strikeLeft(S.characters[me])) setTimeout(attackSheet, 350); }).catch(() => {});
+        .then(() => { const c = S.characters[me]; if (a.attack && !c.strike?.hits && !c.strike?.crits) setTimeout(attackSheet, 350); }).catch(() => {});
     }
   });
 }

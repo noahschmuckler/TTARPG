@@ -398,7 +398,7 @@ test('attack powers: pure charge-ups read "Make an attack with…", positional p
   ch.bag.push(it); E.apply(s, { type: 'equip', charId: ch.id, itemId: it.id });
   const ember = E.powersFor(ch).find(p => p.key === 'set:emberheart');
   assert.equal(ember.attack, true);
-  assert.match(ember.text, /^Make an attack with ×1\.5 damage/);
+  assert.match(ember.text, /make an attack with \+1 die, ×1\.5 damage and \+1 to every die/);   // Emberburst: burst, then the attack
 });
 
 test('kill tally: minions, elites and bosses are credited to the killing blow', async () => {
@@ -833,4 +833,58 @@ test('runepriest: harder hits, Runebrand, reactions; Drown and Chill drain energ
   apply(s, { type: 'endRound' });
   assert.equal(brute.branded, undefined);
   assert.ok(I.energy < 25 + 10, 'Chill drains at End round');
+});
+
+test('Emberburst: a burst that always lands, then an empowered attack', () => {
+  const s = newGame('EB');
+  const id = apply(s, { type: 'createCharacter', name: 'Orrin', cls: 'arcanist' }).result.charId;
+  const ch = s.characters[id];
+  const it = makeItem('set', Math.random, 'weapon', 1, 'emberheart'); ch.bag.push(it);
+  apply(s, { type: 'equip', charId: id, itemId: it.id });
+  apply(s, { type: 'spawn', etype: 'elite', name: 'Ogre', hp: 5000, armor: 0, target: id });
+  apply(s, { type: 'spawn', etype: 'minion', count: 2, target: id });
+  const ogre = Object.values(s.enemies).find(e => e.type === 'elite');
+  const mins = Object.values(s.enemies).filter(e => e.type === 'minion');
+  ch.energy = 100;
+  apply(s, { type: 'ability', charId: id, key: 'set:emberheart', targets: [ogre.id, mins[0].id] });
+  assert.equal(ogre.hp, 5000 - derive(ch).damage);           // 1 plain hit, no multiplier
+  assert.equal(s.enemies[mins[0].id], undefined);             // minion burned
+  assert.equal(ch.acted.kind, 'attackPower');
+  assert.deepEqual([ch.buffs.bonusDice, ch.buffs.faceBonus, ch.buffs.damageMult], [1, 1, 1.5]);
+  assert.equal(apply(s, { type: 'attack', charId: id, hits: 2, sixes: 1 }).error, undefined);   // the attack is part of the same action
+});
+
+test('Hammer of the Deep: Strike, Slam and Throw, strengthened by Thunderforge', () => {
+  const s = newGame('HM');
+  const id = apply(s, { type: 'createCharacter', name: 'Hild', cls: 'runepriest' }).result.charId;
+  const ch = s.characters[id];
+  const keys = powersFor(ch).map(p => p.key);
+  assert.ok(['hammer', 'hammerSlam', 'hammerThrow'].every(k => keys.includes(k)));
+  for (const slot of ['weapon', 'helm', 'gloves']) equipSet(s, id, 'thunderforge', slot);   // 3 pieces
+  const P = Object.fromEntries(powersFor(ch).map(p => [p.key, p]));
+  assert.equal(P.hammer.effects[0].hits, 4);                 // 3 + 1 per 2 pieces
+  assert.equal(P.hammerSlam.effects[0].hits, 2);             // 2 hits each at 3+
+  assert.equal(P.hammerThrow.attack, true);
+  assert.deepEqual([P.hammerThrow.effects[0].bonusDice, P.hammerThrow.effects[0].critAdd], [5, 0.75]);
+  assert.ok(P.hammer.effects.some(e => e.kind === 'smite' && e.kills === 3));   // chain lightning
+  apply(s, { type: 'spawn', etype: 'elite', name: 'Ogre', hp: 20000, armor: 0, target: id });
+  const ogre = Object.values(s.enemies)[0];
+  ch.energy = 100;
+  apply(s, { type: 'ability', charId: id, key: 'hammerThrow' });
+  assert.equal(ch.strike.minion, 3);
+  apply(s, { type: 'attack', charId: id, hits: 1, sixes: 1 });
+  apply(s, { type: 'spend', charId: id, enemyId: ogre.id });
+  assert.equal(ogre.hp, 20000 - Math.round(derive(ch).damage * (derive(ch).critMult + 0.75)));
+});
+
+test('Rune of Recall: the swap ends with a hit on every foe next to the new square', () => {
+  const s = newGame('RC');
+  const pr = apply(s, { type: 'createCharacter', name: 'Hild', cls: 'runepriest' }).result.charId;
+  const al = apply(s, { type: 'createCharacter', name: 'Gonk', cls: 'ironclad' }).result.charId;
+  apply(s, { type: 'spawn', etype: 'elite', name: 'Ogre', hp: 5000, armor: 0, target: al });
+  const ogre = Object.values(s.enemies)[0];
+  s.characters[pr].energy = 100;
+  apply(s, { type: 'ability', charId: pr, key: 'recall', allies: [al], targets: [ogre.id] });
+  assert.equal(ogre.target, pr);
+  assert.equal(ogre.hp, 5000 - derive(s.characters[pr]).damage);
 });

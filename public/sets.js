@@ -30,8 +30,12 @@ export const SETS = {
     pieces: { weapon: 'Emberheart Rod', amulet: 'Emberheart Locket', ring: 'Emberheart Signet', gloves: 'Emberheart Wraps' },
     bonuses: [{ n: 2, stats: { damage: 150 } }, { n: 3, stats: { critMult: 0.5 } }],
     power: {
-      key: 'set:emberheart', name: 'Emberburst', cost: 35,
-      effects: n => [{ kind: 'buff', damageMult: [0, 1.5, 1.75, 2, 2.5][n], ...(n >= 3 ? { bonusDice: 1 } : {}) }],
+      key: 'set:emberheart', name: 'Emberburst', cost: 35, strike: true,
+      target: { foes: 'one foe in your reach, and every foe next to it' },
+      // The burst always lands: 1 hit on the target and on each foe next to it (minions die). Then an attack with
+      // the set's multiplier, +1 die (+2 at 3 pieces) and +1 to every die rolled (hits on 3+, crits on 5+).
+      effects: n => [{ kind: 'areaHit', hits: 1 }, { kind: 'buff', damageMult: [0, 1.5, 1.75, 2, 2.5][n], bonusDice: n >= 3 ? 2 : 1, faceBonus: 1 }],
+      text: (n, fx) => { const b = fx.find(e => e.kind === 'buff') || {}; return `A burst of embers hits the foe you pick and every foe next to it: 1 hit each, no roll needed (minions die). Then make an attack with +${b.bonusDice} ${b.bonusDice > 1 ? 'dice' : 'die'}, ×${+(b.damageMult || 1).toFixed(2)} damage and +1 to every die: hits on 3+, crits on 5+. Tap the foes the burst caught.`; },
     },
   },
   stonewarden: {

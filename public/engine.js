@@ -38,9 +38,12 @@ export const CLASSES = {
     name: 'Runepriest', role: 'Forge-cleric', glyph: 'ᛟ',
     base: { maxHp: 1400, armor: 20, dice: 3, damage: 400, energyPerKill: 6, energyPerRound: 18, maxEnergy: 100, critMult: 2, cleave: 0, move: 5, reach: 6 },
     abilities: [
-      { key: 'recall', name: 'Rune of Recall', cost: 30, tags: ['move', 'ally'], text: 'Swap places with an ally within 10″. Neither of you suffers free blows, foes turn on whoever now stands before them, and you both gain a 300 rune ward.', target: { allies: 'within 10″', exactly: 1 }, effects: [{ kind: 'swap', ward: 300 }] },
+      { key: 'recall', name: 'Rune of Recall', cost: 30, tags: ['move', 'ally'], text: 'Swap places with an ally within 10″. Neither of you suffers free blows, foes turn on whoever now stands before them, and you both gain a 300 rune ward. Then every foe next to your new square takes 1 hit: tap them.', target: { allies: 'within 10″', exactly: 1, foes: 'next to your new square', optional: true }, effects: [{ kind: 'swap', ward: 300 }, { kind: 'areaHit', hits: 1 }] },
       { key: 'circle', name: 'Warding Circle', cost: 45, tags: ['zone', 'ally'], text: 'Draw a 2″ circle around you: you and every ally inside gain a 300 rune ward and heal 10%. Foes can\'t step into it until End round. Tap the allies inside.', target: { allies: 'inside the circle', optional: true }, effects: [{ kind: 'allyWard', amount: 300, heal: 10, rune: true }] },
-      { key: 'hammer', name: 'Hammer of the Deep', cost: 40, tags: ['push', 'pin'], text: 'Strike one foe within 6″: it takes 3 hits, is knocked 3″ straight back and is Pinned until End round. Push it, then tap it.', target: { foes: 'one foe within 6″', max: 1 }, effects: [{ kind: 'areaHit', hits: 3 }, { kind: 'push', inches: 3 }, { kind: 'pin' }] },
+      // Hammer of the Deep: three modes, each 40 energy, chosen each use. Thunderforge pieces strengthen all three (see hammerModes).
+      { key: 'hammer', name: 'Hammer of the Deep: Strike', cost: 40, tags: ['push', 'pin'], target: { foes: 'one foe within 6″', max: 1 }, effects: [{ kind: 'areaHit', hits: 3 }, { kind: 'push', inches: 3 }, { kind: 'pin' }] },
+      { key: 'hammerSlam', name: 'Hammer of the Deep: Slam', cost: 40, tags: ['area'], target: { foes: 'next to you' }, effects: [{ kind: 'areaHit', hits: 1 }] },
+      { key: 'hammerThrow', name: 'Hammer of the Deep: Throw', cost: 40, tags: [], strike: true, effects: [{ kind: 'buff', bonusDice: 2 }] },
     ],
     // Runebrand (passive): every foe he damages is branded until End round; other heroes attack it with +1 die.
     // Reactions: outside his turn, without using his action, each once per round, paid from energy.
@@ -237,11 +240,32 @@ export function describeEffects(effects, { attack = false } = {}) {
   }).filter(Boolean).join('; ').replace(/^./, c => c.toUpperCase()) + '.';
 }
 
+// Hammer of the Deep with n Thunderforge pieces: chain lightning (+n minion-only hits) in every mode;
+// Strike +1 hit per 2 pieces; Slam 2 hits each at 3+; Throw +n dice and +0.25 crit multiplier per piece.
+function hammerMode(a, n) {
+  const chain = n ? [{ kind: 'smite', kills: n }] : [];
+  const lightning = n ? ` Thunderforge: chain lightning gives ${n} minion-only hit${n > 1 ? 's' : ''} for the nearest minions within 6″.` : '';
+  if (a.key === 'hammer') {
+    const hits = 3 + Math.floor(n / 2);
+    return { ...a, effects: [{ kind: 'areaHit', hits }, { kind: 'push', inches: 3 }, { kind: 'pin' }, ...chain],
+      text: `Strike one foe within 6″ you can see: it takes ${hits} hits, is knocked 3″ straight back (+1 hit if it's slammed) and is Pinned until End round. Push it, then tap it.${lightning}` };
+  }
+  if (a.key === 'hammerSlam') {
+    const hits = n >= 3 ? 2 : 1;
+    return { ...a, effects: [{ kind: 'areaHit', hits }, ...chain], text: `Strike the ground: every foe next to you takes ${hits} hit${hits > 1 ? 's' : ''}. Tap them.${lightning}` };
+  }
+  if (a.key === 'hammerThrow') {
+    return { ...a, effects: [{ kind: 'buff', bonusDice: 2 + n, ...(n ? { critAdd: 0.25 * n } : {}) }, ...chain],
+      text: `Make an attack with +${2 + n} dice${n ? ` (crits ×${0.25 * n} stronger)` : ''}. Spend the hits one at a time on foes within 6″ you can see; the same foe can't take two hits in a row, but can be hit again after another. The hammer flies to each in turn, then returns.${lightning}` };
+  }
+  return a;
+}
+
 // Class powers plus any set powers unlocked by equipped pieces (strengthened by synergies).
 export function powersFor(ch) {
   const C = CLASSES[ch.cls] || CLASSES.ironclad;
-  const out = C.abilities.map(a => { const x = { ...a, effects: a.effects || [a.effect] }; x.attack = isAttackPower(x); return x; });
   const counts = setCounts(ch);
+  const out = C.abilities.map(a => { const x = hammerMode({ ...a, effects: a.effects || [a.effect] }, counts.thunderforge || 0); x.attack = isAttackPower(x); return x; });
   const syn = activeSynergies(ch, counts);
   for (const [k, n] of Object.entries(counts)) {
     const P = SETS[k].power;
@@ -254,8 +278,8 @@ export function powersFor(ch) {
       if (m.cost) cost += m.cost;
       boosted.push(sy.name);
     }
-    const attack = isAttackPower({ effects });
-    out.push({ key: P.key, name: P.name, cost: Math.max(5, cost), text: describeEffects(effects, { attack }), effects, attack, set: k, pieces: n, boosted });
+    const attack = isAttackPower({ effects, strike: P.strike });
+    out.push({ key: P.key, name: P.name, cost: Math.max(5, cost), text: P.text ? P.text(n, effects) : describeEffects(effects, { attack }), effects, attack, set: k, pieces: n, boosted, ...(P.strike ? { strike: true } : {}), ...(P.target ? { target: P.target } : {}) });
   }
   return out;
 }
@@ -759,7 +783,8 @@ export function apply(state, a, rng = Math.random) {
       case 'attack': { // roll → bank a pool of hits to spend by tapping foes
         need();
         if (ch.hp <= 0) throw new Error(`${ch.name} is down`);
-        if (strikeLeft(ch) && !a.force) throw new Error('Spend your remaining hits first');
+        // An attack power's own roll may follow its bonus minion hits (chain lightning), which stay banked.
+        if (strikeLeft(ch) && !a.force && !(actedThisRound(state, ch) === 'attackPower' && !ch.strike?.hits && !ch.strike?.crits)) throw new Error('Spend your remaining hits first');
         if (ch.pit) throw new Error(`${ch.name} is in the chasm: climb out first`);
         needAction(state, ch, 'attack');
         ch.acted = { round: state.round, kind: 'attack' };
@@ -771,7 +796,7 @@ export function apply(state, a, rng = Math.random) {
         const hits = Math.max(0, Math.min(Number(a.hits) || 0, pool));
         const sixes = Math.max(0, Math.min(Number(a.sixes) || 0, hits));
         const minion = (ch.strike?.minion || 0) + sixes * s.cleave;
-        ch.strike = { hits: hits - sixes, crits: sixes, minion, mult: ch.buffs.damageMult || 1 };
+        ch.strike = { hits: hits - sixes, crits: sixes, minion, mult: ch.buffs.damageMult || 1, ...(ch.buffs.critAdd ? { critAdd: ch.buffs.critAdd } : {}) };
         ch.buffs = {};
         if (ch.hidden) { delete ch.hidden; log(state, `${ch.name} strikes from hiding!`, 'hit'); }
         ev.push({ type: 'rolled', charId: ch.id, hits, sixes });
@@ -797,7 +822,7 @@ export function apply(state, a, rng = Math.random) {
           if (!st.hits && !st.crits) throw new Error('Those hits only work on minions');
           const crit = st.crits > 0;
           if (crit) st.crits--; else st.hits--;
-          const raw = s.damage * (crit && !foeHas(e, 'thickhide') ? s.critMult : 1) * (st.mult || 1);
+          const raw = s.damage * (crit && !foeHas(e, 'thickhide') ? s.critMult + (st.critAdd || 0) : 1) * (st.mult || 1);
           const dmg = Math.round(raw * (1 - (e.armor || 0) / 100));
           e.hp = Math.max(0, e.hp - dmg);
           if (ch.cls === 'runepriest') e.branded = true;   // Runebrand
@@ -843,6 +868,8 @@ export function apply(state, a, rng = Math.random) {
         if (f.kind === 'buff') {
           ch.buffs.bonusDice = (ch.buffs.bonusDice || 0) + (f.bonusDice || 0);
           ch.buffs.damageMult = Math.max(ch.buffs.damageMult || 1, f.damageMult || 1);
+          if (f.faceBonus) ch.buffs.faceBonus = Math.max(ch.buffs.faceBonus || 0, f.faceBonus);
+          if (f.critAdd) ch.buffs.critAdd = (ch.buffs.critAdd || 0) + f.critAdd;
           ch.buffs.label = ab.name;
         } else if (f.kind === 'ward') {
           for (const c of f.who === 'party' ? party : [ch]) addWard(c, f.amount, f.rune);
